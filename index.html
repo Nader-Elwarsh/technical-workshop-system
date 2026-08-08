@@ -1,8 +1,10 @@
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
     <title>الورشة الفنية</title>
 
     <style>
@@ -47,6 +49,13 @@
             padding: 25px 15px;
             text-align: center;
             box-shadow: 0 3px 10px rgba(0,0,0,0.08);
+            text-decoration: none;
+            color: #222;
+            display: block;
+        }
+
+        .card:active {
+            transform: scale(0.98);
         }
 
         .icon {
@@ -69,18 +78,148 @@
             }
         }
     </style>
+
 </head>
 
 <body>
 
 <header>
+
     <h1>🔧 الورشة الفنية</h1>
-    <p>نظام إدارة وتشغيل الورشة</p>
+
+    <p>
+        نظام إدارة وتشغيل الورشة
+    </p>
+
 </header>
+
 
 <div class="container">
 
     <div class="dashboard">
+
+
+        <!-- العملاء -->
+
+        <a href="customers.html" class="card">
+
+            <div class="icon">
+                👥
+            </div>
+
+            <h2>
+                العملاء
+            </h2>
+
+            <p>
+                إدارة العملاء
+            </p>
+
+        </a>
+
+
+        <!-- طلبات الصيانة -->
+
+        <div class="card">
+
+            <div class="icon">
+                🔧
+            </div>
+
+            <h2>
+                طلبات الصيانة
+            </h2>
+
+            <p>
+                متابعة الطلبات
+            </p>
+
+        </div>
+
+
+        <!-- الفنيين -->
+
+        <div class="card">
+
+            <div class="icon">
+                👨‍🔧
+            </div>
+
+            <h2>
+                الفنيين
+            </h2>
+
+            <p>
+                إدارة فريق العمل
+            </p>
+
+        </div>
+
+
+        <!-- المخزون -->
+
+        <div class="card">
+
+            <div class="icon">
+                📦
+            </div>
+
+            <h2>
+                المخزون
+            </h2>
+
+            <p>
+                قطع الغيار
+            </p>
+
+        </div>
+
+
+        <!-- الحسابات -->
+
+        <div class="card">
+
+            <div class="icon">
+                💰
+            </div>
+
+            <h2>
+                الحسابات
+            </h2>
+
+            <p>
+                المدفوعات والإيرادات
+            </p>
+
+        </div>
+
+
+        <!-- التقارير -->
+
+        <div class="card">
+
+            <div class="icon">
+                📊
+            </div>
+
+            <h2>
+                التقارير
+            </h2>
+
+            <p>
+                تقارير وإحصائيات
+            </p>
+
+        </div>
+
+
+    </div>
+
+</div>
+
+</body>
+
+</html>    <div class="dashboard">
 
         <div class="card">
             <div class="icon">👥</div>
