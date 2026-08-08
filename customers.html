@@ -3,11 +3,9 @@
 
 <head>
 <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-<meta name="viewport"
-      content="width=device-width, initial-scale=1.0">
-
-<title>العملاء - الورشة الفنية</title>
+<title>إدارة العملاء - الورشة الفنية</title>
 
 <style>
 
@@ -22,63 +20,73 @@ body {
     color: #222;
 }
 
-/* الهيدر */
+/* ================= HEADER ================= */
 
 header {
     background: #07152f;
     color: white;
-    padding: 25px 20px;
     text-align: center;
+    padding: 25px 15px;
 }
 
 header h1 {
-    margin: 0 0 8px;
+    margin: 0 0 10px;
     font-size: 28px;
 }
 
 header p {
     margin: 0;
-    opacity: 0.9;
+    font-size: 15px;
 }
 
-/* الحاوية */
+/* ================= CONTAINER ================= */
 
 .container {
     max-width: 900px;
     margin: auto;
-    padding: 20px;
+    padding: 15px;
 }
 
-/* الأزرار */
+/* ================= SEARCH ================= */
 
-button {
-    border: none;
-    cursor: pointer;
+.search-box {
+    background: white;
+    padding: 15px;
+    border-radius: 14px;
+    margin-bottom: 18px;
+}
+
+.search-box input {
+    width: 100%;
+    padding: 14px;
+    border: 1px solid #ccc;
+    border-radius: 10px;
+    font-size: 16px;
     font-family: inherit;
 }
 
-.main-button {
+/* ================= BUTTON ================= */
+
+.add-button {
+    width: 100%;
+    padding: 15px;
+    border: none;
+    border-radius: 10px;
     background: #07152f;
     color: white;
-    padding: 14px 20px;
-    border-radius: 10px;
     font-size: 17px;
-    width: 100%;
+    cursor: pointer;
     margin-bottom: 15px;
 }
 
-.main-button:active {
-    transform: scale(0.98);
-}
-
-/* صندوق الإضافة */
+/* ================= ADD FORM ================= */
 
 .add-box {
     background: white;
     padding: 20px;
-    border-radius: 15px;
+    border-radius: 14px;
     margin-bottom: 20px;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    display: none;
 }
 
 .add-box h2 {
@@ -86,16 +94,14 @@ button {
     color: #07152f;
 }
 
-/* الحقول */
-
 .form-group {
     margin-bottom: 15px;
 }
 
 .form-group label {
     display: block;
-    margin-bottom: 6px;
     font-weight: bold;
+    margin-bottom: 6px;
 }
 
 .form-group input,
@@ -114,55 +120,42 @@ button {
 }
 
 .save-button {
-    background: #16803c;
-    color: white;
     width: 100%;
     padding: 14px;
-    border-radius: 10px;
+    background: #16803c;
+    color: white;
+    border: none;
+    border-radius: 9px;
     font-size: 17px;
 }
 
-/* البحث */
-
-.search-box {
-    background: white;
-    padding: 15px;
-    border-radius: 15px;
-    margin-bottom: 20px;
-}
-
-.search-box input {
-    width: 100%;
-    padding: 13px;
-    border: 1px solid #ccc;
-    border-radius: 9px;
-    font-size: 16px;
-}
-
-/* عنوان العملاء */
+/* ================= TITLE ================= */
 
 .customers-title {
     background: #07152f;
     color: white;
-    padding: 15px;
-    border-radius: 12px;
-    margin-bottom: 15px;
     text-align: center;
+    padding: 20px;
+    border-radius: 14px;
+    margin-bottom: 15px;
 }
 
-/* بطاقة العميل */
+.customers-title h2 {
+    margin: 0 0 10px;
+}
+
+/* ================= CUSTOMER CARD ================= */
 
 .customer {
     background: white;
     padding: 18px;
     border-radius: 14px;
     margin-bottom: 15px;
-    border: 1px solid #e0e0e0;
-    box-shadow: 0 2px 7px rgba(0,0,0,0.06);
+    border: 1px solid #ddd;
 }
 
 .customer-name {
-    font-size: 20px;
+    font-size: 21px;
     font-weight: bold;
     margin-bottom: 10px;
 }
@@ -170,7 +163,7 @@ button {
 .customer-id {
     color: #555;
     font-size: 14px;
-    margin-bottom: 8px;
+    margin-bottom: 10px;
 }
 
 .customer p {
@@ -180,36 +173,33 @@ button {
 
 .delete-button {
     width: 100%;
-    margin-top: 15px;
     padding: 13px;
+    margin-top: 12px;
     background: #d60000;
     color: white;
+    border: none;
     border-radius: 9px;
     font-size: 16px;
 }
 
-.delete-button:active {
-    transform: scale(0.98);
-}
-
-/* حالة عدم وجود عملاء */
+/* ================= EMPTY ================= */
 
 .empty {
     background: white;
     padding: 25px;
+    border-radius: 12px;
     text-align: center;
     color: #777;
-    border-radius: 12px;
 }
 
-/* رسالة */
+/* ================= MESSAGE ================= */
 
 .message {
     display: none;
     padding: 13px;
-    margin-bottom: 15px;
     border-radius: 9px;
     text-align: center;
+    margin-bottom: 15px;
     font-weight: bold;
 }
 
@@ -223,20 +213,20 @@ button {
     color: #a00000;
 }
 
-/* زر الرجوع */
+/* ================= BACK ================= */
 
 .back-button {
     display: block;
     text-align: center;
     text-decoration: none;
-    background: #555;
+    background: #333;
     color: white;
-    padding: 13px;
+    padding: 14px;
     border-radius: 10px;
     margin-top: 25px;
 }
 
-/* الموبايل */
+/* ================= MOBILE ================= */
 
 @media (max-width: 600px) {
 
@@ -248,17 +238,15 @@ button {
         padding: 12px;
     }
 
-    .customer-name {
-        font-size: 19px;
-    }
-
 }
 
 </style>
 
 </head>
 
+
 <body>
+
 
 <header>
 
@@ -279,16 +267,43 @@ button {
     <div id="message" class="message"></div>
 
 
-    <!-- إضافة عميل -->
+    <!-- البحث -->
 
-    <div class="add-box">
+    <div class="search-box">
 
-        <h2>➕ إضافة عميل جديد</h2>
+        <input
+            type="text"
+            id="searchInput"
+            placeholder="🔎 ابحث بالاسم أو الهاتف أو رقم العميل..."
+            oninput="displayCustomers()"
+        >
+
+    </div>
+
+
+    <!-- زر إضافة -->
+
+    <button
+        class="add-button"
+        onclick="toggleAddForm()"
+    >
+        ➕ إضافة عميل جديد
+    </button>
+
+
+    <!-- نموذج إضافة العميل -->
+
+    <div
+        id="addBox"
+        class="add-box"
+    >
+
+        <h2>➕ تسجيل عميل جديد</h2>
 
 
         <div class="form-group">
 
-            <label for="customerName">
+            <label>
                 اسم العميل
             </label>
 
@@ -303,7 +318,7 @@ button {
 
         <div class="form-group">
 
-            <label for="customerPhone">
+            <label>
                 رقم الهاتف
             </label>
 
@@ -318,7 +333,7 @@ button {
 
         <div class="form-group">
 
-            <label for="customerAddress">
+            <label>
                 العنوان
             </label>
 
@@ -333,13 +348,13 @@ button {
 
         <div class="form-group">
 
-            <label for="customerNotes">
+            <label>
                 ملاحظات
             </label>
 
             <textarea
                 id="customerNotes"
-                placeholder="أي ملاحظات عن العميل..."
+                placeholder="ملاحظات عن العميل..."
             ></textarea>
 
         </div>
@@ -355,21 +370,7 @@ button {
     </div>
 
 
-    <!-- البحث -->
-
-    <div class="search-box">
-
-        <input
-            type="text"
-            id="searchInput"
-            placeholder="🔎 ابحث بالاسم أو الهاتف أو رقم العميل..."
-            oninput="displayCustomers()"
-        >
-
-    </div>
-
-
-    <!-- عنوان -->
+    <!-- عنوان العملاء -->
 
     <div class="customers-title">
 
@@ -378,19 +379,21 @@ button {
         </h2>
 
         <div>
+
             عدد العملاء:
-            <span id="customerCount">0</span>
+            <strong id="customerCount">0</strong>
+
         </div>
 
     </div>
 
 
-    <!-- العملاء -->
+    <!-- قائمة العملاء -->
 
     <div id="customersList"></div>
 
 
-    <!-- الرجوع -->
+    <!-- العودة -->
 
     <a
         href="index.html"
@@ -399,45 +402,46 @@ button {
         🏠 العودة إلى الرئيسية
     </a>
 
+
 </div>
 
 
 <script>
 
-/* =====================================================
-   إعدادات النظام
-===================================================== */
+/* ==================================================
+   إعدادات التخزين
+================================================== */
 
 const CUSTOMERS_KEY = "customers";
 
 const COUNTER_KEY = "customerCounter";
 
 
-/* =====================================================
-   قراءة العملاء من LocalStorage
-===================================================== */
+/* ==================================================
+   قراءة العملاء
+================================================== */
 
 function getCustomers() {
 
-    try {
+    const data =
+        localStorage.getItem(CUSTOMERS_KEY);
 
-        const data = localStorage.getItem(CUSTOMERS_KEY);
-
-        if (!data) {
-            return [];
-        }
-
-        const customers = JSON.parse(data);
-
-        if (Array.isArray(customers)) {
-            return customers;
-        }
+    if (!data) {
 
         return [];
 
-    } catch (error) {
+    }
 
-        console.error("خطأ في قراءة العملاء:", error);
+    try {
+
+        const customers =
+            JSON.parse(data);
+
+        return Array.isArray(customers)
+            ? customers
+            : [];
+
+    } catch {
 
         return [];
 
@@ -446,9 +450,9 @@ function getCustomers() {
 }
 
 
-/* =====================================================
+/* ==================================================
    حفظ العملاء
-===================================================== */
+================================================== */
 
 function saveCustomers(customers) {
 
@@ -460,9 +464,9 @@ function saveCustomers(customers) {
 }
 
 
-/* =====================================================
-   الحصول على الرقم التالي للعميل
-===================================================== */
+/* ==================================================
+   رقم العميل
+================================================== */
 
 function getNextCustomerId() {
 
@@ -471,70 +475,48 @@ function getNextCustomerId() {
             localStorage.getItem(COUNTER_KEY)
         ) || 0;
 
+
     counter++;
+
 
     localStorage.setItem(
         COUNTER_KEY,
         counter
     );
 
-    return "CUS-" + String(counter).padStart(4, "0");
+
+    return "CUS-" +
+        String(counter).padStart(4, "0");
 
 }
 
 
-/* =====================================================
-   مزامنة العداد مع العملاء الموجودين
-===================================================== */
+/* ==================================================
+   إظهار / إخفاء نموذج الإضافة
+================================================== */
 
-function syncCounter() {
+function toggleAddForm() {
 
-    const customers = getCustomers();
-
-    let maxNumber = 0;
-
-    customers.forEach(customer => {
-
-        if (
-            customer.id &&
-            customer.id.startsWith("CUS-")
-        ) {
-
-            const number =
-                parseInt(
-                    customer.id.replace("CUS-", "")
-                );
-
-            if (!isNaN(number) && number > maxNumber) {
-                maxNumber = number;
-            }
-
-        }
-
-    });
+    const box =
+        document.getElementById("addBox");
 
 
-    const currentCounter =
-        parseInt(
-            localStorage.getItem(COUNTER_KEY)
-        ) || 0;
+    if (box.style.display === "block") {
 
+        box.style.display = "none";
 
-    if (maxNumber > currentCounter) {
+    } else {
 
-        localStorage.setItem(
-            COUNTER_KEY,
-            maxNumber
-        );
+        box.style.display = "block";
 
     }
 
 }
 
 
-/* =====================================================
+/* ==================================================
    إضافة عميل
-===================================================== */
+================================================== */
 
 function addCustomer() {
 
@@ -566,12 +548,10 @@ function addCustomer() {
         .trim();
 
 
-    /* التحقق من الاسم */
-
     if (!name) {
 
         showMessage(
-            "من فضلك اكتب اسم العميل",
+            "اكتب اسم العميل أولًا",
             "error"
         );
 
@@ -579,13 +559,11 @@ function addCustomer() {
 
     }
 
-
-    /* التحقق من الهاتف */
 
     if (!phone) {
 
         showMessage(
-            "من فضلك اكتب رقم الهاتف",
+            "اكتب رقم الهاتف أولًا",
             "error"
         );
 
@@ -594,10 +572,9 @@ function addCustomer() {
     }
 
 
-    const customers = getCustomers();
+    const customers =
+        getCustomers();
 
-
-    /* إنشاء العميل */
 
     const customer = {
 
@@ -642,7 +619,12 @@ function addCustomer() {
         .value = "";
 
 
-    /* تحديث القائمة */
+    /* إخفاء النموذج */
+
+    document
+        .getElementById("addBox")
+        .style.display = "none";
+
 
     displayCustomers();
 
@@ -655,13 +637,15 @@ function addCustomer() {
 }
 
 
-/* =====================================================
+/* ==================================================
    عرض العملاء
-===================================================== */
+================================================== */
 
 function displayCustomers() {
 
-    const customers = getCustomers();
+    const customers =
+        getCustomers();
+
 
     const list =
         document.getElementById(
@@ -677,39 +661,37 @@ function displayCustomers() {
         .toLowerCase();
 
 
-    /* تصفية العملاء */
-
-    const filteredCustomers =
+    const filtered =
         customers.filter(customer => {
 
-            const name =
-                String(customer.name || "")
-                .toLowerCase();
-
-            const phone =
-                String(customer.phone || "")
-                .toLowerCase();
-
-            const id =
-                String(customer.id || "")
-                .toLowerCase();
-
-            const address =
-                String(customer.address || "")
-                .toLowerCase();
-
-
             return (
-                name.includes(search) ||
-                phone.includes(search) ||
-                id.includes(search) ||
-                address.includes(search)
+
+                String(customer.name || "")
+                    .toLowerCase()
+                    .includes(search)
+
+                ||
+
+                String(customer.phone || "")
+                    .toLowerCase()
+                    .includes(search)
+
+                ||
+
+                String(customer.id || "")
+                    .toLowerCase()
+                    .includes(search)
+
+                ||
+
+                String(customer.address || "")
+                    .toLowerCase()
+                    .includes(search)
+
             );
 
         });
 
-
-    /* العدد */
 
     document
         .getElementById("customerCount")
@@ -717,9 +699,7 @@ function displayCustomers() {
         customers.length;
 
 
-    /* لا يوجد عملاء */
-
-    if (filteredCustomers.length === 0) {
+    if (filtered.length === 0) {
 
         list.innerHTML = `
 
@@ -728,7 +708,7 @@ function displayCustomers() {
                 ${
                     customers.length === 0
                     ? "لا يوجد عملاء مسجلون حتى الآن 📋"
-                    : "لا توجد نتائج مطابقة للبحث 🔎"
+                    : "لا توجد نتائج مطابقة 🔎"
                 }
 
             </div>
@@ -740,18 +720,18 @@ function displayCustomers() {
     }
 
 
-    /* عرض العملاء */
-
     list.innerHTML = "";
 
 
-    filteredCustomers
+    filtered
         .slice()
         .reverse()
         .forEach(customer => {
 
+
             const card =
                 document.createElement("div");
+
 
             card.className =
                 "customer";
@@ -769,8 +749,9 @@ function displayCustomers() {
                 <div class="customer-id">
 
                     🆔 رقم العميل:
+
                     <strong>
-                        ${escapeHTML(customer.id || "غير محدد")}
+                        ${escapeHTML(customer.id)}
                     </strong>
 
                 </div>
@@ -778,8 +759,7 @@ function displayCustomers() {
 
                 <p>
 
-                    📞
-                    ${escapeHTML(customer.phone || "غير مسجل")}
+                    📞 ${escapeHTML(customer.phone)}
 
                 </p>
 
@@ -787,26 +767,31 @@ function displayCustomers() {
                 <p>
 
                     📍
-                    ${escapeHTML(customer.address || "غير مسجل")}
+                    ${escapeHTML(
+                        customer.address ||
+                        "غير مسجل"
+                    )}
 
                 </p>
 
 
                 ${
                     customer.notes
-                    ? `
-                        <p>
-                            📝
-                            ${escapeHTML(customer.notes)}
-                        </p>
+                    ?
                     `
-                    : ""
+                    <p>
+                        📝
+                        ${escapeHTML(customer.notes)}
+                    </p>
+                    `
+                    :
+                    ""
                 }
 
 
                 <button
                     class="delete-button"
-                    onclick="deleteCustomer('${escapeAttribute(customer.id)}')"
+                    onclick="deleteCustomer('${customer.id}')"
                 >
 
                     🗑️ حذف العميل
@@ -823,13 +808,14 @@ function displayCustomers() {
 }
 
 
-/* =====================================================
+/* ==================================================
    حذف العميل
-===================================================== */
+================================================== */
 
 function deleteCustomer(id) {
 
-    const customers = getCustomers();
+    const customers =
+        getCustomers();
 
 
     const customer =
@@ -839,45 +825,49 @@ function deleteCustomer(id) {
 
 
     if (!customer) {
+
         return;
+
     }
 
 
     const confirmed =
         confirm(
-            "هل أنت متأكد من حذف العميل:\n\n" +
+            "هل أنت متأكد من حذف العميل؟\n\n" +
             customer.name
         );
 
 
     if (!confirmed) {
+
         return;
+
     }
 
 
-    const newCustomers =
+    const updated =
         customers.filter(
             item => item.id !== id
         );
 
 
-    saveCustomers(newCustomers);
+    saveCustomers(updated);
 
 
     displayCustomers();
 
 
     showMessage(
-        "تم حذف العميل",
+        "تم حذف العميل 🗑️",
         "success"
     );
 
 }
 
 
-/* =====================================================
-   رسائل النظام
-===================================================== */
+/* ==================================================
+   الرسائل
+================================================== */
 
 function showMessage(text, type) {
 
@@ -887,10 +877,13 @@ function showMessage(text, type) {
         );
 
 
-    message.textContent = text;
+    message.textContent =
+        text;
+
 
     message.className =
         "message " + type;
+
 
     message.style.display =
         "block";
@@ -901,550 +894,36 @@ function showMessage(text, type) {
         message.style.display =
             "none";
 
-    },            padding: 20px;
-        }
+    }, 2500);
 
-        .box {
-            background: white;
-            padding: 20px;
-            border-radius: 15px;
-            margin-bottom: 20px;
-            box-shadow: 0 3px 10px rgba(0,0,0,0.07);
-        }
-
-        .box h2 {
-            margin-top: 0;
-        }
-
-        input {
-            width: 100%;
-            box-sizing: border-box;
-            padding: 14px;
-            margin: 7px 0;
-            border: 1px solid #d1d5db;
-            border-radius: 10px;
-            font-size: 16px;
-        }
-
-        button {
-            width: 100%;
-            padding: 14px;
-            border: none;
-            border-radius: 10px;
-            background: #1f2937;
-            color: white;
-            font-size: 16px;
-            margin-top: 10px;
-            cursor: pointer;
-        }
-
-        .customer {
-            background: #f8fafc;
-            border: 1px solid #e5e7eb;
-            border-radius: 12px;
-            padding: 15px;
-            margin-top: 12px;
-        }
-
-        .customer-name {
-            font-size: 19px;
-            font-weight: bold;
-        }
-
-        .customer-id {
-            margin-top: 5px;
-            color: #555;
-            font-size: 14px;
-        }
-
-        .customer p {
-            margin: 8px 0;
-        }
-
-        .delete-button {
-            background: #b91c1c;
-            margin-top: 12px;
-        }
-
-        .empty {
-            text-align: center;
-            color: #777;
-            padding: 20px;
-        }
-    </style>
-
-</head>
-
-<body>
-
-<header>
-
-    <h1>👥 إدارة العملاء</h1>
-
-    <p>
-        الورشة الفنية لصيانة الأجهزة المنزلية والتكييف
-    </p>
-
-</header>
+}
 
 
-<div class="container">
+/* ==================================================
+   حماية النص
+================================================== */
+
+function escapeHTML(text) {
+
+    return String(text)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+
+}
 
 
-    <!-- إضافة عميل -->
-
-    <div class="box">
-
-        <h2>➕ إضافة عميل جديد</h2>
-
-        <input
-            id="name"
-            type="text"
-            placeholder="اسم العميل"
-        >
-
-        <input
-            id="phone"
-            type="tel"
-            placeholder="رقم الهاتف"
-        >
-
-        <input
-            id="address"
-            type="text"
-            placeholder="العنوان"
-        >
-
-        <button onclick="addCustomer()">
-            💾 حفظ العميل
-        </button>
-
-    </div>
-
-
-    <!-- قائمة العملاء -->
-
-    <div class="box">
-
-        <h2>📋 العملاء المسجلون</h2>
-
-        <div id="customers"></div>
-
-    </div>
-
-
-</div>
-
-
-<script>
-
-
-/* ==============================
-   تحميل العملاء المحفوظين
-   ============================== */
-
-let customers =
-    JSON.parse(
-        localStorage.getItem("customers")
-    ) || [];
-
-
-/* ==============================
-   عرض العملاء عند فتح الصفحة
-   ============================== */
+/* ==================================================
+   تشغيل الصفحة
+================================================== */
 
 displayCustomers();
 
-
-/* ==============================
-   إضافة عميل
-   ============================== */
-
-function addCustomer() {
-
-    let name =
-        document.getElementById("name").value.trim();
-
-    let phone =
-        document.getElementById("phone").value.trim();
-
-    let address =
-        document.getElementById("address").value.trim();
-
-
-    /* التحقق من البيانات */
-
-    if (name === "" || phone === "") {
-
-        alert(
-            "من فضلك اكتب اسم العميل ورقم الهاتف"
-        );
-
-        return;
-    }
-
-
-    /* إنشاء رقم العميل */
-
-    let customerNumber =
-        customers.length + 1;
-
-
-    let customerId =
-        "CUS-" +
-        String(customerNumber).padStart(4, "0");
-
-
-    /* إنشاء العميل */
-
-    let customer = {
-
-        id: customerId,
-
-        name: name,
-
-        phone: phone,
-
-        address: address
-    };
-
-
-    /* إضافة العميل */
-
-    customers.push(customer);
-
-
-    /* حفظ العملاء */
-
-    localStorage.setItem(
-        "customers",
-        JSON.stringify(customers)
-    );
-
-
-    /* إعادة عرض العملاء */
-
-    displayCustomers();
-
-
-    /* تنظيف الخانات */
-
-    document.getElementById("name").value = "";
-
-    document.getElementById("phone").value = "";
-
-    document.getElementById("address").value = "";
-
-}
-
-
-/* ==============================
-   عرض العملاء
-   ============================== */
-
-function displayCustomers() {
-
-    let box =
-        document.getElementById("customers");
-
-
-    /* لا يوجد عملاء */
-
-    if (customers.length === 0) {
-
-        box.innerHTML =
-            '<div class="empty">' +
-            'لا يوجد عملاء حتى الآن.' +
-            '</div>';
-
-        return;
-    }
-
-
-    /* تنظيف القائمة */
-
-    box.innerHTML = "";
-
-
-    /* عرض العملاء */
-
-    customers.forEach(function(customer) {
-
-        box.innerHTML += `
-
-            <div class="customer">
-
-                <div class="customer-name">
-
-                    👤 ${customer.name}
-
-                </div>
-
-                <div class="customer-id">
-
-                    🆔 رقم العميل:
-                    ${customer.id}
-
-                </div>
-
-                <p>
-
-                    📞 ${customer.phone}
-
-                </p>
-
-                <p>
-
-                    📍 ${
-                        customer.address ||
-                        "لم يتم تسجيل العنوان"
-                    }
-
-                </p>
-
-                <button
-                    class="delete-button"
-                    onclick="deleteCustomer('${customer.id}')"
-                >
-
-                    🗑️ حذف العميل
-
-                </button>
-
-            </div>
-
-        `;
-
-    });
-
-}
-
-
-/* ==============================
-   حذف العميل
-   ============================== */
-
-function deleteCustomer(customerId) {
-
-    let confirmDelete =
-        confirm(
-            "هل أنت متأكد من حذف هذا العميل؟"
-        );
-
-
-    if (!confirmDelete) {
-
-        return;
-    }
-
-
-    customers =
-        customers.filter(
-            function(customer) {
-
-                return customer.id !== customerId;
-
-            }
-        );
-
-
-    /* تحديث التخزين */
-
-    localStorage.setItem(
-        "customers",
-        JSON.stringify(customers)
-    );
-
-
-    /* تحديث الشاشة */
-
-    displayCustomers();
-
-}
-
-
 </script>
+
 
 </body>
 
-</html>    color: white;
-    font-size: 16px;
-    margin-top: 10px;
-}
-
-.customer {
-    background: #f8fafc;
-    padding: 15px;
-    border-radius: 12px;
-    margin-top: 10px;
-    border: 1px solid #e5e7eb;
-}
-
-.customer strong {
-    font-size: 18px;
-}
-
-.customer p {
-    margin: 8px 0;
-}
-
-.customer-id {
-    color: #555;
-    font-size: 14px;
-}
-
-.empty {
-    text-align: center;
-    color: #777;
-    padding: 20px;
-}
-</style>
-</head>
-
-<body>
-
-<header>
-    <h1>👥 إدارة العملاء</h1>
-    <p>الورشة الفنية</p>
-</header>
-
-<div class="container">
-
-    <div class="box">
-
-        <h2>➕ إضافة عميل جديد</h2>
-
-        <input
-            id="name"
-            type="text"
-            placeholder="اسم العميل"
-        >
-
-        <input
-            id="phone"
-            type="tel"
-            placeholder="رقم الهاتف"
-        >
-
-        <input
-            id="address"
-            type="text"
-            placeholder="العنوان"
-        >
-
-        <button onclick="addCustomer()">
-            💾 حفظ العميل
-        </button>
-
-    </div>
-
-    <div class="box">
-
-        <h2>📋 العملاء المسجلون</h2>
-
-        <div id="customers"></div>
-
-    </div>
-
-</div>
-
-<script>
-
-let customers =
-    JSON.parse(localStorage.getItem("customers")) || [];
-
-displayCustomers();
-
-function addCustomer() {
-
-    let name =
-        document.getElementById("name").value.trim();
-
-    let phone =
-        document.getElementById("phone").value.trim();
-
-    let address =
-        document.getElementById("address").value.trim();
-
-    if (name === "" || phone === "") {
-
-        alert("من فضلك اكتب اسم العميل ورقم الهاتف");
-
-        return;
-    }
-
-    let customer = {
-
-        id: Date.now(),
-
-        name: name,
-
-        phone: phone,
-
-        address: address
-    };
-
-    customers.push(customer);
-
-    localStorage.setItem(
-        "customers",
-        JSON.stringify(customers)
-    );
-
-    displayCustomers();
-
-    document.getElementById("name").value = "";
-
-    document.getElementById("phone").value = "";
-
-    document.getElementById("address").value = "";
-}
-
-function displayCustomers() {
-
-    let box =
-        document.getElementById("customers");
-
-    if (customers.length === 0) {
-
-        box.innerHTML =
-            '<div class="empty">لا يوجد عملاء حتى الآن.</div>';
-
-        return;
-    }
-
-    box.innerHTML = "";
-
-    customers.forEach(function(customer, index) {
-
-        box.innerHTML += `
-
-            <div class="customer">
-
-                <strong>
-                    👤 ${customer.name}
-                </strong>
-
-                <div class="customer-id">
-                    رقم العميل: C-${String(index + 1).padStart(4, "0")}
-                </div>
-
-                <p>
-                    📞 ${customer.phone}
-                </p>
-
-                <p>
-                    📍 ${customer.address || "لم يتم تسجيل العنوان"}
-                </p>
-
-            </div>
-
-        `;
-
-    });
-}
-
-</script>
-
-</body>
 </html>
