@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>العملاء - الورشة الفنية</title>
+
+<style>
+body {
+    margin: 0;
+    font-family: Arial, sans-serif;
+    background: #f4f6f8;
+    color: #222;
+}
+
+header {
+    background: #1f2937;
+    color: white;
+    padding: 20px;
+    text-align: center;
+}
+
+header h1 {
+    margin: 0 0 8px;
+}
+
+header p {
+    margin: 0;
+    color: #d1d5db;
+}
+
+.container {
+    padding: 20px;
+    max-width: 700px;
+    margin: auto;
+}
+
+.box {
+    background: white;
+    padding: 20px;
+    border-radius: 15px;
+    margin-bottom: 20px;
+    box-shadow: 0 3px 10px rgba(0,0,0,0.06);
+}
+
+.box h2 {
+    margin-top: 0;
+}
+
+input {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 14px;
+    margin: 8px 0;
+    border: 1px solid #ddd;
+    border-radius: 10px;
+    font-size: 16px;
+}
+
+button {
+    width: 100%;
+    padding: 14px;
+    border: none;
+    border-radius: 10px;
+    background: #1f2937;
+    color: white;
+    font-size: 16px;
+    margin-top: 10px;
+}
+
+.customer {
+    background: #f8fafc;
+    padding: 15px;
+    border-radius: 12px;
+    margin-top: 10px;
+    border: 1px solid #e5e7eb;
+}
+
+.customer strong {
+    font-size: 18px;
+}
+
+.customer p {
+    margin: 8px 0;
+}
+
+.customer-id {
+    color: #555;
+    font-size: 14px;
+}
+
+.empty {
+    text-align: center;
+    color: #777;
+    padding: 20px;
+}
+</style>
+</head>
+
+<body>
+
+<header>
+    <h1>👥 إدارة العملاء</h1>
+    <p>الورشة الفنية</p>
+</header>
+
+<div class="container">
+
+    <div class="box">
+
+        <h2>➕ إضافة عميل جديد</h2>
+
+        <input
+            id="name"
+            type="text"
+            placeholder="اسم العميل"
+        >
+
+        <input
+            id="phone"
+            type="tel"
+            placeholder="رقم الهاتف"
+        >
+
+        <input
+            id="address"
+            type="text"
+            placeholder="العنوان"
+        >
+
+        <button onclick="addCustomer()">
+            💾 حفظ العميل
+        </button>
+
+    </div>
+
+    <div class="box">
+
+        <h2>📋 العملاء المسجلون</h2>
+
+        <div id="customers"></div>
+
+    </div>
+
+</div>
+
+<script>
+
+let customers =
+    JSON.parse(localStorage.getItem("customers")) || [];
+
+displayCustomers();
+
+function addCustomer() {
+
+    let name =
+        document.getElementById("name").value.trim();
+
+    let phone =
+        document.getElementById("phone").value.trim();
+
+    let address =
+        document.getElementById("address").value.trim();
+
+    if (name === "" || phone === "") {
+
+        alert("من فضلك اكتب اسم العميل ورقم الهاتف");
+
+        return;
+    }
+
+    let customer = {
+
+        id: Date.now(),
+
+        name: name,
+
+        phone: phone,
+
+        address: address
+    };
+
+    customers.push(customer);
+
+    localStorage.setItem(
+        "customers",
+        JSON.stringify(customers)
+    );
+
+    displayCustomers();
+
+    document.getElementById("name").value = "";
+
+    document.getElementById("phone").value = "";
+
+    document.getElementById("address").value = "";
+}
+
+function displayCustomers() {
+
+    let box =
+        document.getElementById("customers");
+
+    if (customers.length === 0) {
+
+        box.innerHTML =
+            '<div class="empty">لا يوجد عملاء حتى الآن.</div>';
+
+        return;
+    }
+
+    box.innerHTML = "";
+
+    customers.forEach(function(customer, index) {
+
+        box.innerHTML += `
+
+            <div class="customer">
+
+                <strong>
+                    👤 ${customer.name}
+                </strong>
+
+                <div class="customer-id">
+                    رقم العميل: C-${String(index + 1).padStart(4, "0")}
+                </div>
+
+                <p>
+                    📞 ${customer.phone}
+                </p>
+
+                <p>
+                    📍 ${customer.address || "لم يتم تسجيل العنوان"}
+                </p>
+
+            </div>
+
+        `;
+
+    });
+}
+
+</script>
+
+</body>
+</html>
