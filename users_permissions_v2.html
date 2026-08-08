@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#07152f">
+<title>المستخدمون والصلاحيات - الورشة الفنية</title>
+<style>
+*{box-sizing:border-box}body{margin:0;font-family:Arial,Tahoma,sans-serif;background:#f4f6f8;color:#172033}
+header{background:#07152f;color:#fff;text-align:center;padding:22px 15px}header h1{margin:0 0 7px}header p{margin:0;color:#dbe5ff}
+.container{max-width:1150px;margin:auto;padding:16px}.card{background:#fff;border-radius:16px;padding:18px;margin-bottom:16px;box-shadow:0 2px 9px rgba(0,0,0,.06)}
+h2{margin:0 0 15px;color:#07152f}.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.full{grid-column:1/-1}
+label{display:block;font-weight:bold;margin:8px 0 5px}input,select,textarea{width:100%;padding:12px;border:1px solid #ccd4de;border-radius:10px;font:inherit}textarea{min-height:80px;resize:vertical}
+button{border:0;border-radius:10px;padding:11px 15px;font:inherit;cursor:pointer}.primary{background:#16803c;color:#fff}.blue{background:#1769aa;color:#fff}.gray{background:#596273;color:#fff}.danger{background:#d60000;color:#fff}.orange{background:#a96600;color:#fff}
+.actions{display:flex;gap:8px;margin-top:12px}.actions button{flex:1}.filters{display:grid;grid-template-columns:2fr 1fr 1fr;gap:10px}
+.stats{display:grid;grid-template-columns:repeat(5,1fr);gap:9px}.stat{background:#f8fafc;border-radius:11px;padding:12px;text-align:center}.stat b{display:block;font-size:22px;color:#07152f}
+.user{border:1px solid #dfe4ea;border-radius:14px;padding:15px;margin-top:10px}.user h3{margin:0 0 8px;color:#07152f}
+.badge{display:inline-block;padding:5px 9px;border-radius:20px;background:#e9edf2;margin:3px;font-size:12px}.ok{background:#e3f7e9;color:#146c2e}.warn{background:#fff0d6;color:#8b5b00}.bad{background:#ffe2e2;color:#a00000}.info{background:#eef6ff;border:1px solid #cfe2ff;border-radius:10px;padding:11px;line-height:1.8;margin-top:10px}
+.notice{display:none;padding:12px;border-radius:10px;margin-bottom:12px}.good{background:#e1f5e7;color:#146c2e}.error{background:#ffe2e2;color:#a00000}.empty{text-align:center;color:#777;padding:28px}.hidden{display:none!important}
+.permissions{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}.perm{background:#f8fafc;padding:10px;border-radius:9px}.perm label{margin:0;font-weight:normal}.perm b{display:block;margin-bottom:5px}
+.log{border-right:3px solid #1769aa;padding-right:12px}.event{padding:9px 0;border-bottom:1px solid #eee}
+.back{display:block;text-align:center;background:#333;color:#fff;text-decoration:none;padding:14px;border-radius:10px}
+@media(max-width:700px){.grid,.filters,.permissions{grid-template-columns:1fr}.full{grid-column:auto}.stats{grid-template-columns:repeat(2,1fr)}.actions{flex-direction:column}}
+</style>
+</head>
+<body>
+<header><h1>👥 المستخدمون والصلاحيات</h1><p>الورشة الفنية لصيانة الأجهزة المنزلية والتكييف</p></header>
+<div class="container">
+<div id="notice" class="notice"></div>
+
+<div class="card">
+<h2>📊 ملخص الحسابات</h2>
+<div class="stats">
+<div class="stat"><b id="total">0</b>إجمالي المستخدمين</div>
+<div class="stat"><b id="active">0</b>نشطون</div>
+<div class="stat"><b id="disabled">0</b>معطلون</div>
+<div class="stat"><b id="admins">0</b>مديرون</div>
+<div class="stat"><b id="logs">0</b>عمليات مسجلة</div>
+</div>
+</div>
+
+<div class="card">
+<h2>🔐 سياسة الأمان</h2>
+<div class="grid">
+<div><label>تفعيل نظام الصلاحيات</label><select id="securityEnabled"><option value="true">مفعل</option><option value="false">معطل</option></select></div>
+<div><label>مدة الجلسة بالدقائق</label><input id="sessionMinutes" type="number" min="5" value="60"></div>
+<div><label>السماح للمستخدم بتعديل حسابه</label><select id="selfEdit"><option value="true">نعم</option><option value="false">لا</option></select></div>
+<div><label>تسجيل العمليات</label><select id="auditEnabled"><option value="true">مفعل</option><option value="false">معطل</option></select></div>
+<div><label>إظهار بيانات العملاء للفني</label><select id="technicianCustomerData"><option value="limited">بيانات محدودة</option><option value="full">كاملة</option><option value="none">لا تظهر</option></select></div>
+<div><label>السماح بالحذف</label><select id="deletePolicy"><option value="admin">المدير فقط</option><option value="role">حسب الصلاحية</option><option value="none">ممنوع</option></select></div>
+</div>
+<button class="blue" id="saveSettings" style="margin-top:12px">💾 حفظ سياسة الأمان</button>
+<div class="info">هذه الصفحة تضبط واجهة الصلاحيات فقط. المصادقة الحقيقية وكلمات المرور والتوكنات والصلاحيات على الخادم يجب تنفيذها في Backend آمن عند مرحلة الربط النهائية.</div>
+</div>
+
+<div class="card">
+<h2 id="formTitle">➕ إضافة مستخدم</h2>
+<div class="grid">
+<div><label>رقم المستخدم</label><input id="userId" readonly></div>
+<div><label>الاسم *</label><input id="name"></div>
+<div><label>اسم المستخدم *</label><input id="username"></div>
+<div><label>رقم الهاتف</label><input id="phone" type="tel"></div>
+<div><label>البريد الإلكتروني</label><input id="email" type="email"></div>
+<div><label>الدور *</label><select id="role"><option>مدير النظام</option><option>موظف استقبال</option><option>فني</option><option>محاسب</option><option>مشرف</option><option>مراقب</option></select></div>
+<div><label>الحالة</label><select id="status"><option>نشط</option><option>معطل</option><option>موقوف مؤقتًا</option></select></div>
+<div><label>المنطقة / الفرع</label><input id="branch"></div>
+<div><label>رقم الفني إن وجد</label><input id="technicianId"></div>
+<div><label>كلمة المرور — تجريبية</label><input id="password" type="password" placeholder="لا تحفظ كلمة المرور الحقيقية هنا في الإنتاج"></div>
+<div class="full"><label>ملاحظات</label><textarea id="notes"></textarea></div>
+</div>
+
+<h3>🔑 الصلاحيات</h3>
+<div class="permissions" id="permissions"></div>
+<div class="actions"><button class="primary" id="save">💾 حفظ المستخدم</button><button class="gray hidden" id="cancel">إلغاء التعديل</button></div>
+</div>
+
+<div class="card">
+<h2>🔎 المستخدمون</h2>
+<div class="filters">
+<input id="search" placeholder="الاسم / اسم المستخدم / الهاتف / الدور...">
+<select id="filterRole"><option value="">كل الأدوار</option></select>
+<select id="filterStatus"><option value="">كل الحالات</option><option>نشط</option><option>معطل</option><option>موقوف مؤقتًا</option></select>
+</div>
+<div id="list"></div>
+</div>
+
+<div class="card">
+<h2>🧾 سجل العمليات</h2>
+<div class="filters">
+<input id="logSearch" placeholder="بحث في المستخدم / العملية / الوحدة...">
+<select id="logFilter"><option value="">كل الوحدات</option></select>
+<select id="logUser"><option value="">كل المستخدمين</option></select>
+</div>
+<div id="auditList"></div>
+</div>
+
+<a class="back" href="index.html">🏠 العودة إلى الرئيسية</a>
+</div>
+
+<script>
+const USERS="users",SET="securitySettings",AUDIT="auditLogs";
+let editing=null;
+const modules=[
+ ["customers","العملاء"],["devices","الأجهزة"],["maintenanceRequests","طلبات الصيانة"],["technicians","الفنيين"],
+ ["inventory","المخزون"],["invoices","الفواتير"],["warranties","الضمانات"],["suppliers","الموردين"],
+ ["purchases","المشتريات"],["contracts","العقود"],["reports","التقارير"],["settings","الإعدادات"],["users","المستخدمون والصلاحيات"]
+];
+const actions=["view","create","edit","delete"];
+const actionNames={view:"عرض",create:"إضافة",edit:"تعديل",delete:"حذف"};
+const $=id=>document.getElementById(id);
+const arr=k=>{try{let x=JSON.parse(localStorage.getItem(k)||"[]");return Array.isArray(x)?x:[]}catch(e){return[]}};
+const save=(k,v)=>localStorage.setItem(k,JSON.stringify(v));
+const esc=v=>String(v??"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&#039;");
+function nextId(){let n=0;arr(USERS).forEach(u=>{let m=String(u.id||"").match(/^USR-(\d+)$/);if(m)n=Math.max(n,+m[1])});return"USR-"+String(n+1).padStart(4,"0")}
+function notice(t,bad=false){$("notice").textContent=t;$("notice").className="notice "+(bad?"error":"good");$("notice").style.display="block";setTimeout(()=>$("notice").style.display="none",3000)}
+function defaults(){return{securityEnabled:true,sessionMinutes:60,selfEdit:true,auditEnabled:true,technicianCustomerData:"limited",deletePolicy:"admin"}}
+function settings(){return Object.assign(defaults(),JSON.parse(localStorage.getItem(SET)||"{}"))}
+function loadSettings(){let s=settings();Object.entries(s).forEach(([k,v])=>{if($(k))$(k).value=String(v)})}
+function saveSettings(){save(SET,{securityEnabled:$("securityEnabled").value==="true",sessionMinutes:Number($("sessionMinutes").value||60),selfEdit:$("selfEdit").value==="true",auditEnabled:$("auditEnabled").value==="true",technicianCustomerData:$("technicianCustomerData").value,deletePolicy:$("deletePolicy").value});notice("تم حفظ سياسة الأمان")}
+function defaultPerm(role){
+ let p={};modules.forEach(([m])=>p[m]={view:false,create:false,edit:false,delete:false});
+ if(role==="مدير النظام")modules.forEach(([m])=>p[m]={view:true,create:true,edit:true,delete:true});
+ else if(role==="موظف استقبال"){["customers","devices","maintenanceRequests","contracts"].forEach(m=>p[m]={view:true,create:true,edit:true,delete:false});["invoices","warranties"].forEach(m=>p[m].view=true)}
+ else if(role==="فني"){["maintenanceRequests","devices","warranties","inventory"].forEach(m=>p[m]={view:true,create:true,edit:true,delete:false})}
+ else if(role==="محاسب"){["invoices","reports","customers"].forEach(m=>p[m]={view:true,create:true,edit:true,delete:false});p.purchases={view:true,create:true,edit:true,delete:false}}
+ else if(role==="مشرف"){modules.forEach(([m])=>{p[m].view=true});["maintenanceRequests","technicians","devices","contracts"].forEach(m=>{p[m].create=true;p[m].edit=true})}
+ else if(role==="مراقب"){modules.forEach(([m])=>p[m].view=true)}
+ return p
+}
+function renderPermissions(existing){
+ let role=$("role").value,p=existing||defaultPerm(role);
+ $("permissions").innerHTML=modules.map(([m,label])=>'<div class="perm"><b>'+label+'</b>'+actions.map(a=>'<label><input type="checkbox" data-perm="'+m+'" data-action="'+a+'" '+(p[m]?.[a]?"checked":"")+'> '+actionNames[a]+'</label>').join(" ")+'</div>').join("")
+}
+$("role").onchange=()=>renderPermissions();
+function reset(){editing=null;$("formTitle").textContent="➕ إضافة مستخدم";$("save").textContent="💾 حفظ المستخدم";$("cancel").classList.add("hidden");$("userId").value=nextId();["name","username","phone","email","branch","technicianId","password","notes"].forEach(x=>$(x).value="");$("role").value="فني";$("status").value="نشط";renderPermissions()}
+function saveUser(){
+ let name=$("name").value.trim(),username=$("username").value.trim();if(!name||!username){notice("اكتب الاسم واسم المستخدم",true);return}
+ let all=arr(USERS),duplicate=all.find(u=>u.username.toLowerCase()===username.toLowerCase()&&String(u.id)!==String(editing));if(duplicate){notice("اسم المستخدم مستخدم بالفعل",true);return}
+ let perms={};modules.forEach(([m])=>{perms[m]={};actions.forEach(a=>perms[m][a]=!!document.querySelector('[data-perm="'+m+'"][data-action="'+a+'"]')?.checked)});
+ let old=editing?all.find(u=>String(u.id)===String(editing)):null,now=new Date().toISOString();
+ let u={id:editing||nextId(),name,username,phone:$("phone").value.trim(),email:$("email").value.trim(),role:$("role").value,status:$("status").value,branch:$("branch").value.trim(),technicianId:$("technicianId").value.trim(),permissions:perms,notes:$("notes").value.trim(),passwordConfigured:editing?old?.passwordConfigured:!!$("password").value,createdAt:old?.createdAt||now,updatedAt:now,lastLogin:old?.lastLogin||null};
+ let i=all.findIndex(x=>String(x.id)===String(u.id));if(i>=0)all[i]=u;else all.unshift(u);save(USERS,all);audit(u.id,u.name,"users",editing?"تعديل مستخدم":"إنشاء مستخدم");notice(editing?"تم تعديل المستخدم":"تم إنشاء المستخدم");reset();renderAll()
+}
+function editUser(id){
+ let u=arr(USERS).find(x=>String(x.id)===String(id));if(!u)return;
+ editing=u.id;$("formTitle").textContent="✏️ تعديل المستخدم";$("save").textContent="💾 حفظ التعديل";$("cancel").classList.remove("hidden");
+ $("userId").value=u.id;$("name").value=u.name||"";$("username").value=u.username||"";$("phone").value=u.phone||"";$("email").value=u.email||"";$("role").value=u.role||"فني";$("status").value=u.status||"نشط";$("branch").value=u.branch||"";$("technicianId").value=u.technicianId||"";$("password").value="";$("notes").value=u.notes||"";renderPermissions(u.permissions);window.scrollTo({top:0,behavior:"smooth"})
+}
+function audit(uid,name,module,event){
+ let s=settings();if(!s.auditEnabled)return;let all=arr(AUDIT);all.unshift({id:"LOG-"+Date.now()+"-"+Math.random().toString(36).slice(2,6),userId:uid,userName:name,module,event,date:new Date().toISOString()});save(AUDIT,all)
+}
+function toggleUser(id){
+ let all=arr(USERS),u=all.find(x=>String(x.id)===String(id));if(!u)return;
+ if(u.role==="مدير النظام"&&u.status==="نشط"&&all.filter(x=>x.role==="مدير النظام"&&x.status==="نشط").length<=1){notice("لا يمكن تعطيل آخر مدير نشط.",true);return}
+ u.status=u.status==="نشط"?"معطل":"نشط";u.updatedAt=new Date().toISOString();save(USERS,all);audit(u.id,u.name,"users",u.status==="نشط"?"تفعيل مستخدم":"تعطيل مستخدم");renderAll();notice("تم تغيير حالة المستخدم")
+}
+function deleteUser(id){
+ let all=arr(USERS),u=all.find(x=>String(x.id)===String(id));if(!u)return;
+ if(u.role==="مدير النظام"&&all.filter(x=>x.role==="مدير النظام"&&x.status==="نشط").length<=1){notice("لا يمكن حذف آخر مدير نشط.",true);return}
+ if(!confirm("حذف المستخدم "+u.name+"؟"))return;save(USERS,all.filter(x=>String(x.id)!==String(id)));audit(id,u.name,"users","حذف مستخدم");renderAll();notice("تم حذف المستخدم")
+}
+function renderUsers(){
+ let us=arr(USERS),q=$("search").value.trim().toLowerCase(),r=$("filterRole").value,s=$("filterStatus").value;
+ let roles=[...new Set(us.map(u=>u.role).filter(Boolean))],old=$("filterRole").value;$("filterRole").innerHTML='<option value="">كل الأدوار</option>'+roles.map(x=>'<option>'+esc(x)+'</option>').join("");$("filterRole").value=old;
+ let list=us.filter(u=>[u.id,u.name,u.username,u.phone,u.email,u.role,u.branch].join(" ").toLowerCase().includes(q)&&(!r||u.role===r)&&(!s||u.status===s));
+ $("list").innerHTML=list.length?list.map(u=>'<div class="user"><h3>👤 '+esc(u.name)+' <span class="badge">'+esc(u.id)+'</span></h3><span class="badge '+(u.status==="نشط"?"ok":u.status==="معطل"?"bad":"warn")+'">● '+esc(u.status)+'</span><span class="badge">'+esc(u.role)+'</span><p>🔑 اسم المستخدم: <b>'+esc(u.username)+'</b><br>📞 '+esc(u.phone||"غير مسجل")+' | ✉️ '+esc(u.email||"غير مسجل")+'<br>📍 '+esc(u.branch||"غير محدد")+(u.technicianId?"<br>🔧 الفني: "+esc(u.technicianId):"")+'</p><p>الصلاحيات: '+Object.values(u.permissions||{}).filter(x=>x.view).length+' وحدة يمكن عرضها</p><div class="actions"><button class="blue" data-a="edit" data-id="'+esc(u.id)+'">✏️ تعديل</button><button class="gray" data-a="toggle" data-id="'+esc(u.id)+'">'+(u.status==="نشط"?"⛔ تعطيل":"✅ تفعيل")+'</button><button class="danger" data-a="delete" data-id="'+esc(u.id)+'">🗑️ حذف</button></div></div>').join(""):'<div class="empty">لا توجد مستخدمين.</div>'
+}
+function renderLogs(){
+ let logs=arr(AUDIT),q=$("logSearch").value.trim().toLowerCase(),m=$("logFilter").value,u=$("logUser").value;
+ let mods=[...new Set(logs.map(x=>x.module).filter(Boolean))],oldm=$("logFilter").value;$("logFilter").innerHTML='<option value="">كل الوحدات</option>'+mods.map(x=>'<option>'+esc(x)+'</option>').join("");$("logFilter").value=oldm;
+ let users=[...new Map(logs.map(x=>[x.userId,x.userName])).entries()],oldu=$("logUser").value;$("logUser").innerHTML='<option value="">كل المستخدمين</option>'+users.map(([id,n])=>'<option value="'+esc(id)+'">'+esc(n)+'</option>').join("");$("logUser").value=oldu;
+ logs=logs.filter(x=>[x.userName,x.event,x.module].join(" ").toLowerCase().includes(q)&&(!m||x.module===m)&&(!u||String(x.userId)===String(u)));
+ $("auditList").innerHTML=logs.slice(0,100).map(x=>'<div class="event">👤 <b>'+esc(x.userName)+'</b> — '+esc(x.event)+'<br>📦 الوحدة: '+esc(x.module)+'<br>🕒 '+esc(x.date)+'</div>').join("")||'<div class="empty">لا يوجد سجل عمليات.</div>'
+}
+$("saveSettings").onclick=saveSettings;$("save").onclick=saveUser;$("cancel").onclick=reset;$("search").oninput=renderUsers;$("filterRole").onchange=renderUsers;$("filterStatus").onchange=renderUsers;$("logSearch").oninput=renderLogs;$("logFilter").onchange=renderLogs;$("logUser").onchange=renderLogs;
+$("list").onclick=e=>{let b=e.target.closest("button[data-a]");if(!b)return;if(b.dataset.a==="edit")editUser(b.dataset.id);else if(b.dataset.a==="toggle")toggleUser(b.dataset.id);else deleteUser(b.dataset.id)};
+function renderAll(){let us=arr(USERS),logs=arr(AUDIT);$("total").textContent=us.length;$("active").textContent=us.filter(u=>u.status==="نشط").length;$("disabled").textContent=us.filter(u=>u.status!=="نشط").length;$("admins").textContent=us.filter(u=>u.role==="مدير النظام").length;$("logs").textContent=logs.length;renderUsers();renderLogs()}
+loadSettings();reset();renderAll();
+</script>
+</body>
+</html>
