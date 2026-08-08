@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>طلبات الصيانة - الورشة الفنية</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;font-family:Arial,Tahoma,sans-serif;background:#f4f6f8;color:#222}
+header{background:#07152f;color:#fff;text-align:center;padding:24px 15px}
+header h1{margin:0 0 8px;font-size:28px}
+header p{margin:0}
+.container{max-width:900px;margin:auto;padding:16px}
+.card{background:#fff;border-radius:15px;padding:18px;margin-bottom:18px;box-shadow:0 2px 9px rgba(0,0,0,.06)}
+h2{margin-top:0;color:#07152f}
+label{display:block;font-weight:bold;margin:12px 0 6px}
+input,select,textarea{width:100%;padding:13px;border:1px solid #ccc;border-radius:9px;font-size:16px;font-family:inherit;background:#fff}
+textarea{min-height:95px;resize:vertical}
+.primary,.cancel,.edit,.delete{border:0;border-radius:9px;padding:13px;font-size:16px;color:#fff;font-family:inherit;cursor:pointer}
+.primary{background:#16803c;width:100%;margin-top:15px}
+.cancel{background:#555;width:100%;margin-top:8px}
+.customer-info{display:none;background:#eef6ff;border:1px solid #cfe2ff;border-radius:10px;padding:12px;margin-top:10px;line-height:1.8}
+.search{margin-bottom:15px}
+.request{border:1px solid #ddd;border-radius:13px;padding:16px;margin-top:12px;background:#fff}
+.request h3{margin:0 0 9px}
+.badge{display:inline-block;background:#e8edf3;border-radius:20px;padding:5px 10px;margin:3px;font-size:14px}
+.actions{display:flex;gap:8px;margin-top:13px}
+.edit,.delete{flex:1}
+.edit{background:#1769aa}
+.delete{background:#d60000}
+.empty{text-align:center;color:#777;padding:25px}
+.back{display:block;text-align:center;text-decoration:none;background:#333;color:#fff;padding:14px;border-radius:10px}
+@media(max-width:600px){.container{padding:12px}.actions{flex-direction:column}}
+</style>
+</head>
+<body>
+
+<header>
+<h1>🔧 طلبات الصيانة</h1>
+<p>الورشة الفنية لصيانة الأجهزة المنزلية والتكييف</p>
+</header>
+
+<div class="container">
+
+<div class="card">
+<h2 id="formTitle">➕ تسجيل طلب صيانة</h2>
+
+<label for="customer">العميل</label>
+<select id="customer">
+<option value="">جارٍ تحميل العملاء...</option>
+</select>
+
+<div id="customerInfo" class="customer-info"></div>
+
+<label for="deviceType">نوع الجهاز</label>
+<select id="deviceType">
+<option value="">اختر نوع الجهاز</option>
+<option>تكييف</option>
+<option>ثلاجة</option>
+<option>فريزر</option>
+<option>غسالة</option>
+<option>سخان</option>
+<option>كولدير</option>
+<option>سخان غاز</option>
+<option>أخرى</option>
+</select>
+
+<label for="problem">وصف العطل</label>
+<textarea id="problem" placeholder="اكتب وصف العطل بالتفصيل..."></textarea>
+
+<label for="address">عنوان الزيارة</label>
+<input id="address" placeholder="يُملأ تلقائيًا من بيانات العميل">
+
+<label for="status">حالة الطلب</label>
+<select id="status">
+<option>جديد</option>
+<option>تم تحديد موعد</option>
+<option>قيد التنفيذ</option>
+<option>تم الإصلاح</option>
+<option>مؤجل</option>
+<option>ملغي</option>
+</select>
+
+<label for="visitDate">موعد الزيارة</label>
+<input id="visitDate" type="datetime-local">
+
+<label for="notes">ملاحظات</label>
+<textarea id="notes" placeholder="أي ملاحظات إضافية..."></textarea>
+
+<button id="saveBtn" class="primary">💾 حفظ طلب الصيانة</button>
+<button id="cancelBtn" class="cancel" style="display:none">إلغاء التعديل</button>
+</div>
+
+<div class="card">
+<h2>📋 سجل طلبات الصيانة</h2>
+<input id="search" class="search" placeholder="🔎 ابحث باسم العميل أو رقم الطلب أو الهاتف...">
+<div id="requestsList"></div>
+</div>
+
+<a class="back" href="index.html">🏠 العودة إلى الرئيسية</a>
+
+</div>
+
+<script>
+const CUSTOMERS_KEY="customers";
+const REQUESTS_KEY="maintenanceRequests";
+let editingId=null;
+
+function readCustomers(){
+    try{
+        const raw=localStorage.getItem(CUSTOMERS_KEY);
+        if(!raw) return [];
+        const data=JSON.parse(raw);
+        return Array.isArray(data)?data:[];
+    }catch(e){return [];}
+}
+
+function readRequests(){
+    try{
+        const raw=localStorage.getItem(REQUESTS_KEY);
+        if(!raw) return [];
+        const data=JSON.parse(raw);
+        return Array.isArray(data)?data:[];
+    }catch(e){return [];}
+}
+
+function saveRequests(data){
+    localStorage.setItem(REQUESTS_KEY,JSON.stringify(data));
+}
+
+function nextRequestId(){
+    const requests=readRequests();
+    let max=0;
+    requests.forEach(r=>{
+        const m=String(r.id||"").match(/^REQ-(\d+)$/);
+        if(m) max=Math.max(max,parseInt(m[1],10));
+    });
+    return "REQ-"+String(max+1).padStart(4,"0");
+}
+
+function cleanText(v){
+    return String(v??"")
+      .replace(/&/g,"&amp;")
+      .replace(/</g,"&lt;")
+      .replace(/>/g,"&gt;")
+      .replace(/"/g,"&quot;")
+      .replace(/'/g,"&#039;");
+}
+
+function loadCustomers(selectedId=""){
+    const select=document.getElementById("customer");
+    const customers=readCustomers();
+
+    select.innerHTML='<option value="">اختر العميل</option>';
+
+    if(customers.length===0){
+        select.innerHTML='<option value="">لا يوجد عملاء مسجلون</option>';
+        document.getElementById("customerInfo").style.display="none";
+        return;
+    }
+
+    customers.forEach(c=>{
+        const option=document.createElement("option");
+        option.value=String(c.id);
+        option.textContent=(c.name||"بدون اسم")+" — "+(c.phone||"بدون هاتف")+" — "+String(c.id||"");
+        select.appendChild(option);
+    });
+
+    if(selectedId){
+        select.value=String(selectedId);
+    }
+
+    showCustomer();
+}
+
+function showCustomer(){
+    const id=document.getElementById("customer").value;
+    const box=document.getElementById("customerInfo");
+    const customer=readCustomers().find(c=>String(c.id)===String(id));
+
+    if(!customer){
+        box.style.display="none";
+        return;
+    }
+
+    box.innerHTML=
+        "👤 <b>"+cleanText(customer.name||"")+"</b><br>"+
+        "🆔 رقم العميل: "+cleanText(customer.id||"")+"<br>"+
+        "📞 الهاتف: "+cleanText(customer.phone||"غير مسجل")+"<br>"+
+        "📍 العنوان: "+cleanText(customer.address||"غير مسجل");
+
+    box.style.display="block";
+
+    if(!editingId){
+        document.getElementById("address").value=customer.address||"";
+    }
+}
+
+function resetForm(){
+    editingId=null;
+    document.getElementById("formTitle").textContent="➕ تسجيل طلب صيانة";
+    document.getElementById("saveBtn").textContent="💾 حفظ طلب الصيانة";
+    document.getElementById("cancelBtn").style.display="none";
+    document.getElementById("customer").value="";
+    document.getElementById("deviceType").value="";
+    document.getElementById("problem").value="";
+    document.getElementById("address").value="";
+    document.getElementById("status").value="جديد";
+    document.getElementById("visitDate").value="";
+    document.getElementById("notes").value="";
+    document.getElementById("customerInfo").style.display="none";
+}
+
+function saveRequest(){
+    const customerId=document.getElementById("customer").value;
+    const deviceType=document.getElementById("deviceType").value;
+    const problem=document.getElementById("problem").value.trim();
+    const customer=readCustomers().find(c=>String(c.id)===String(customerId));
+
+    if(!customer){
+        alert("من فضلك اختر عميلًا من القائمة.");
+        return;
+    }
+    if(!deviceType){
+        alert("من فضلك اختر نوع الجهاز.");
+        return;
+    }
+    if(!problem){
+        alert("من فضلك اكتب وصف العطل.");
+        return;
+    }
+
+    const requests=readRequests();
+
+    const old=editingId
+        ? requests.find(r=>String(r.id)===String(editingId))
+        : null;
+
+    const request={
+        id:editingId||nextRequestId(),
+        customerId:String(customer.id),
+        customerName:customer.name||"",
+        customerPhone:customer.phone||"",
+        customerAddress:customer.address||"",
+        deviceType,
+        problem,
+        address:document.getElementById("address").value.trim(),
+        status:document.getElementById("status").value,
+        visitDate:document.getElementById("visitDate").value,
+        notes:document.getElementById("notes").value.trim(),
+        createdAt:old?.createdAt||new Date().toISOString(),
+        updatedAt:new Date().toISOString()
+    };
+
+    const index=requests.findIndex(r=>String(r.id)===String(request.id));
+
+    if(index===-1) requests.unshift(request);
+    else requests[index]=request;
+
+    saveRequests(requests);
+
+    alert(editingId?"تم تعديل طلب الصيانة بنجاح ✅":"تم تسجيل طلب الصيانة بنجاح ✅");
+
+    resetForm();
+    renderRequests();
+}
+
+function editRequest(id){
+    const request=readRequests().find(r=>String(r.id)===String(id));
+    if(!request){
+        alert("طلب الصيانة غير موجود.");
+        return;
+    }
+
+    editingId=String(request.id);
+    document.getElementById("formTitle").textContent="✏️ تعديل طلب الصيانة";
+    document.getElementById("saveBtn").textContent="💾 حفظ التعديل";
+    document.getElementById("cancelBtn").style.display="block";
+
+    loadCustomers(request.customerId);
+
+    document.getElementById("deviceType").value=request.deviceType||"";
+    document.getElementById("problem").value=request.problem||"";
+    document.getElementById("address").value=request.address||"";
+    document.getElementById("status").value=request.status||"جديد";
+    document.getElementById("visitDate").value=request.visitDate||"";
+    document.getElementById("notes").value=request.notes||"";
+
+    showCustomer();
+    window.scrollTo({top:0,behavior:"smooth"});
+}
+
+function deleteRequest(id){
+    const requests=readRequests();
+    const request=requests.find(r=>String(r.id)===String(id));
+
+    if(!request) return;
+
+    if(!window.confirm("هل أنت متأكد من حذف طلب "+request.id+"؟")){
+        return;
+    }
+
+    saveRequests(requests.filter(r=>String(r.id)!==String(id)));
+    renderRequests();
+}
+
+function formatDate(value){
+    if(!value) return "غير محدد";
+    const d=new Date(value);
+    if(isNaN(d.getTime())) return value;
+    return d.toLocaleString("ar-EG");
+}
+
+function renderRequests(){
+    const list=document.getElementById("requestsList");
+    const search=document.getElementById("search").value.trim().toLowerCase();
+    const requests=readRequests();
+
+    const filtered=requests.filter(r=>{
+        const text=[
+            r.id,r.customerId,r.customerName,r.customerPhone,
+            r.deviceType,r.problem,r.status,r.address
+        ].join(" ").toLowerCase();
+        return text.includes(search);
+    });
+
+    if(filtered.length===0){
+        list.innerHTML='<div class="empty">'+
+            (requests.length===0
+            ?"لا توجد طلبات صيانة حتى الآن 🔧"
+            :"لا توجد نتائج مطابقة 🔎")+
+            '</div>';
+        return;
+    }
+
+    list.innerHTML="";
+
+    filtered.forEach(r=>{
+        const card=document.createElement("div");
+        card.className="request";
+
+        card.innerHTML=
+            "<h3>🔧 "+cleanText(r.deviceType)+" — "+cleanText(r.customerName)+"</h3>"+
+            '<span class="badge">🆔 '+cleanText(r.id)+'</span>'+
+            '<span class="badge">👤 '+cleanText(r.customerId)+'</span>'+
+            '<span class="badge">📌 '+cleanText(r.status)+'</span>'+
+            "<p><b>📞 الهاتف:</b> "+cleanText(r.customerPhone||"غير مسجل")+"</p>"+
+            "<p><b>📍 العنوان:</b> "+cleanText(r.address||"غير محدد")+"</p>"+
+            "<p><b>⚠️ العطل:</b> "+cleanText(r.problem)+"</p>"+
+            "<p><b>📅 الموعد:</b> "+cleanText(formatDate(r.visitDate))+"</p>"+
+            (r.notes?"<p><b>📝 ملاحظات:</b> "+cleanText(r.notes)+"</p>":"")+
+            '<div class="actions">'+
+            '<button class="edit" data-action="edit" data-id="'+cleanText(r.id)+'">✏️ تعديل</button>'+
+            '<button class="delete" data-action="delete" data-id="'+cleanText(r.id)+'">🗑️ حذف</button>'+
+            "</div>";
+
+        list.appendChild(card);
+    });
+}
+
+document.getElementById("customer").addEventListener("change",showCustomer);
+document.getElementById("saveBtn").addEventListener("click",saveRequest);
+document.getElementById("cancelBtn").addEventListener("click",resetForm);
+document.getElementById("search").addEventListener("input",renderRequests);
+
+document.getElementById("requestsList").addEventListener("click",function(e){
+    const button=e.target.closest("button[data-action]");
+    if(!button) return;
+
+    const id=button.getAttribute("data-id");
+
+    if(button.getAttribute("data-action")==="edit") editRequest(id);
+    if(button.getAttribute("data-action")==="delete") deleteRequest(id);
+});
+
+loadCustomers();
+renderRequests();
+</script>
+</body>
+</html>
