@@ -8,258 +8,155 @@
     <title>الورشة الفنية</title>
 
     <style>
+        * {
+            box-sizing: border-box;
+        }
+
         body {
             margin: 0;
-            font-family: Arial, sans-serif;
+            font-family: Arial, Tahoma, sans-serif;
             background: #f4f6f8;
             color: #222;
         }
 
         header {
-            background: #1f2937;
+            background: #07152f;
             color: white;
-            padding: 25px 20px;
             text-align: center;
+            padding: 28px 20px;
         }
 
         header h1 {
             margin: 0 0 8px;
+            font-size: 30px;
         }
 
         header p {
             margin: 0;
-            color: #d1d5db;
+            font-size: 17px;
         }
 
         .container {
-            padding: 20px;
-            max-width: 900px;
+            max-width: 1000px;
             margin: auto;
+            padding: 20px;
         }
 
         .dashboard {
             display: grid;
             grid-template-columns: repeat(2, 1fr);
-            gap: 15px;
+            gap: 20px;
         }
 
         .card {
-            background: white;
-            border-radius: 15px;
-            padding: 25px 15px;
-            text-align: center;
-            box-shadow: 0 3px 10px rgba(0,0,0,0.08);
+            display: block;
             text-decoration: none;
             color: #222;
-            display: block;
+            background: white;
+            border-radius: 16px;
+            padding: 30px 20px;
+            text-align: center;
+            box-shadow: 0 3px 12px rgba(0, 0, 0, 0.08);
+            border: 1px solid #e5e7eb;
+            transition: 0.2s;
         }
 
-        .card:active {
-            transform: scale(0.98);
+        .card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 6px 18px rgba(0, 0, 0, 0.12);
         }
 
         .icon {
-            font-size: 35px;
+            font-size: 50px;
+            margin-bottom: 12px;
         }
 
         .card h2 {
-            font-size: 18px;
-            margin: 10px 0 5px;
+            margin: 8px 0;
+            color: #07152f;
+            font-size: 24px;
         }
 
         .card p {
+            margin: 0;
             color: #666;
+            font-size: 16px;
+        }
+
+        .footer {
+            margin-top: 35px;
+            background: #07152f;
+            color: white;
+            text-align: center;
+            padding: 25px 15px;
+        }
+
+        .footer h2 {
+            margin: 0 0 10px;
+        }
+
+        .footer p {
             margin: 0;
         }
 
-        @media (min-width: 700px) {
+        @media (max-width: 700px) {
             .dashboard {
-                grid-template-columns: repeat(3, 1fr);
+                grid-template-columns: 1fr;
+            }
+
+            header h1 {
+                font-size: 26px;
+            }
+
+            .card {
+                padding: 25px 15px;
             }
         }
     </style>
-
 </head>
 
 <body>
 
-<header>
+    <header>
+        <h1>الورشة الفنية 🔧</h1>
+        <p>نظام إدارة الورشة لصيانة الأجهزة المنزلية والتكييف</p>
+    </header>
 
-    <h1>🔧 الورشة الفنية</h1>
+    <main class="container">
 
-    <p>
-        نظام إدارة وتشغيل الورشة
-    </p>
+        <div class="dashboard">
 
-</header>
+            <!-- العملاء -->
+            <a href="customers.html" class="card">
+                <div class="icon">👥</div>
 
+                <h2>العملاء</h2>
 
-<div class="container">
+                <p>
+                    إدارة العملاء وتسجيل بياناتهم
+                </p>
+            </a>
 
-    <div class="dashboard">
+            <!-- طلبات الصيانة -->
+            <a href="requests.html" class="card">
+                <div class="icon">🔧</div>
 
+                <h2>طلبات الصيانة</h2>
 
-        <!-- العملاء -->
-
-        <a href="customers.html" class="card">
-
-            <div class="icon">
-                👥
-            </div>
-
-            <h2>
-                العملاء
-            </h2>
-
-            <p>
-                إدارة العملاء
-            </p>
-
-        </a>
-
-
-        <!-- طلبات الصيانة -->
-
-        <div class="card">
-
-            <div class="icon">
-                🔧
-            </div>
-
-            <h2>
-                طلبات الصيانة
-            </h2>
-
-            <p>
-                متابعة الطلبات
-            </p>
+                <p>
+                    تسجيل وإدارة طلبات الصيانة
+                </p>
+            </a>
 
         </div>
 
+    </main>
 
-        <!-- الفنيين -->
-
-        <div class="card">
-
-            <div class="icon">
-                👨‍🔧
-            </div>
-
-            <h2>
-                الفنيين
-            </h2>
-
-            <p>
-                إدارة فريق العمل
-            </p>
-
-        </div>
-
-
-        <!-- المخزون -->
-
-        <div class="card">
-
-            <div class="icon">
-                📦
-            </div>
-
-            <h2>
-                المخزون
-            </h2>
-
-            <p>
-                قطع الغيار
-            </p>
-
-        </div>
-
-
-        <!-- الحسابات -->
-
-        <div class="card">
-
-            <div class="icon">
-                💰
-            </div>
-
-            <h2>
-                الحسابات
-            </h2>
-
-            <p>
-                المدفوعات والإيرادات
-            </p>
-
-        </div>
-
-
-        <!-- التقارير -->
-
-        <div class="card">
-
-            <div class="icon">
-                📊
-            </div>
-
-            <h2>
-                التقارير
-            </h2>
-
-            <p>
-                تقارير وإحصائيات
-            </p>
-
-        </div>
-
-
-    </div>
-
-</div>
+    <footer class="footer">
+        <h2>الورشة الفنية 👥</h2>
+        <p>صيانة الأجهزة المنزلية والتكييف</p>
+    </footer>
 
 </body>
 
-</html>    <div class="dashboard">
-
-        <div class="card">
-            <div class="icon">👥</div>
-            <h2>العملاء</h2>
-            <p>إدارة العملاء</p>
-        </div>
-
-        <div class="card">
-            <div class="icon">🔧</div>
-            <h2>طلبات الصيانة</h2>
-            <p>متابعة الطلبات</p>
-        </div>
-
-        <div class="card">
-            <div class="icon">👨‍🔧</div>
-            <h2>الفنيين</h2>
-            <p>إدارة فريق العمل</p>
-        </div>
-
-        <div class="card">
-            <div class="icon">📦</div>
-            <h2>المخزون</h2>
-            <p>قطع الغيار</p>
-        </div>
-
-        <div class="card">
-            <div class="icon">💰</div>
-            <h2>الحسابات</h2>
-            <p>المدفوعات والإيرادات</p>
-        </div>
-
-        <div class="card">
-            <div class="icon">📊</div>
-            <h2>التقارير</h2>
-            <p>تقارير وإحصائيات</p>
-        </div>
-
-    </div>
-
-</div>
-
-</body>
 </html>
