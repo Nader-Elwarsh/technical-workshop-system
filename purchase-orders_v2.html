@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#07152f">
+<title>طلبات الشراء - الورشة الفنية</title>
+<style>
+*{box-sizing:border-box}body{margin:0;font-family:Arial,Tahoma,sans-serif;background:#f4f6f8;color:#172033}
+header{background:#07152f;color:#fff;text-align:center;padding:22px 15px}header h1{margin:0 0 7px}header p{margin:0;color:#dbe5ff}
+.container{max-width:1150px;margin:auto;padding:16px}.card{background:#fff;border-radius:16px;padding:18px;margin-bottom:16px;box-shadow:0 2px 9px rgba(0,0,0,.06)}
+h2{margin:0 0 15px;color:#07152f}.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.full{grid-column:1/-1}
+label{display:block;font-weight:bold;margin:8px 0 5px}input,select,textarea{width:100%;padding:12px;border:1px solid #ccd4de;border-radius:10px;font:inherit}textarea{min-height:80px;resize:vertical}
+button{border:0;border-radius:10px;padding:11px 15px;font:inherit;cursor:pointer}.primary{background:#16803c;color:#fff}.blue{background:#1769aa;color:#fff}.gray{background:#596273;color:#fff}.danger{background:#d60000;color:#fff}.orange{background:#a96600;color:#fff}
+.actions{display:flex;gap:8px;margin-top:12px}.actions button{flex:1}.filters{display:grid;grid-template-columns:2fr 1fr 1fr;gap:10px}
+.stats{display:grid;grid-template-columns:repeat(5,1fr);gap:9px}.stat{background:#f8fafc;border-radius:11px;padding:12px;text-align:center}.stat b{display:block;font-size:22px;color:#07152f}
+.item{border:1px solid #dfe4ea;border-radius:14px;padding:15px;margin-top:10px}.item h3{margin:0 0 8px;color:#07152f}
+.badge{display:inline-block;padding:5px 9px;border-radius:20px;background:#e9edf2;margin:3px;font-size:12px}.ok{background:#e3f7e9;color:#146c2e}.warn{background:#fff0d6;color:#8b5b00}.bad{background:#ffe2e2;color:#a00000}.bluebadge{background:#e4f0ff;color:#1769aa}
+.notice{display:none;padding:12px;border-radius:10px;margin-bottom:12px}.good{background:#e1f5e7;color:#146c2e}.error{background:#ffe2e2;color:#a00000}.info{background:#eef6ff;border:1px solid #cfe2ff;border-radius:10px;padding:11px;line-height:1.8;margin-top:10px}.empty{text-align:center;color:#777;padding:28px}
+.line{border:1px solid #e1e5ea;background:#f8fafc;border-radius:12px;padding:12px;margin-top:9px}.linegrid{display:grid;grid-template-columns:2fr 1fr 1fr 1fr auto;gap:8px;align-items:end}
+table{width:100%;border-collapse:collapse}th,td{padding:9px;border-bottom:1px solid #e5e7eb;text-align:right}th{background:#f8fafc}
+.back{display:block;text-align:center;background:#333;color:#fff;text-decoration:none;padding:14px;border-radius:10px}.hidden{display:none!important}
+@media(max-width:700px){.grid,.filters,.linegrid{grid-template-columns:1fr}.full{grid-column:auto}.stats{grid-template-columns:repeat(2,1fr)}.actions{flex-direction:column}}
+</style>
+</head>
+<body>
+<header><h1>🛒 إدارة طلبات الشراء</h1><p>الورشة الفنية لصيانة الأجهزة المنزلية والتكييف</p></header>
+<div class="container">
+<div id="notice" class="notice"></div>
+
+<div class="card">
+<h2>📊 ملخص المشتريات</h2>
+<div class="stats">
+<div class="stat"><b id="total">0</b>إجمالي الطلبات</div>
+<div class="stat"><b id="pending">0</b>معلقة</div>
+<div class="stat"><b id="approved">0</b>معتمدة</div>
+<div class="stat"><b id="receiving">0</b>قيد الاستلام</div>
+<div class="stat"><b id="spent">0</b>إجمالي القيمة</div>
+</div>
+</div>
+
+<div class="card">
+<h2 id="formTitle">➕ إنشاء طلب شراء</h2>
+<div class="grid">
+<div><label>رقم طلب الشراء</label><input id="id" readonly></div>
+<div><label>المورد *</label><select id="supplier"><option value="">اختر المورد</option></select></div>
+<div><label>الحالة</label><select id="status"><option>مسودة</option><option>معلقة</option><option>معتمدة</option><option>قيد الاستلام</option><option>مستلمة جزئيًا</option><option>مستلمة بالكامل</option><option>ملغاة</option></select></div>
+<div><label>تاريخ الطلب</label><input id="date" type="date"></div>
+<div><label>تاريخ التوريد المتوقع</label><input id="expectedDate" type="date"></div>
+<div><label>طريقة الدفع</label><select id="paymentMethod"><option>نقدي</option><option>تحويل بنكي</option><option>محفظة إلكترونية</option><option>InstaPay</option><option>آجل</option><option>أخرى</option></select></div>
+<div><label>مرجع المورد</label><input id="supplierRef"></div>
+<div><label>مكان الاستلام</label><input id="location" value="المخزن الرئيسي"></div>
+<div class="full"><label>ملاحظات الطلب</label><textarea id="notes"></textarea></div>
+</div>
+
+<h3 style="color:#07152f;margin-top:20px">📦 أصناف الطلب</h3>
+<div id="lines"></div>
+<button type="button" class="gray" id="addLine" style="margin-top:9px">➕ إضافة صنف</button>
+<div class="info">يمكن إدخال أصناف موجودة في المخزون أو إضافة صنف جديد من داخل الطلب. عند اعتماد الاستلام سيتم تحديث المخزون وتسجيل حركة شراء، ولن تتم إضافة الكمية للمخزون بمجرد إنشاء الطلب.</div>
+<div class="actions"><button class="primary" id="save">💾 حفظ طلب الشراء</button><button class="gray hidden" id="cancel">إلغاء التعديل</button></div>
+</div>
+
+<div class="card">
+<h2>🔎 البحث والتصفية</h2>
+<div class="filters">
+<input id="search" placeholder="رقم الطلب / المورد / المرجع...">
+<select id="filterStatus"><option value="">كل الحالات</option><option>مسودة</option><option>معلقة</option><option>معتمدة</option><option>قيد الاستلام</option><option>مستلمة جزئيًا</option><option>مستلمة بالكامل</option><option>ملغاة</option></select>
+<select id="filterSupplier"><option value="">كل الموردين</option></select>
+</div>
+<div id="list"></div>
+</div>
+
+<div class="card">
+<h2>📥 استلام طلب شراء</h2>
+<div class="grid">
+<div><label>طلب الشراء</label><select id="receiveOrder"><option value="">اختر الطلب</option></select></div>
+<div><label>تاريخ الاستلام</label><input id="receiveDate" type="date"></div>
+<div class="full"><label>كميات الاستلام</label><div id="receiveLines"><div class="empty">اختر طلب شراء.</div></div></div>
+<div class="full"><label>ملاحظات الاستلام</label><textarea id="receiveNotes"></textarea></div>
+</div>
+<button class="blue" id="receive">📥 تسجيل الاستلام وتحديث المخزون</button>
+</div>
+
+<div class="card"><h2>📋 آخر عمليات الاستلام</h2><div id="history"></div></div>
+<a class="back" href="index.html">🏠 العودة إلى الرئيسية</a>
+</div>
+
+<script>
+const KEY="purchaseOrders",SUP="suppliers",INV="inventory",TR="inventory_transactions";
+let editing=null;
+const $=id=>document.getElementById(id);
+const arr=k=>{try{let x=JSON.parse(localStorage.getItem(k)||"[]");return Array.isArray(x)?x:[]}catch(e){return[]}};
+const save=(k,v)=>localStorage.setItem(k,JSON.stringify(v));
+const esc=v=>String(v??"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&#039;");
+const today=()=>new Date().toISOString().slice(0,10);
+function notice(t,b=false){$("notice").textContent=t;$("notice").className="notice "+(b?"error":"good");$("notice").style.display="block";setTimeout(()=>$("notice").style.display="none",3200)}
+function nextId(){let n=0;arr(KEY).forEach(x=>{let m=String(x.id||"").match(/^PO-(\d+)$/);if(m)n=Math.max(n,+m[1])});return"PO-"+String(n+1).padStart(5,"0")}
+function supplierId(s){return s.id||s.supplierId||s.code||""}
+function supplierName(s){return s.name||s.companyName||s.supplierName||"بدون اسم"}
+function loadSuppliers(selected=""){
+ let a=arr(SUP);$("supplier").innerHTML='<option value="">اختر المورد</option>'+a.map(s=>'<option value="'+esc(supplierId(s))+'">'+esc(supplierName(s))+'</option>').join("");if(selected)$("supplier").value=selected;
+ $("filterSupplier").innerHTML='<option value="">كل الموردين</option>'+a.map(s=>'<option value="'+esc(supplierId(s))+'">'+esc(supplierName(s))+'</option>').join("")
+}
+function inventoryOptions(selected=""){
+ let a=arr(INV);return '<option value="">اختر الصنف</option>'+a.map(x=>'<option value="'+esc(x.id)+'" '+(String(x.id)===String(selected)?"selected":"")+'>'+esc(x.id)+' — '+esc(x.name)+' | الرصيد '+esc(x.quantity)+' '+esc(x.unit)+'</option>').join("")
+}
+function addLine(data={}){
+ let d=document.createElement("div");d.className="line";
+ d.innerHTML='<div class="linegrid"><div><label>الصنف</label><select class="lineItem">'+inventoryOptions(data.itemId||"")+'</select></div><div><label>الكمية</label><input class="lineQty" type="number" min="0.01" step=".01" value="'+esc(data.qty||1)+'"></div><div><label>سعر الوحدة</label><input class="linePrice" type="number" min="0" step=".01" value="'+esc(data.price||0)+'"></div><div><label>خصم</label><input class="lineDiscount" type="number" min="0" step=".01" value="'+esc(data.discount||0)+'"></div><button type="button" class="danger removeLine">حذف</button></div>';
+ d.querySelector(".removeLine").onclick=()=>{d.remove();if(!document.querySelector(".line"))addLine()};$("lines").appendChild(d)
+}
+function getLines(){
+ return [...document.querySelectorAll(".line")].map(d=>({itemId:d.querySelector(".lineItem").value,qty:Number(d.querySelector(".lineQty").value||0),price:Number(d.querySelector(".linePrice").value||0),discount:Number(d.querySelector(".lineDiscount").value||0)})).filter(x=>x.itemId&&x.qty>0)
+}
+function total(o){return (o.lines||[]).reduce((n,l)=>n+(l.qty*l.price-Math.min(l.qty*l.price,l.discount||0)),0)}
+function reset(){
+ editing=null;$("formTitle").textContent="➕ إنشاء طلب شراء";$("save").textContent="💾 حفظ طلب الشراء";$("cancel").classList.add("hidden");$("id").value=nextId();loadSuppliers();$("status").value="مسودة";$("date").value=today();$("expectedDate").value="";$("paymentMethod").value="آجل";$("supplierRef").value="";$("location").value="المخزن الرئيسي";$("notes").value="";$("lines").innerHTML="";addLine()
+}
+function saveOrder(){
+ let sid=$("supplier").value,lines=getLines();if(!sid){notice("اختر المورد",true);return}if(!lines.length){notice("أضف صنفًا واحدًا على الأقل",true);return}
+ let all=arr(KEY),old=editing?all.find(x=>String(x.id)===String(editing)):null,s=arr(SUP).find(x=>String(supplierId(x))===String(sid)),now=new Date().toISOString();
+ let x={id:editing||nextId(),supplierId:sid,supplierName:supplierName(s||{}),status:$("status").value,date:$("date").value||today(),expectedDate:$("expectedDate").value,supplierRef:$("supplierRef").value.trim(),location:$("location").value.trim(),paymentMethod:$("paymentMethod").value,notes:$("notes").value.trim(),lines,receivedLines:old?.receivedLines||{},createdAt:old?.createdAt||now,updatedAt:now};
+ let i=all.findIndex(a=>String(a.id)===String(x.id));if(i>=0)all[i]=x;else all.unshift(x);save(KEY,all);notice(editing?"تم تعديل طلب الشراء":"تم إنشاء طلب الشراء");reset();renderAll()
+}
+function editOrder(id){
+ let x=arr(KEY).find(a=>String(a.id)===String(id));if(!x)return;
+ if(["مستلمة بالكامل","ملغاة"].includes(x.status)){notice("لا يمكن تعديل طلب مستلم بالكامل أو ملغى",true);return}
+ editing=x.id;$("formTitle").textContent="✏️ تعديل طلب الشراء";$("save").textContent="💾 حفظ التعديل";$("cancel").classList.remove("hidden");$("id").value=x.id;loadSuppliers(x.supplierId);$("status").value=x.status;$("date").value=x.date||today();$("expectedDate").value=x.expectedDate||"";$("paymentMethod").value=x.paymentMethod||"آجل";$("supplierRef").value=x.supplierRef||"";$("location").value=x.location||"";$("notes").value=x.notes||"";$("lines").innerHTML="";x.lines.forEach(addLine);scrollTo({top:0,behavior:"smooth"})
+}
+function deleteOrder(id){
+ let x=arr(KEY).find(a=>String(a.id)===String(id));if(!x)return;
+ if(Object.keys(x.receivedLines||{}).length){notice("لا يمكن حذف طلب بدأ استلامه",true);return}
+ if(!confirm("حذف طلب الشراء؟"))return;save(KEY,arr(KEY).filter(a=>String(a.id)!==String(id)));renderAll();notice("تم حذف الطلب")
+}
+function approve(id){
+ let all=arr(KEY),x=all.find(a=>String(a.id)===String(id));if(!x)return;x.status="معتمدة";x.updatedAt=new Date().toISOString();save(KEY,all);renderAll();notice("تم اعتماد الطلب")
+}
+function prepareReceive(id){
+ let x=arr(KEY).find(a=>String(a.id)===String(id));if(!x)return;$("receiveOrder").value=id;renderReceiveLines();$("receiveOrder").scrollIntoView({behavior:"smooth"})
+}
+function renderReceiveLines(){
+ let id=$("receiveOrder").value,x=arr(KEY).find(a=>String(a.id)===String(id));if(!x){$("receiveLines").innerHTML='<div class="empty">اختر طلب شراء.</div>';return}
+ let inv=arr(INV),r=x.receivedLines||{};
+ $("receiveLines").innerHTML=x.lines.map((l,i)=>{let item=inv.find(a=>String(a.id)===String(l.itemId)),rec=Number(r[l.itemId]||0),remain=Math.max(0,l.qty-rec);return'<div class="line"><b>📦 '+esc(item?.name||l.itemId)+'</b><br>مطلوب: '+esc(l.qty)+' | مستلم سابقًا: '+rec+' | متبقي: '+remain+'<label>استلام الآن</label><input class="receiveQty" data-item="'+esc(l.itemId)+'" data-remain="'+remain+'" type="number" min="0" max="'+remain+'" step=".01" value="0"></div>'}).join("")
+}
+function receive(){
+ let id=$("receiveOrder").value,all=arr(KEY),x=all.find(a=>String(a.id)===String(id));if(!x){notice("اختر طلبًا",true);return}
+ if(x.status==="مسودة"||x.status==="معلقة"){notice("اعتمد الطلب أولًا قبل الاستلام",true);return}
+ let inv=arr(INV),transactions=arr(TR),received=x.receivedLines||{},any=false,invalid=false;
+ document.querySelectorAll(".receiveQty").forEach(input=>{let q=Number(input.value||0),remain=Number(input.dataset.remain||0),itemId=input.dataset.item;if(q<0||q>remain){invalid=true;return}if(q>0){let item=inv.find(a=>String(a.id)===String(itemId));if(!item){invalid=true;return}let before=Number(item.quantity||0);item.quantity=before+q;item.updatedAt=new Date().toISOString();received[itemId]=Number(received[itemId]||0)+q;transactions.unshift({id:"TR-"+Date.now()+"-"+itemId,itemId,itemName:item.name,type:"شراء/استلام",qty:q,before,after:item.quantity,ref:id,date:new Date().toISOString(),notes:$("receiveNotes").value.trim()});any=true}});
+ if(invalid){notice("تحقق من كميات الاستلام",true);return}if(!any){notice("أدخل كمية استلام واحدة على الأقل",true);return}
+ x.receivedLines=received;let complete=x.lines.every(l=>Number(received[l.itemId]||0)>=Number(l.qty));x.status=complete?"مستلمة بالكامل":"مستلمة جزئيًا";x.updatedAt=new Date().toISOString();save(INV,inv);save(TR,transactions);save(KEY,all);$("receiveNotes").value="";renderAll();notice(complete?"تم استلام الطلب بالكامل وتحديث المخزون":"تم تسجيل الاستلام الجزئي وتحديث المخزون")
+}
+function renderList(){
+ let q=$("search").value.trim().toLowerCase(),s=$("filterStatus").value,sid=$("filterSupplier").value,a=arr(KEY).filter(x=>[x.id,x.supplierName,x.supplierRef].join(" ").toLowerCase().includes(q)&&(!s||x.status===s)&&(!sid||String(x.supplierId)===String(sid)));
+ $("list").innerHTML=a.length?a.map(x=>'<div class="item"><h3>🛒 '+esc(x.id)+' — '+esc(x.supplierName)+'</h3><span class="badge '+(["معتمدة","قيد الاستلام"].includes(x.status)?"ok":x.status==="معلقة"||x.status==="مستلمة جزئيًا"?"warn":"bad")+'">'+esc(x.status)+'</span><p>📅 '+esc(x.date)+' | التوريد المتوقع: '+esc(x.expectedDate||"غير محدد")+'<br>📦 الأصناف: '+x.lines.length+' | 💰 الإجمالي: <b>'+total(x).toFixed(2)+' جنيه</b><br>💳 '+esc(x.paymentMethod)+' | المرجع: '+esc(x.supplierRef||"غير موجود")+'</p><div class="actions">'+(x.status==="معلقة"||x.status==="مسودة"?'<button class="primary" data-a="approve" data-id="'+esc(x.id)+'">✅ اعتماد</button>':"")+(["معتمدة","قيد الاستلام","مستلمة جزئيًا"].includes(x.status)?'<button class="blue" data-a="receive" data-id="'+esc(x.id)+'">📥 استلام</button>':"")+'<button class="gray" data-a="edit" data-id="'+esc(x.id)+'">✏️ تعديل</button><button class="danger" data-a="delete" data-id="'+esc(x.id)+'">🗑️ حذف</button></div></div>').join(""):'<div class="empty">لا توجد طلبات شراء.</div>'
+}
+function renderHistory(){let t=arr(TR).filter(x=>String(x.type).includes("شراء")).slice(0,80);$("history").innerHTML=t.length?'<table><thead><tr><th>التاريخ</th><th>الصنف</th><th>الكمية</th><th>قبل</th><th>بعد</th><th>المرجع</th></tr></thead><tbody>'+t.map(x=>'<tr><td>'+esc(x.date)+'</td><td>'+esc(x.itemName||x.itemId)+'</td><td>'+esc(x.qty)+'</td><td>'+esc(x.before)+'</td><td>'+esc(x.after)+'</td><td>'+esc(x.ref||"")+'</td></tr>').join("")+'</tbody></table>':'<div class="empty">لا توجد عمليات استلام.</div>'}
+function renderAll(){
+ let a=arr(KEY);$("total").textContent=a.length;$("pending").textContent=a.filter(x=>["مسودة","معلقة"].includes(x.status)).length;$("approved").textContent=a.filter(x=>x.status==="معتمدة").length;$("receiving").textContent=a.filter(x=>["قيد الاستلام","مستلمة جزئيًا"].includes(x.status)).length;$("spent").textContent=a.reduce((n,x)=>n+total(x),0).toFixed(2);
+ loadSuppliers();$("receiveOrder").innerHTML='<option value="">اختر الطلب</option>'+a.filter(x=>["معتمدة","قيد الاستلام","مستلمة جزئيًا"].includes(x.status)).map(x=>'<option value="'+esc(x.id)+'">'+esc(x.id)+' — '+esc(x.supplierName)+'</option>').join("");renderList();renderReceiveLines();renderHistory()
+}
+$("addLine").onclick=()=>addLine();$("save").onclick=saveOrder;$("cancel").onclick=reset;$("search").oninput=renderList;$("filterStatus").onchange=renderList;$("filterSupplier").onchange=renderList;$("receiveOrder").onchange=renderReceiveLines;$("receive").onclick=receive;
+$("list").onclick=e=>{let b=e.target.closest("button[data-a]");if(!b)return;let id=b.dataset.id,a=b.dataset.a;if(a==="approve")approve(id);else if(a==="receive")prepareReceive(id);else if(a==="edit")editOrder(id);else deleteOrder(id)};
+$("date").value=today();$("receiveDate").value=today();reset();renderAll();
+</script>
+</body>
+</html>
