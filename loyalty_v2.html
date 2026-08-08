@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>برنامج الولاء - الورشة الفنية</title>
+<style>
+*{box-sizing:border-box}body{margin:0;font-family:Arial,Tahoma,sans-serif;background:#f4f6f8;color:#172033}
+header{background:#07152f;color:#fff;text-align:center;padding:22px 15px}header h1{margin:0 0 7px}header p{margin:0;color:#dbe5ff}
+.container{max-width:1150px;margin:auto;padding:16px}.card{background:#fff;border-radius:16px;padding:18px;margin-bottom:16px;box-shadow:0 2px 9px rgba(0,0,0,.06)}
+h2{margin:0 0 15px;color:#07152f}.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.full{grid-column:1/-1}
+label{display:block;font-weight:bold;margin:8px 0 5px}input,select,textarea{width:100%;padding:12px;border:1px solid #ccd4de;border-radius:10px;font:inherit}textarea{min-height:80px}
+button{border:0;border-radius:10px;padding:11px 15px;font:inherit;cursor:pointer}.primary{background:#16803c;color:#fff}.blue{background:#1769aa;color:#fff}.gray{background:#596273;color:#fff}.danger{background:#d60000;color:#fff}.orange{background:#a96600;color:#fff}
+.actions{display:flex;gap:8px;margin-top:12px}.actions button{flex:1}.filters{display:grid;grid-template-columns:2fr 1fr;gap:10px}
+.stats{display:grid;grid-template-columns:repeat(5,1fr);gap:9px}.stat{background:#f8fafc;border-radius:11px;padding:12px;text-align:center}.stat b{display:block;font-size:22px;color:#07152f}
+.item{border:1px solid #dfe4ea;border-radius:14px;padding:15px;margin-top:10px}.item h3{margin:0 0 8px;color:#07152f}
+.badge{display:inline-block;padding:5px 9px;border-radius:20px;background:#e9edf2;margin:3px;font-size:12px}.ok{background:#e3f7e9;color:#146c2e}.warn{background:#fff0d6;color:#8b5b00}.bad{background:#ffe2e2;color:#a00000}.bluebadge{background:#e4f0ff;color:#1769aa}
+.notice{display:none;padding:12px;border-radius:10px;margin-bottom:12px}.good{background:#e1f5e7;color:#146c2e}.error{background:#ffe2e2;color:#a00000}.info{background:#eef6ff;border:1px solid #cfe2ff;border-radius:10px;padding:11px;line-height:1.8;margin-top:10px}.empty{text-align:center;color:#777;padding:28px}
+table{width:100%;border-collapse:collapse}th,td{padding:9px;border-bottom:1px solid #e5e7eb;text-align:right}th{background:#f8fafc}
+.back{display:block;text-align:center;background:#333;color:#fff;text-decoration:none;padding:14px;border-radius:10px}
+@media(max-width:700px){.grid,.filters{grid-template-columns:1fr}.full{grid-column:auto}.stats{grid-template-columns:repeat(2,1fr)}.actions{flex-direction:column}}
+</style>
+</head>
+<body>
+<header><h1>⭐ برنامج ولاء العملاء</h1><p>الورشة الفنية لصيانة الأجهزة المنزلية والتكييف</p></header>
+<div class="container">
+<div id="notice" class="notice"></div>
+<div class="card"><h2>📊 ملخص الولاء</h2><div class="stats">
+<div class="stat"><b id="customers">0</b>عملاء مشتركين</div><div class="stat"><b id="points">0</b>إجمالي النقاط</div><div class="stat"><b id="vip">0</b>عملاء VIP</div><div class="stat"><b id="redeemed">0</b>نقاط مستخدمة</div><div class="stat"><b id="charity">0</b>نقاط تبرع</div>
+</div></div>
+
+<div class="card">
+<h2>➕ إدارة نقاط عميل</h2>
+<div class="grid">
+<div><label>العميل *</label><select id="customer"><option value="">اختر العميل</option></select></div>
+<div><label>نوع العملية</label><select id="type"><option value="earn">إضافة نقاط</option><option value="redeem">استخدام نقاط</option><option value="charity">تبرع بالنقاط</option><option value="adjust">تسوية الرصيد</option></select></div>
+<div><label>النقاط *</label><input id="pointsInput" type="number" min="1" step="1"></div>
+<div><label>المرجع</label><input id="reference" placeholder="فاتورة / إحالة / سبب..."></div>
+<div><label>تاريخ العملية</label><input id="date" type="date"></div>
+<div class="full"><label>ملاحظات</label><textarea id="notes"></textarea></div>
+</div>
+<button class="primary" id="save">💾 تسجيل العملية</button>
+<div class="info">
+نظام النقاط مستقل عن المدفوعات. يمكن ربط المرجع بالفاتورة أو طلب الصيانة عند توفر الرقم. لا يسمح باستخدام أو التبرع بأكثر من الرصيد الحالي.
+</div>
+</div>
+
+<div class="card"><h2>🎁 استبدال النقاط</h2>
+<div class="grid">
+<div><label>العميل</label><select id="redeemCustomer"><option value="">اختر العميل</option></select></div>
+<div><label>النقاط المتاحة</label><input id="available" readonly></div>
+<div><label>النقاط المراد استخدامها</label><input id="redeemPoints" type="number" min="1"></div>
+<div><label>قيمة الخصم الناتجة</label><input id="discount" type="number" min="0" step=".01"></div>
+</div>
+<button class="orange" id="redeemBtn">🎁 تسجيل الاستبدال</button>
+</div>
+
+<div class="card"><h2>🔎 أرصدة العملاء</h2>
+<div class="filters"><input id="search" placeholder="اسم العميل / الهاتف..."><select id="filterLevel"><option value="">كل المستويات</option><option>عادي</option><option>فضي</option><option>ذهبي</option><option>VIP</option></select></div>
+<div id="list"></div>
+</div>
+
+<div class="card"><h2>📜 سجل النقاط</h2><div id="history"></div></div>
+<a class="back" href="index.html">🏠 العودة إلى الرئيسية</a>
+</div>
+
+<script>
+const KEY="loyaltyAccounts",TR="loyaltyTransactions",CUSTOMERS="customers";
+const POINT_VALUE=1; // قيمة النقطة بالجنيه في الخصم، ويمكن تعديلها لاحقًا من الإعدادات المركزية.
+const $=id=>document.getElementById(id);
+const arr=k=>{try{let x=JSON.parse(localStorage.getItem(k)||"[]");return Array.isArray(x)?x:[]}catch(e){return[]}};
+const save=(k,v)=>localStorage.setItem(k,JSON.stringify(v));
+const esc=v=>String(v??"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&#039;");
+const today=()=>new Date().toISOString().slice(0,10);
+function notice(t,b=false){$("notice").textContent=t;$("notice").className="notice "+(b?"error":"good");$("notice").style.display="block";setTimeout(()=>$("notice").style.display="none",3000)}
+function cid(c){return c.id||c.customerId||c.code||""}function cname(c){return c.name||c.fullName||c.customerName||"بدون اسم"}
+function level(p){p=Number(p||0);return p>=1000?"VIP":p>=600?"ذهبي":p>=300?"فضي":"عادي"}
+function loadCustomers(){
+ let c=arr(CUSTOMERS),opts='<option value="">اختر العميل</option>'+c.map(x=>'<option value="'+esc(cid(x))+'">'+esc(cname(x))+' — '+esc(x.phone||x.mobile||"")+'</option>').join("");
+ $("customer").innerHTML=opts;$("redeemCustomer").innerHTML=opts
+}
+function account(id){
+ let a=arr(KEY).find(x=>String(x.customerId)===String(id));if(a)return a;
+ let c=arr(CUSTOMERS).find(x=>String(cid(x))===String(id));return {id:"LOY-"+id,customerId:id,customerName:cname(c||{}),points:0,createdAt:new Date().toISOString()}
+}
+function balance(id){return Number(account(id).points||0)}
+function updateAccount(id,delta){
+ let all=arr(KEY),i=all.findIndex(x=>String(x.customerId)===String(id)),a=account(id);a.points=Number(a.points||0)+delta;a.updatedAt=new Date().toISOString();
+ if(i>=0)all[i]=a;else all.push(a);save(KEY,all)
+}
+function transaction(id,type,points,ref,notes){
+ let t=arr(TR),a=account(id),before=Number(a.points||0),delta=type==="earn"?points:-(points);
+ if(type==="adjust")delta=points-before;
+ updateAccount(id,delta);let after=balance(id);
+ t.unshift({id:"LP-"+Date.now(),customerId:id,customerName:a.customerName,type,points:Math.abs(delta),before,after,reference:ref,date:$("date").value||today(),notes});save(TR,t)
+}
+$("save").onclick=()=>{
+ let id=$("customer").value,p=Number($("pointsInput").value||0),type=$("type").value;
+ if(!id||p<=0){notice("اختر العميل وأدخل عدد النقاط",true);return}
+ if((type==="redeem"||type==="charity")&&p>balance(id)){notice("الرصيد غير كافٍ",true);return}
+ if(type==="adjust"&&p<0){notice("التسوية يجب ألا تكون سالبة",true);return}
+ transaction(id,type,p,$("reference").value.trim(),$("notes").value.trim());notice("تم تسجيل عملية النقاط");
+ $("pointsInput").value="";$("reference").value="";$("notes").value="";renderAll()
+};
+$("redeemCustomer").onchange=()=>{$("available").value=balance($("redeemCustomer").value);$("discount").value=(Number($("redeemPoints").value||0)*POINT_VALUE).toFixed(2)};
+$("redeemPoints").oninput=()=>{$("discount").value=(Number($("redeemPoints").value||0)*POINT_VALUE).toFixed(2)};
+$("redeemBtn").onclick=()=>{
+ let id=$("redeemCustomer").value,p=Number($("redeemPoints").value||0);if(!id||p<=0){notice("اختر العميل وأدخل النقاط",true);return}if(p>balance(id)){notice("الرصيد غير كافٍ",true);return}
+ transaction(id,"redeem",p,"استبدال نقاط","خصم بقيمة "+(p*POINT_VALUE).toFixed(2)+" جنيه");$("redeemPoints").value="";$("available").value=balance(id);$("discount").value="";renderAll();notice("تم استبدال النقاط")
+};
+$("search").oninput=renderList;$("filterLevel").onchange=renderList;
+function renderList(){
+ let q=$("search").value.trim().toLowerCase(),l=$("filterLevel").value,c=arr(CUSTOMERS),a=c.map(x=>({c:x,a:account(cid(x))})).filter(x=>(cname(x.c)+" "+(x.c.phone||x.c.mobile||"")).toLowerCase().includes(q)&&(!l||level(x.a.points)===l));
+ $("list").innerHTML=a.length?a.map(x=>'<div class="item"><h3>⭐ '+esc(cname(x.c))+'</h3><span class="badge bluebadge">'+level(x.a.points)+'</span><p>الرصيد: <b>'+Number(x.a.points||0)+'</b> نقطة<br>قيمة الخصم المتاحة: '+(Number(x.a.points||0)*POINT_VALUE).toFixed(2)+' جنيه<br>📞 '+esc(x.c.phone||x.c.mobile||"غير مسجل")+'</p></div>').join(""):'<div class="empty">لا توجد حسابات.</div>'
+}
+function renderHistory(){
+ let t=arr(TR);$("history").innerHTML=t.length?'<table><thead><tr><th>التاريخ</th><th>العميل</th><th>العملية</th><th>النقاط</th><th>الرصيد بعد</th><th>المرجع</th></tr></thead><tbody>'+t.slice(0,100).map(x=>'<tr><td>'+esc(x.date)+'</td><td>'+esc(x.customerName)+'</td><td>'+esc({earn:"إضافة",redeem:"استخدام",charity:"تبرع",adjust:"تسوية"}[x.type]||x.type)+'</td><td>'+esc(x.points)+'</td><td>'+esc(x.after)+'</td><td>'+esc(x.reference||"")+'</td></tr>').join("")+'</tbody></table>':'<div class="empty">لا توجد عمليات نقاط.</div>'
+}
+function renderAll(){
+ let a=arr(KEY),t=arr(TR),total=a.reduce((n,x)=>n+Number(x.points||0),0);
+ $("customers").textContent=a.length;$("points").textContent=total;$("vip").textContent=a.filter(x=>level(x.points)==="VIP").length;$("redeemed").textContent=t.filter(x=>x.type==="redeem").reduce((n,x)=>n+Number(x.points||0),0);$("charity").textContent=t.filter(x=>x.type==="charity").reduce((n,x)=>n+Number(x.points||0),0);renderList();renderHistory()
+}
+$("date").value=today();loadCustomers();renderAll();
+</script>
+</body></html>
