@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>الورشة الفنية</title>
+
+    <style>
+        body {
+            margin: 0;
+            font-family: Arial, sans-serif;
+            background: #f4f6f8;
+            color: #222;
+        }
+
+        header {
+            background: #1f2937;
+            color: white;
+            padding: 25px 20px;
+            text-align: center;
+        }
+
+        header h1 {
+            margin: 0 0 8px;
+        }
+
+        header p {
+            margin: 0;
+            color: #d1d5db;
+        }
+
+        .container {
+            padding: 20px;
+            max-width: 900px;
+            margin: auto;
+        }
+
+        .dashboard {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 15px;
+        }
+
+        .card {
+            background: white;
+            border-radius: 15px;
+            padding: 25px 15px;
+            text-align: center;
+            box-shadow: 0 3px 10px rgba(0,0,0,0.08);
+        }
+
+        .icon {
+            font-size: 35px;
+        }
+
+        .card h2 {
+            font-size: 18px;
+            margin: 10px 0 5px;
+        }
+
+        .card p {
+            color: #666;
+            margin: 0;
+        }
+
+        @media (min-width: 700px) {
+            .dashboard {
+                grid-template-columns: repeat(3, 1fr);
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+<header>
+    <h1>🔧 الورشة الفنية</h1>
+    <p>نظام إدارة وتشغيل الورشة</p>
+</header>
+
+<div class="container">
+
+    <div class="dashboard">
+
+        <div class="card">
+            <div class="icon">👥</div>
+            <h2>العملاء</h2>
+            <p>إدارة العملاء</p>
+        </div>
+
+        <div class="card">
+            <div class="icon">🔧</div>
+            <h2>طلبات الصيانة</h2>
+            <p>متابعة الطلبات</p>
+        </div>
+
+        <div class="card">
+            <div class="icon">👨‍🔧</div>
+            <h2>الفنيين</h2>
+            <p>إدارة فريق العمل</p>
+        </div>
+
+        <div class="card">
+            <div class="icon">📦</div>
+            <h2>المخزون</h2>
+            <p>قطع الغيار</p>
+        </div>
+
+        <div class="card">
+            <div class="icon">💰</div>
+            <h2>الحسابات</h2>
+            <p>المدفوعات والإيرادات</p>
+        </div>
+
+        <div class="card">
+            <div class="icon">📊</div>
+            <h2>التقارير</h2>
+            <p>تقارير وإحصائيات</p>
+        </div>
+
+    </div>
+
+</div>
+
+</body>
+</html>
