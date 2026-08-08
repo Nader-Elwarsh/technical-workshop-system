@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#07152f"><title>سجل النظام والمراجعة - الورشة الفنية</title>
+<style>
+*{box-sizing:border-box}body{margin:0;font-family:Arial,Tahoma,sans-serif;background:#f4f6f8;color:#172033}
+header{background:#07152f;color:#fff;text-align:center;padding:22px 15px}header h1{margin:0 0 7px}header p{margin:0;color:#dbe5ff}
+.container{max-width:1200px;margin:auto;padding:16px}.card{background:#fff;border-radius:16px;padding:18px;margin-bottom:16px;box-shadow:0 2px 9px rgba(0,0,0,.06)}
+h2{margin:0 0 15px;color:#07152f}.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.full{grid-column:1/-1}
+label{display:block;font-weight:bold;margin:8px 0 5px}input,select,textarea{width:100%;padding:12px;border:1px solid #ccd4de;border-radius:10px;font:inherit}
+button{border:0;border-radius:10px;padding:11px 15px;font:inherit;cursor:pointer}.primary{background:#16803c;color:#fff}.blue{background:#1769aa;color:#fff}.gray{background:#596273;color:#fff}.danger{background:#d60000;color:#fff}
+.actions{display:flex;gap:8px;margin-top:12px}.actions button{flex:1}.filters{display:grid;grid-template-columns:2fr 1fr 1fr 1fr;gap:10px}
+.stats{display:grid;grid-template-columns:repeat(5,1fr);gap:9px}.stat{background:#f8fafc;border-radius:11px;padding:12px;text-align:center}.stat b{display:block;font-size:22px;color:#07152f}
+.item{border:1px solid #dfe4ea;border-radius:14px;padding:15px;margin-top:10px}.item h3{margin:0 0 8px;color:#07152f}
+.badge{display:inline-block;padding:5px 9px;border-radius:20px;background:#e9edf2;margin:3px;font-size:12px}.ok{background:#e3f7e9;color:#146c2e}.warn{background:#fff0d6;color:#8b5b00}.bad{background:#ffe2e2;color:#a00000}.bluebadge{background:#e4f0ff;color:#1769aa}
+.notice{display:none;padding:12px;border-radius:10px;margin-bottom:12px}.good{background:#e1f5e7;color:#146c2e}.error{background:#ffe2e2;color:#a00000}.info{background:#eef6ff;border:1px solid #cfe2ff;border-radius:10px;padding:11px;line-height:1.8;margin-top:10px}.empty{text-align:center;color:#777;padding:28px}
+table{width:100%;border-collapse:collapse}th,td{padding:9px;border-bottom:1px solid #e5e7eb;text-align:right}th{background:#f8fafc}.code{font-family:monospace;font-size:12px;background:#f8fafc;padding:10px;border-radius:8px;white-space:pre-wrap}
+.back{display:block;text-align:center;background:#333;color:#fff;text-decoration:none;padding:14px;border-radius:10px}
+@media(max-width:700px){.grid,.filters{grid-template-columns:1fr}.full{grid-column:auto}.stats{grid-template-columns:repeat(2,1fr)}.actions{flex-direction:column}}
+</style>
+</head>
+<body>
+<header><h1>🔐 سجل النظام والمراجعة</h1><p>Audit Log — متابعة العمليات والتغييرات داخل النظام</p></header>
+<div class="container">
+<div id="notice" class="notice"></div>
+
+<div class="card"><h2>📊 ملخص السجل</h2><div class="stats">
+<div class="stat"><b id="total">0</b>إجمالي العمليات</div>
+<div class="stat"><b id="today">0</b>عمليات اليوم</div>
+<div class="stat"><b id="create">0</b>إضافة</div>
+<div class="stat"><b id="update">0</b>تعديل</div>
+<div class="stat"><b id="delete">0</b>حذف/إلغاء</div>
+</div></div>
+
+<div class="card">
+<h2>➕ تسجيل عملية مراجعة يدوية</h2>
+<div class="grid">
+<div><label>المستخدم</label><input id="user" placeholder="اسم المستخدم"></div>
+<div><label>الوحدة</label><select id="module"><option>العملاء</option><option>الأجهزة</option><option>طلبات الصيانة</option><option>الفنيين</option><option>المخزون</option><option>الموردين</option><option>الفواتير</option><option>المدفوعات</option><option>الزيارات</option><option>المسارات</option><option>الولاء</option><option>الضمانات</option><option>العقود</option><option>الإشعارات</option><option>المكتبة الفنية</option><option>الإعدادات</option><option>أخرى</option></select></div>
+<div><label>نوع العملية</label><select id="action"><option>إضافة</option><option>تعديل</option><option>حذف</option><option>إلغاء</option><option>اعتماد</option><option>استلام</option><option>تسجيل دخول</option><option>تغيير صلاحية</option><option>أخرى</option></select></div>
+<div><label>معرّف السجل</label><input id="recordId" placeholder="مثال: CUS-00001"></div>
+<div class="full"><label>وصف العملية</label><textarea id="description"></textarea></div>
+</div>
+<button class="primary" id="save">💾 تسجيل العملية</button>
+<div class="info">هذه النسخة تسجل العمليات محليًا في المتصفح. عند تنفيذ الربط النهائي بين الوحدات سنجعل كل وحدة تكتب سجلها تلقائيًا بدل الاعتماد على الإدخال اليدوي فقط.</div>
+</div>
+
+<div class="card">
+<h2>🔎 البحث والتصفية</h2>
+<div class="filters">
+<input id="search" placeholder="ابحث في المستخدم أو الوصف أو رقم السجل...">
+<select id="filterModule"><option value="">كل الوحدات</option></select>
+<select id="filterAction"><option value="">كل العمليات</option></select>
+<select id="filterDate"><option value="">كل التواريخ</option><option value="today">اليوم</option></select>
+</div>
+<div id="list"></div>
+</div>
+
+<div class="card"><h2>🧾 تفاصيل العملية</h2><div id="details"><div class="empty">اختر عملية لعرض التفاصيل.</div></div></div>
+<a class="back" href="index.html">🏠 العودة إلى الرئيسية</a>
+</div>
+
+<script>
+const KEY="auditLog";const $=id=>document.getElementById(id);
+const arr=k=>{try{let x=JSON.parse(localStorage.getItem(k)||"[]");return Array.isArray(x)?x:[]}catch(e){return[]}};
+const save=(k,v)=>localStorage.setItem(k,JSON.stringify(v));
+const esc=v=>String(v??"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&#039;");
+const today=()=>new Date().toISOString().slice(0,10);
+function notice(t,b=false){$("notice").textContent=t;$("notice").className="notice "+(b?"error":"good");$("notice").style.display="block";setTimeout(()=>$("notice").style.display="none",3000)}
+function nextId(){let n=0;arr(KEY).forEach(x=>{let m=String(x.id||"").match(/^AUD-(\d+)$/);if(m)n=Math.max(n,+m[1])});return"AUD-"+String(n+1).padStart(6,"0")}
+function saveLog(){
+ let u=$("user").value.trim()||"مدير النظام",desc=$("description").value.trim();if(!desc){notice("اكتب وصف العملية",true);return}
+ let a=arr(KEY);a.unshift({id:nextId(),user:u,module:$("module").value,action:$("action").value,recordId:$("recordId").value.trim(),description:desc,date:new Date().toISOString(),source:"manual"});save(KEY,a);
+ $("description").value="";$("recordId").value="";notice("تم تسجيل العملية");renderAll()
+}
+function seedAutoLogs(){
+ // Import lightweight evidence from existing local data without duplicating every refresh.
+ let a=arr(KEY),known=new Set(a.map(x=>x.sourceKey)),items=[];
+ const sources=[["customers","العملاء"],["visits","الزيارات"],["routes","المسارات"],["payments","المدفوعات"],["loyaltyTransactions","الولاء"],["technicalLibrary","المكتبة الفنية"],["purchaseOrders","طلبات الشراء"]];
+ sources.forEach(([key,module])=>arr(key).slice(0,30).forEach(x=>{let k=key+":"+String(x.id||JSON.stringify(x).slice(0,50));if(!known.has(k))items.push({id:nextId(),user:"النظام",module,action:"مزامنة",recordId:x.id||"",description:"سجل موجود في الوحدة وتمت مزامنته مع سجل المراجعة.",date:x.updatedAt||x.createdAt||new Date().toISOString(),source:"auto",sourceKey:k})}));
+ if(items.length){save(KEY,items.concat(a))}
+}
+function details(id){let x=arr(KEY).find(a=>String(a.id)===String(id));if(!x)return;$("details").innerHTML='<div class="item"><h3>🔐 '+esc(x.id)+'</h3><p><b>المستخدم:</b> '+esc(x.user)+'<br><b>الوحدة:</b> '+esc(x.module)+'<br><b>العملية:</b> '+esc(x.action)+'<br><b>معرّف السجل:</b> '+esc(x.recordId||"غير موجود")+'<br><b>التاريخ:</b> '+esc(x.date)+'</p><div class="code">'+esc(x.description)+'</div></div>';$("details").scrollIntoView({behavior:"smooth"})}
+function renderList(){
+ let q=$("search").value.trim().toLowerCase(),m=$("filterModule").value,a=$("filterAction").value,d=$("filterDate").value;
+ let rows=arr(KEY).filter(x=>([x.id,x.user,x.module,x.action,x.recordId,x.description].join(" ").toLowerCase().includes(q))&&(!m||x.module===m)&&(!a||x.action===a)&&(!d||x.date.slice(0,10)===today()));
+ $("list").innerHTML=rows.length?'<table><thead><tr><th>التاريخ</th><th>المستخدم</th><th>الوحدة</th><th>العملية</th><th>السجل</th><th>تفاصيل</th></tr></thead><tbody>'+rows.map(x=>'<tr><td>'+esc(x.date)+'</td><td>'+esc(x.user)+'</td><td>'+esc(x.module)+'</td><td><span class="badge '+(x.action==="حذف"||x.action==="إلغاء"?"bad":x.action==="تعديل"?"warn":"bluebadge")+'">'+esc(x.action)+'</span></td><td>'+esc(x.recordId||"—")+'</td><td><button class="blue" data-id="'+esc(x.id)+'">👁️ عرض</button></td></tr>').join("")+'</tbody></table>':'<div class="empty">لا توجد عمليات.</div>'
+}
+function renderAll(){
+ seedAutoLogs();let a=arr(KEY);$("total").textContent=a.length;$("today").textContent=a.filter(x=>x.date.slice(0,10)===today()).length;$("create").textContent=a.filter(x=>x.action==="إضافة").length;$("update").textContent=a.filter(x=>x.action==="تعديل").length;$("delete").textContent=a.filter(x=>["حذف","إلغاء"].includes(x.action)).length;
+ $("filterModule").innerHTML='<option value="">كل الوحدات</option>'+[...new Set(a.map(x=>x.module).filter(Boolean))].map(x=>'<option>'+esc(x)+'</option>').join("");
+ $("filterAction").innerHTML='<option value="">كل العمليات</option>'+[...new Set(a.map(x=>x.action).filter(Boolean))].map(x=>'<option>'+esc(x)+'</option>').join("");renderList()
+}
+$("save").onclick=saveLog;$("search").oninput=renderList;$("filterModule").onchange=renderList;$("filterAction").onchange=renderList;$("filterDate").onchange=renderList;
+$("list").onclick=e=>{let b=e.target.closest("button[data-id]");if(b)details(b.dataset.id)};
+renderAll();
+</script>
+</body></html>
