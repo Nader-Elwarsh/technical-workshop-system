@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#07152f"><title>المكتبة الفنية - الورشة الفنية</title>
+<style>
+*{box-sizing:border-box}body{margin:0;font-family:Arial,Tahoma,sans-serif;background:#f4f6f8;color:#172033}
+header{background:#07152f;color:#fff;text-align:center;padding:22px 15px}header h1{margin:0 0 7px}header p{margin:0;color:#dbe5ff}
+.container{max-width:1150px;margin:auto;padding:16px}.card{background:#fff;border-radius:16px;padding:18px;margin-bottom:16px;box-shadow:0 2px 9px rgba(0,0,0,.06)}
+h2{margin:0 0 15px;color:#07152f}.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.full{grid-column:1/-1}
+label{display:block;font-weight:bold;margin:8px 0 5px}input,select,textarea{width:100%;padding:12px;border:1px solid #ccd4de;border-radius:10px;font:inherit}textarea{min-height:100px;resize:vertical}
+button{border:0;border-radius:10px;padding:11px 15px;font:inherit;cursor:pointer}.primary{background:#16803c;color:#fff}.blue{background:#1769aa;color:#fff}.gray{background:#596273;color:#fff}.danger{background:#d60000;color:#fff}
+.actions{display:flex;gap:8px;margin-top:12px}.actions button{flex:1}.filters{display:grid;grid-template-columns:2fr 1fr 1fr;gap:10px}
+.item{border:1px solid #dfe4ea;border-radius:14px;padding:15px;margin-top:10px}.item h3{margin:0 0 8px;color:#07152f}
+.badge{display:inline-block;padding:5px 9px;border-radius:20px;background:#e9edf2;margin:3px;font-size:12px}.bluebadge{background:#e4f0ff;color:#1769aa}.ok{background:#e3f7e9;color:#146c2e}
+.notice{display:none;padding:12px;border-radius:10px;margin-bottom:12px}.good{background:#e1f5e7;color:#146c2e}.error{background:#ffe2e2;color:#a00000}.info{background:#eef6ff;border:1px solid #cfe2ff;border-radius:10px;padding:11px;line-height:1.8;margin-top:10px}.empty{text-align:center;color:#777;padding:28px}
+pre{white-space:pre-wrap;background:#f8fafc;border-radius:10px;padding:12px;line-height:1.8;overflow:auto}.back{display:block;text-align:center;background:#333;color:#fff;text-decoration:none;padding:14px;border-radius:10px}
+.hidden{display:none!important}@media(max-width:700px){.grid,.filters{grid-template-columns:1fr}.full{grid-column:auto}.actions{flex-direction:column}}
+</style>
+</head>
+<body>
+<header><h1>📚 المكتبة الفنية</h1><p>المراجع والأعطال والأدلة الفنية للورشة</p></header>
+<div class="container">
+<div id="notice" class="notice"></div>
+
+<div class="card">
+<h2 id="formTitle">➕ إضافة مرجع فني</h2>
+<div class="grid">
+<div><label>رقم المرجع</label><input id="id" readonly></div>
+<div><label>العنوان *</label><input id="title"></div>
+<div><label>نوع المحتوى</label><select id="type"><option>دليل صيانة</option><option>كود عطل</option><option>معلومة فنية</option><option>كتالوج</option><option>فيديو</option><option>ملف PDF</option><option>إجراء عمل</option><option>نصائح للعميل</option></select></div>
+<div><label>الجهاز</label><select id="deviceType"><option>عام</option><option>تكييف</option><option>ثلاجة</option><option>فريزر</option><option>غسالة</option><option>سخان</option><option>مبرد مياه</option><option>أخرى</option></select></div>
+<div><label>العلامة التجارية</label><input id="brand"></div>
+<div><label>الموديل / السلسلة</label><input id="model"></div>
+<div><label>كلمات البحث</label><input id="tags" placeholder="مثال: E6، R22، حساس، كمبروسر"></div>
+<div><label>رابط خارجي</label><input id="url" type="url" placeholder="اختياري"></div>
+<div class="full"><label>المحتوى الفني</label><textarea id="content" placeholder="اكتب خطوات التشخيص أو شرح العطل أو الإجراء..."></textarea></div>
+<div class="full"><label>ملاحظات</label><textarea id="notes"></textarea></div>
+</div>
+<div class="actions"><button class="primary" id="save">💾 حفظ المرجع</button><button class="gray hidden" id="cancel">إلغاء التعديل</button></div>
+<div class="info">المكتبة تحفظ المحتوى النصي والروابط محليًا. يمكن لاحقًا ربطها بملفات PDF وفيديوهات فعلية من وحدة الإعدادات/الملفات حسب طريقة الاستضافة.</div>
+</div>
+
+<div class="card">
+<h2>🔎 البحث في المكتبة</h2>
+<div class="filters"><input id="search" placeholder="ابحث بالعنوان أو العطل أو الموديل أو الكلمات..."><select id="filterType"><option value="">كل الأنواع</option></select><select id="filterDevice"><option value="">كل الأجهزة</option></select></div>
+<div id="list"></div>
+</div>
+
+<div class="card"><h2>📖 عرض المرجع</h2><div id="viewer"><div class="empty">اختر مرجعًا لعرضه.</div></div></div>
+<a class="back" href="index.html">🏠 العودة إلى الرئيسية</a>
+</div>
+<script>
+const KEY="technicalLibrary";let editing=null;
+const $=id=>document.getElementById(id);
+const arr=k=>{try{let x=JSON.parse(localStorage.getItem(k)||"[]");return Array.isArray(x)?x:[]}catch(e){return[]}};
+const save=(k,v)=>localStorage.setItem(k,JSON.stringify(v));
+const esc=v=>String(v??"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&#039;");
+function notice(t,b=false){$("notice").textContent=t;$("notice").className="notice "+(b?"error":"good");$("notice").style.display="block";setTimeout(()=>$("notice").style.display="none",3000)}
+function nextId(){let n=0;arr(KEY).forEach(x=>{let m=String(x.id||"").match(/^LIB-(\d+)$/);if(m)n=Math.max(n,+m[1])});return"LIB-"+String(n+1).padStart(5,"0")}
+function reset(){editing=null;$("formTitle").textContent="➕ إضافة مرجع فني";$("save").textContent="💾 حفظ المرجع";$("cancel").classList.add("hidden");$("id").value=nextId();["title","brand","model","tags","url","content","notes"].forEach(x=>$(x).value="");$("type").value="دليل صيانة";$("deviceType").value="عام"}
+function saveItem(){
+ let title=$("title").value.trim(),content=$("content").value.trim();if(!title||!content){notice("أدخل العنوان والمحتوى الفني",true);return}
+ let all=arr(KEY),old=editing?all.find(x=>String(x.id)===String(editing)):null,now=new Date().toISOString();
+ let x={id:editing||nextId(),title,type:$("type").value,deviceType:$("deviceType").value,brand:$("brand").value.trim(),model:$("model").value.trim(),tags:$("tags").value.trim(),url:$("url").value.trim(),content,notes:$("notes").value.trim(),createdAt:old?.createdAt||now,updatedAt:now};
+ let i=all.findIndex(a=>String(a.id)===String(x.id));if(i>=0)all[i]=x;else all.unshift(x);save(KEY,all);notice(editing?"تم تعديل المرجع":"تمت إضافة المرجع");reset();renderAll()
+}
+function editItem(id){let x=arr(KEY).find(a=>String(a.id)===String(id));if(!x)return;editing=x.id;$("formTitle").textContent="✏️ تعديل المرجع";$("save").textContent="💾 حفظ التعديل";$("cancel").classList.remove("hidden");$("id").value=x.id;$("title").value=x.title||"";$("type").value=x.type||"دليل صيانة";$("deviceType").value=x.deviceType||"عام";$("brand").value=x.brand||"";$("model").value=x.model||"";$("tags").value=x.tags||"";$("url").value=x.url||"";$("content").value=x.content||"";$("notes").value=x.notes||"";scrollTo({top:0,behavior:"smooth"})}
+function deleteItem(id){if(!confirm("حذف المرجع؟"))return;save(KEY,arr(KEY).filter(x=>String(x.id)!==String(id)));renderAll();notice("تم حذف المرجع")}
+function viewItem(id){let x=arr(KEY).find(a=>String(a.id)===String(id));if(!x)return;$("viewer").innerHTML='<div class="item"><h3>📚 '+esc(x.title)+'</h3><span class="badge bluebadge">'+esc(x.type)+'</span><span class="badge">'+esc(x.deviceType)+'</span>'+(x.brand?'<span class="badge">'+esc(x.brand)+'</span>':"")+(x.model?'<span class="badge">'+esc(x.model)+'</span>':"")+'<p><b>الكلمات:</b> '+esc(x.tags||"لا توجد")+'</p><pre>'+esc(x.content)+'</pre>'+(x.notes?'<p><b>ملاحظات:</b> '+esc(x.notes)+'</p>':"")+(x.url?'<p><a href="'+esc(x.url)+'" target="_blank" rel="noopener">🔗 فتح الرابط الخارجي</a></p>':"")+'</div>';$("viewer").scrollIntoView({behavior:"smooth"})}
+function renderList(){
+ let q=$("search").value.trim().toLowerCase(),t=$("filterType").value,d=$("filterDevice").value,a=arr(KEY).filter(x=>([x.title,x.brand,x.model,x.tags,x.content,x.notes].join(" ").toLowerCase().includes(q))&&(!t||x.type===t)&&(!d||x.deviceType===d));
+ $("list").innerHTML=a.length?a.map(x=>'<div class="item"><h3>📘 '+esc(x.id)+' — '+esc(x.title)+'</h3><span class="badge bluebadge">'+esc(x.type)+'</span><span class="badge">'+esc(x.deviceType)+'</span><p>🏷️ '+esc(x.brand||"عام")+' '+esc(x.model||"")+'<br>🔎 '+esc(x.tags||"لا توجد كلمات بحث")+'</p><div class="actions"><button class="blue" data-a="view" data-id="'+esc(x.id)+'">👁️ عرض</button><button class="gray" data-a="edit" data-id="'+esc(x.id)+'">✏️ تعديل</button><button class="danger" data-a="delete" data-id="'+esc(x.id)+'">🗑️ حذف</button></div></div>').join(""):'<div class="empty">لا توجد مراجع مطابقة.</div>'
+}
+function renderAll(){
+ let a=arr(KEY);$("filterType").innerHTML='<option value="">كل الأنواع</option>'+[...new Set(a.map(x=>x.type).filter(Boolean))].map(x=>'<option>'+esc(x)+'</option>').join("");$("filterDevice").innerHTML='<option value="">كل الأجهزة</option>'+[...new Set(a.map(x=>x.deviceType).filter(Boolean))].map(x=>'<option>'+esc(x)+'</option>').join("");renderList()
+}
+$("save").onclick=saveItem;$("cancel").onclick=reset;$("search").oninput=renderList;$("filterType").onchange=renderList;$("filterDevice").onchange=renderList;
+$("list").onclick=e=>{let b=e.target.closest("button[data-a]");if(!b)return;let a=b.dataset.a,id=b.dataset.id;if(a==="view")viewItem(id);else if(a==="edit")editItem(id);else deleteItem(id)};
+reset();renderAll();
+</script>
+</body>
+</html>
