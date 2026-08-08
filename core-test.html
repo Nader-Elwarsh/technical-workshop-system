@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#07152f">
+<title>اختبار Core V2 - الورشة الفنية</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;font-family:Arial,Tahoma,sans-serif;background:#f4f6f8;color:#172033}
+header{background:#07152f;color:#fff;padding:22px 16px}
+.wrap{max-width:900px;margin:auto;padding:16px}
+header .wrap{padding:0}
+h1{margin:0 0 7px} header p{margin:0;color:#dbe5ff}
+.card{background:#fff;border-radius:16px;padding:18px;margin-bottom:16px;box-shadow:0 2px 9px rgba(0,0,0,.06)}
+.summary{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.stat{padding:14px;border-radius:12px;background:#f8fafc;text-align:center}
+.stat b{display:block;font-size:24px;margin-bottom:4px}
+.good{color:#146c2e;background:#e3f7e9}
+.bad{color:#a00000;background:#ffe2e2}
+.warn{color:#8b5b00;background:#fff0d6}
+.test{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px;border-bottom:1px solid #e6e9ed}
+.test:last-child{border-bottom:0}
+.name{font-weight:bold}
+.detail{font-size:12px;color:#667085;margin-top:4px}
+.badge{padding:6px 10px;border-radius:20px;white-space:nowrap;font-size:12px}
+button{border:0;border-radius:10px;padding:12px 16px;font:inherit;cursor:pointer;background:#1769aa;color:#fff}
+.notice{padding:12px;border-radius:10px;margin-top:10px;line-height:1.7}
+@media(max-width:600px){.summary{grid-template-columns:1fr}.test{align-items:flex-start}.badge{font-size:11px}}
+</style>
+</head>
+<body>
+
+<header>
+<div class="wrap">
+<h1>🧪 اختبار TWMS Core V2</h1>
+<p>فحص طبقة البيانات والعلاقات وقواعد العمل بدون إنشاء بيانات تشغيلية حقيقية</p>
+</div>
+</header>
+
+<div class="wrap">
+
+<div class="card">
+<div class="summary">
+<div class="stat"><b id="version">—</b><span>إصدار Core</span></div>
+<div class="stat"><b id="passed">0</b><span>اختبارات ناجحة</span></div>
+<div class="stat"><b id="failed">0</b><span>اختبارات فاشلة</span></div>
+</div>
+</div>
+
+<div class="card">
+<h2>نتائج الاختبار</h2>
+<div id="tests"></div>
+</div>
+
+<div id="final" class="card"></div>
+
+<div class="card">
+<button onclick="location.reload()">🔄 إعادة الاختبار</button>
+</div>
+
+</div>
+
+<script src="app-core.js"></script>
+<script>
+(function(){
+"use strict";
+
+const out=document.getElementById("tests");
+const final=document.getElementById("final");
+const version=document.getElementById("version");
+let passed=0,failed=0;
+
+function esc(v){
+ return String(v??"")
+ .replace(/&/g,"&amp;").replace(/</g,"&lt;")
+ .replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+}
+
+function test(name,fn){
+ try{
+   const result=fn();
+   if(result===false)throw new Error("الاختبار أعاد نتيجة فشل.");
+   passed++;
+   add(name,true,"تم بنجاح");
+ }catch(e){
+   failed++;
+   add(name,false,e.message||String(e));
+ }
+}
+
+function add(name,ok,detail){
+ const row=document.createElement("div");
+ row.className="test";
+ row.innerHTML=
+ '<div><div class="name">'+esc(name)+'</div>'+
+ '<div class="detail">'+esc(detail)+'</div></div>'+
+ '<span class="badge '+(ok?"good":"bad")+'">'+(ok?"✅ ناجح":"❌ فشل")+'</span>';
+ out.appendChild(row);
+}
+
+function assert(v,msg){
+ if(!v)throw new Error(msg||"شرط غير محقق");
+}
+
+try{
+ const C=window.WorkshopCore;
+ assert(C,"WorkshopCore غير محمل.");
+ version.textContent=C.VERSION;
+
+ test("تحميل Core",()=>assert(!!window.WorkshopCore,"Core غير موجود"));
+ test("الإصدار 2.x",()=>assert(String(C.VERSION).startsWith("2."),"الإصدار الحالي ليس 2.x"));
+ test("وجود مفاتيح الوحدات الأساسية",()=>{
+   ["customers","devices","requests","technicians","visits","inventory","invoices","payments","warranties","contracts","audit"].forEach(k=>assert(C.KEYS[k],"المفتاح مفقود: "+k));
+ });
+
+ test("قراءة الإعدادات",()=>{
+   const s=C.settings();
+   assert(s&&s.workshopName,"الإعدادات غير متاحة.");
+ });
+
+ test("قراءة العملاء",()=>assert(Array.isArray(C.list(C.KEYS.customers)),"قائمة العملاء غير صالحة"));
+ test("قراءة الأجهزة",()=>assert(Array.isArray(C.list(C.KEYS.devices)),"قائمة الأجهزة غير صالحة"));
+ test("قراءة طلبات الصيانة",()=>assert(Array.isArray(C.list(C.KEYS.requests)),"قائمة الطلبات غير صالحة"));
+ test("قراءة الفنيين",()=>assert(Array.isArray(C.list(C.KEYS.technicians)),"قائمة الفنيين غير صالحة"));
+ test("قراءة الزيارات",()=>assert(Array.isArray(C.list(C.KEYS.visits)),"قائمة الزيارات غير صالحة"));
+ test("قراءة المخزون",()=>assert(Array.isArray(C.list(C.KEYS.inventory)),"قائمة المخزون غير صالحة"));
+ test("قراءة الفواتير",()=>assert(Array.isArray(C.list(C.KEYS.invoices)),"قائمة الفواتير غير صالحة"));
+ test("قراءة المدفوعات",()=>assert(Array.isArray(C.list(C.KEYS.payments)),"قائمة المدفوعات غير صالحة"));
+
+ test("قواعد حالات أمر الشغل",()=>{
+   assert(C.STATUSES.length===12,"عدد الحالات يجب أن يكون 12.");
+   ["جديد","بانتظار الإسناد","تم الإسناد","في الطريق","جاري الفحص","بانتظار موافقة العميل","بانتظار قطعة غيار","جاري الإصلاح","مكتمل","مغلق","ملغي","مؤرشف"].forEach(s=>assert(C.STATUSES.includes(s),"حالة مفقودة: "+s));
+ });
+
+ test("قواعد الأولويات",()=>{
+   ["عاجلة جدًا","عاجلة","عادية","منخفضة"].forEach(p=>assert(C.PRIORITIES.includes(p),"أولوية مفقودة: "+p));
+ });
+
+ test("توليد رقم جديد بدون حفظ",()=>{
+   const id=C.nextId("TEST-",C.KEYS.audit,6);
+   assert(/^TEST-\d{6}$/.test(id),"صيغة الرقم غير صحيحة: "+id);
+ });
+
+ test("التحقق من سلامة العلاقات الحالية",()=>{
+   const r=C.validateIntegrity();
+   assert(r&&typeof r.ok==="boolean","نتيجة سلامة البيانات غير صحيحة.");
+   if(!r.ok)throw new Error("عدد مشاكل العلاقات: "+r.count+" — "+r.problems.slice(0,3).join(" | "));
+ });
+
+ test("ملخص النظام",()=>{
+   const s=C.systemSummary();
+   assert(s&&typeof s.customers==="number"&&typeof s.requests==="number","ملخص النظام غير صالح.");
+ });
+
+ test("دوال العميل 360",()=>{
+   const cs=C.list(C.KEYS.customers);
+   if(!cs.length)return true;
+   const x=C.customer360(C.idOf(cs[0]));
+   assert(x&&x.customer,"ملف العميل 360 غير متاح.");
+   assert(Array.isArray(x.devices),"أجهزة العميل غير موجودة.");
+   assert(Array.isArray(x.requests),"طلبات العميل غير موجودة.");
+ });
+
+ test("سلامة علاقة الجهاز بالعميل",()=>{
+   const ds=C.list(C.KEYS.devices);
+   if(!ds.length)return true;
+   const d=ds[0],cid=d.customerId||d.clientId;
+   assert(cid,"يوجد جهاز بدون customerId.");
+   C.validateCustomerDevice(cid,C.idOf(d));
+ });
+
+ test("دوال ربط الطلب بالزيارة",()=>{
+   const rs=C.list(C.KEYS.requests);
+   if(!rs.length)return true;
+   const visits=C.requestVisits(C.idOf(rs[0]));
+   assert(Array.isArray(visits),"دالة طلب-زيارة غير صالحة.");
+ });
+
+ test("دوال الفواتير والمدفوعات",()=>{
+   const inv=C.list(C.KEYS.invoices);
+   if(!inv.length)return true;
+   const id=C.idOf(inv[0]);
+   assert(typeof C.invoiceTotal(id)==="number","invoiceTotal غير صالحة.");
+   assert(typeof C.invoicePaid(id)==="number","invoicePaid غير صالحة.");
+   assert(typeof C.invoiceBalance(id)==="number","invoiceBalance غير صالحة.");
+ });
+
+ test("دوال الولاء",()=>{
+   const cs=C.list(C.KEYS.customers);
+   if(!cs.length)return true;
+   const x=C.getOrCreateLoyalty(C.idOf(cs[0]));
+   assert(x&&String(x.customerId)===String(C.idOf(cs[0])),"حساب الولاء غير مربوط بالعميل.");
+ });
+
+ test("سجل المراجعة متاح",()=>{
+   assert(Array.isArray(C.list(C.KEYS.audit)),"سجل المراجعة غير صالح.");
+   assert(typeof C.audit==="function","دالة audit غير موجودة.");
+ });
+
+}catch(e){
+ failed++;
+ add("التشغيل العام للـCore",false,e.message||String(e));
+}
+
+document.getElementById("passed").textContent=passed;
+document.getElementById("failed").textContent=failed;
+
+if(failed===0){
+ final.innerHTML='<div class="notice good"><b>🎉 Core V2 اجتاز كل الاختبارات.</b><br>يمكننا اعتماد الطبقة الأساسية والبدء في بناء Requests عليها.</div>';
+}else{
+ final.innerHTML='<div class="notice bad"><b>⚠️ يوجد '+failed+' اختبار فاشل.</b><br>لا تعتمد الـCore ولا نكمل بناء الوحدات قبل معالجة النتائج.</div>';
+}
+
+})();
+</script>
+</body>
+</html>
