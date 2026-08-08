@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<meta name="theme-color" content="#07152f">
+<title>إدارة الفنيين - الورشة الفنية</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;font-family:Arial,Tahoma,sans-serif;background:#f4f6f8;color:#172033}
+header{background:#07152f;color:#fff;padding:23px 15px;text-align:center}
+header h1{margin:0 0 7px;font-size:28px} header p{margin:0;color:#dbe5ff}
+.container{max-width:1100px;margin:auto;padding:16px}
+.card{background:#fff;border-radius:16px;padding:18px;margin-bottom:16px;box-shadow:0 2px 9px rgba(0,0,0,.06)}
+h2{margin:0 0 15px;color:#07152f}
+.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.full{grid-column:1/-1}
+label{display:block;font-weight:bold;margin:10px 0 6px}
+input,select,textarea{width:100%;padding:13px;border:1px solid #cfd6df;border-radius:10px;font-size:16px;font-family:inherit;background:#fff}
+textarea{min-height:90px;resize:vertical}
+button{border:0;border-radius:10px;padding:12px 16px;font-size:16px;font-family:inherit;cursor:pointer}
+.primary{background:#16803c;color:#fff}.blue{background:#1769aa;color:#fff}.danger{background:#d60000;color:#fff}.gray{background:#596273;color:#fff}.dark{background:#07152f;color:#fff}
+.actions{display:flex;gap:8px;margin-top:14px}.actions button{flex:1}
+.search{margin-bottom:14px}
+.filters{display:grid;grid-template-columns:2fr 1fr 1fr;gap:10px}
+.tech{border:1px solid #dfe4ea;border-radius:14px;padding:16px;margin-top:12px}
+.tech h3{margin:0 0 8px;color:#07152f}
+.badge{display:inline-block;padding:5px 10px;border-radius:20px;background:#e8edf3;margin:3px;font-size:13px}
+.available{background:#e4f7e9;color:#146c2e}.busy{background:#fff0d6;color:#9a5a00}.off{background:#ffe2e2;color:#a00000}
+.profile{display:flex;gap:14px;align-items:flex-start}
+.avatar{width:78px;height:78px;border-radius:50%;object-fit:cover;background:#e8edf3;display:flex;align-items:center;justify-content:center;font-size:32px;flex:none}
+.profile-main{flex:1}
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:12px}
+.stat{background:#f8fafc;border-radius:10px;padding:10px;text-align:center}
+.stat b{display:block;font-size:21px;color:#07152f}
+.info{background:#eef6ff;border:1px solid #cfe2ff;border-radius:10px;padding:11px;margin-top:10px;line-height:1.8}
+.notice{padding:12px;border-radius:10px;margin-bottom:12px;display:none}
+.ok{background:#e1f5e7;color:#146c2e}.err{background:#ffe2e2;color:#a00000}
+.hidden{display:none!important}
+.assignment{background:#fffaf0;border:1px solid #f0d58a;border-radius:12px;padding:12px;margin-top:12px}
+.assignment .row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.leave{border:1px solid #e5e7eb;border-radius:10px;padding:10px;margin-top:8px}
+.empty{text-align:center;color:#777;padding:28px}
+.back{display:block;text-align:center;text-decoration:none;background:#333;color:#fff;padding:14px;border-radius:10px}
+@media(max-width:700px){
+.grid,.filters,.assignment .row{grid-template-columns:1fr}
+.full{grid-column:auto}.stats{grid-template-columns:repeat(2,1fr)}
+.profile{flex-direction:column}.actions{flex-direction:column}
+}
+</style>
+</head>
+<body>
+<header>
+<h1>👨‍🔧 إدارة الفنيين</h1>
+<p>الورشة الفنية لصيانة الأجهزة المنزلية والتكييف</p>
+</header>
+
+<div class="container">
+<div id="notice" class="notice"></div>
+
+<div class="card">
+<h2 id="formTitle">➕ إضافة فني جديد</h2>
+<div class="grid">
+
+<div><label>رقم الفني</label><input id="techId" readonly placeholder="يُنشأ تلقائيًا"></div>
+<div><label>الاسم *</label><input id="name" placeholder="اسم الفني بالكامل"></div>
+
+<div><label>رقم الهاتف *</label><input id="phone" type="tel" placeholder="رقم الهاتف"></div>
+<div><label>البريد الإلكتروني</label><input id="email" type="email" placeholder="اختياري"></div>
+
+<div><label>العنوان</label><input id="address" placeholder="العنوان"></div>
+<div><label>تاريخ التعيين</label><input id="hireDate" type="date"></div>
+
+<div><label>الحالة الوظيفية</label>
+<select id="employmentStatus">
+<option>على رأس العمل</option><option>إجازة</option><option>موقوف</option><option>منتهي الخدمة</option>
+</select></div>
+
+<div><label>حالة الفني التشغيلية</label>
+<select id="availability">
+<option>متاح</option><option>مشغول</option><option>في إجازة</option><option>خارج الخدمة</option><option>موقوف</option><option>غير متصل</option>
+</select></div>
+
+<div><label>المستوى الفني</label>
+<select id="level">
+<option>فني متدرب</option><option>فني مبتدئ</option><option selected>فني</option><option>فني أول</option><option>كبير فنيين</option><option>مشرف فني</option><option>مدير الصيانة</option>
+</select></div>
+
+<div><label>سنوات الخبرة</label><input id="experience" type="number" min="0" step="1" placeholder="0"></div>
+
+<div><label>التخصص الرئيسي *</label>
+<select id="mainSpecialty">
+<option>التكييفات</option><option>الثلاجات</option><option>الديب فريزر</option><option>الغسالات</option><option>السخانات</option><option>المبردات</option><option>الإلكترونيات</option><option>الأجهزة الصغيرة</option>
+</select></div>
+
+<div><label>التخصصات الفرعية</label><input id="specialties" placeholder="مثال: R22، R410، إنفرتر، دوائر إلكترونية"></div>
+
+<div><label>المناطق / نطاق العمل</label><input id="areas" placeholder="مثال: مطاي، بني مزار، القرى التابعة"></div>
+
+<div><label>حجم العمل اليومي المستهدف</label><input id="dailyCapacity" type="number" min="0" step="1" placeholder="مثال: 5"></div>
+
+<div class="full"><label>المهارات</label><textarea id="skills" placeholder="المهارات والخبرات العملية بالتفصيل"></textarea></div>
+<div class="full"><label>الشهادات</label><textarea id="certificates" placeholder="الشهادات والدورات المعتمدة"></textarea></div>
+<div class="full"><label>الدورات التدريبية</label><textarea id="training" placeholder="الدورات التدريبية المسجلة أو المكتملة"></textarea></div>
+<div class="full"><label>ملاحظات إدارية</label><textarea id="adminNotes" placeholder="ملاحظات الإدارة"></textarea></div>
+
+<div>
+<label>صورة شخصية اختيارية</label>
+<input id="photo" type="file" accept="image/*">
+</div>
+<div>
+<label>تفعيل التطبيق الميداني</label>
+<select id="fieldApp">
+<option value="غير مفعل">غير مفعل</option><option value="مفعل">مفعل</option>
+</select>
+</div>
+</div>
+
+<div class="actions">
+<button id="saveBtn" class="primary">💾 حفظ الفني</button>
+<button id="cancelBtn" class="gray hidden">إلغاء التعديل</button>
+</div>
+</div>
+
+<div class="card">
+<h2>👨‍🔧 قائمة الفنيين</h2>
+<div class="filters">
+<input id="search" placeholder="🔎 ابحث باسم الفني أو رقمه أو الهاتف أو التخصص...">
+<select id="statusFilter"><option value="">كل الحالات</option><option>متاح</option><option>مشغول</option><option>في إجازة</option><option>خارج الخدمة</option><option>موقوف</option><option>غير متصل</option></select>
+<select id="levelFilter"><option value="">كل المستويات</option><option>فني متدرب</option><option>فني مبتدئ</option><option>فني</option><option>فني أول</option><option>كبير فنيين</option><option>مشرف فني</option><option>مدير الصيانة</option></select>
+</div>
+<div id="list"></div>
+</div>
+
+<div class="card">
+<h2>📅 توزيع أوامر الشغل</h2>
+<p>من هنا يمكن للمدير أو المشرف إسناد أمر شغل موجود إلى فني محدد. الإسناد يُحفظ داخل أمر الشغل باستخدام <b>technicianId</b> واسم الفني.</p>
+<div id="unassigned"></div>
+</div>
+
+<a class="back" href="index.html">🏠 العودة إلى الرئيسية</a>
+</div>
+
+<script>
+const TK="technicians", RK="maintenanceRequests";
+let editingId=null, photoData="";
+
+const $=id=>document.getElementById(id);
+const arr=k=>{try{let x=JSON.parse(localStorage.getItem(k)||"[]");return Array.isArray(x)?x:[]}catch(e){return[]}};
+const techs=()=>arr(TK), requests=()=>arr(RK);
+const esc=v=>String(v??"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&#039;");
+const saveTechs=x=>localStorage.setItem(TK,JSON.stringify(x));
+const saveReqs=x=>localStorage.setItem(RK,JSON.stringify(x));
+
+function nextId(){
+ let max=0;
+ techs().forEach(t=>{let m=String(t.id||"").match(/^TECH-(\d+)$/);if(m)max=Math.max(max,+m[1])});
+ return "TECH-"+String(max+1).padStart(4,"0");
+}
+function notice(t,error=false){
+ $("notice").textContent=t;$("notice").className="notice "+(error?"err":"ok");$("notice").style.display="block";
+ setTimeout(()=>$("notice").style.display="none",3000);
+}
+function getTech(id){return techs().find(t=>String(t.id)===String(id))}
+function stats(t){
+ const rs=requests().filter(r=>String(r.technicianId||"")===String(t.id)||String(r.technician||"")===String(t.name||""));
+ const completed=rs.filter(r=>["مكتمل","مغلق","تم الإصلاح"].includes(r.status)).length;
+ const active=rs.filter(r=>!["مكتمل","مغلق","ملغي","مؤرشف","تم الإصلاح"].includes(r.status)).length;
+ const visits=rs.reduce((n,r)=>n+(r.visits?.length||0),0);
+ const ratings=rs.filter(r=>Number(r.customerRating)>0).map(r=>Number(r.customerRating));
+ const rating=ratings.length?(ratings.reduce((a,b)=>a+b,0)/ratings.length).toFixed(1):"—";
+ const firstVisit=rs.filter(r=>r.firstVisitClosed).length;
+ return {rs,completed,active,visits,rating,firstVisit};
+}
+function reset(){
+ editingId=null;photoData="";
+ $("formTitle").textContent="➕ إضافة فني جديد";$("saveBtn").textContent="💾 حفظ الفني";$("cancelBtn").classList.add("hidden");
+ $("techId").value=nextId();
+ ["name","phone","email","address","hireDate","experience","specialties","areas","dailyCapacity","skills","certificates","training","adminNotes"].forEach(x=>$(x).value="");
+ $("employmentStatus").value="على رأس العمل";$("availability").value="متاح";$("level").value="فني";$("mainSpecialty").value="التكييفات";$("fieldApp").value="غير مفعل";$("photo").value="";
+}
+function edit(id){
+ const t=getTech(id);if(!t)return;
+ editingId=t.id;photoData=t.photo||"";
+ $("formTitle").textContent="✏️ تعديل ملف الفني";$("saveBtn").textContent="💾 حفظ التعديل";$("cancelBtn").classList.remove("hidden");
+ $("techId").value=t.id;$("name").value=t.name||"";$("phone").value=t.phone||"";$("email").value=t.email||"";$("address").value=t.address||"";$("hireDate").value=t.hireDate||"";
+ $("employmentStatus").value=t.employmentStatus||"على رأس العمل";$("availability").value=t.availability||"متاح";$("level").value=t.level||"فني";$("experience").value=t.experience||"";
+ $("mainSpecialty").value=t.mainSpecialty||"التكييفات";$("specialties").value=(t.specialties||[]).join("، ");$("areas").value=(t.areas||[]).join("، ");
+ $("dailyCapacity").value=t.dailyCapacity||"";$("skills").value=t.skills||"";$("certificates").value=t.certificates||"";$("training").value=t.training||"";$("adminNotes").value=t.adminNotes||"";$("fieldApp").value=t.fieldApp||"غير مفعل";
+ window.scrollTo({top:0,behavior:"smooth"});
+}
+$("photo").onchange=e=>{
+ const f=e.target.files?.[0];if(!f)return;
+ const r=new FileReader();r.onload=()=>photoData=r.result;r.readAsDataURL(f);
+};
+function save(){
+ const name=$("name").value.trim(),phone=$("phone").value.trim();
+ if(!name){notice("اكتب اسم الفني",true);return}
+ if(!phone){notice("اكتب رقم هاتف الفني",true);return}
+ const all=techs(),old=editingId?getTech(editingId):null,now=new Date().toISOString();
+ const t={
+  id:editingId||nextId(),name,phone,email:$("email").value.trim(),address:$("address").value.trim(),hireDate:$("hireDate").value,
+  employmentStatus:$("employmentStatus").value,availability:$("availability").value,level:$("level").value,
+  experience:Number($("experience").value||0),mainSpecialty:$("mainSpecialty").value,
+  specialties:$("specialties").value.split(/[،,]/).map(x=>x.trim()).filter(Boolean),
+  areas:$("areas").value.split(/[،,]/).map(x=>x.trim()).filter(Boolean),
+  dailyCapacity:Number($("dailyCapacity").value||0),skills:$("skills").value.trim(),certificates:$("certificates").value.trim(),
+  training:$("training").value.trim(),adminNotes:$("adminNotes").value.trim(),photo:photoData||old?.photo||"",
+  fieldApp:$("fieldApp").value,createdAt:old?.createdAt||now,updatedAt:now,
+  notifications:old?.notifications||[],leaves:old?.leaves||[],customerRatings:old?.customerRatings||[],
+  audit:[...(old?.audit||[]),{at:now,event:editingId?"تعديل ملف فني":"إنشاء ملف فني"}]
+ };
+ const i=all.findIndex(x=>String(x.id)===String(t.id));if(i>=0)all[i]=t;else all.unshift(t);saveTechs(all);
+ notice(editingId?"تم تعديل ملف الفني بنجاح ✅":"تم إنشاء ملف الفني بنجاح ✅");reset();render();renderAssignments();
+}
+function remove(id){
+ const t=getTech(id),rs=requests();
+ if(!t)return;
+ const has=rs.some(r=>String(r.technicianId||"")===String(id)||String(r.technician||"")===String(t.name));
+ if(has){notice("لا يمكن حذف فني لديه أوامر شغل سابقة. استخدم الإيقاف أو أرشفة الملف بدلًا من الحذف.",true);return}
+ if(!confirm("حذف الفني "+t.name+"؟"))return;
+ saveTechs(techs().filter(x=>String(x.id)!==String(id)));render();renderAssignments();notice("تم حذف الفني");
+}
+function addLeave(id){
+ const t=getTech(id);if(!t)return;
+ const type=prompt("نوع الإجازة: سنوية / مرضية / طارئة / يوم راحة","سنوية");if(!type)return;
+ const from=prompt("من تاريخ (YYYY-MM-DD)");if(!from)return;
+ const to=prompt("إلى تاريخ (YYYY-MM-DD)",from);if(!to)return;
+ const reason=prompt("ملاحظات الإجازة","")||"";
+ t.leaves=t.leaves||[];t.leaves.push({id:"LV-"+Date.now(),type,from,to,reason,status:"مسجلة",createdAt:new Date().toISOString()});
+ if(type!=="يوم راحة")t.availability="في إجازة";
+ t.updatedAt=new Date().toISOString();saveTechs(techs());render();notice("تم تسجيل الإجازة");
+}
+function profile(id){
+ const t=getTech(id),s=stats(t);if(!t)return;
+ const old=t._profileOpen;
+ t._profileOpen=!old; // UI-only state
+ render();
+}
+function render(){
+ const q=$("search").value.trim().toLowerCase(),sf=$("statusFilter").value,lf=$("levelFilter").value;
+ const list=techs().filter(t=>
+ [t.id,t.name,t.phone,t.email,t.mainSpecialty,(t.specialties||[]).join(" "),(t.areas||[]).join(" "),t.level].join(" ").toLowerCase().includes(q)
+ &&(!sf||t.availability===sf)&&(!lf||t.level===lf));
+ $("list").innerHTML=list.length?list.map(t=>{
+  const s=stats(t),open=t._profileOpen;
+  const cls=t.availability==="متاح"?"available":(t.availability==="مشغول"?"busy":"off");
+  const avatar=t.photo?'<img class="avatar" src="'+esc(t.photo)+'">':'<div class="avatar">👨‍🔧</div>';
+  return '<div class="tech"><div class="profile">'+avatar+'<div class="profile-main"><h3>'+esc(t.name)+'</h3>'+
+  '<span class="badge">🆔 '+esc(t.id)+'</span><span class="badge '+cls+'">● '+esc(t.availability)+'</span>'+
+  '<span class="badge">🎓 '+esc(t.level)+'</span><span class="badge">🔧 '+esc(t.mainSpecialty)+'</span>'+
+  '<p>📞 '+esc(t.phone)+' | 📍 '+esc((t.areas||[]).join("، ")||"غير محدد")+'</p>'+
+  '<div class="stats"><div class="stat"><b>'+s.completed+'</b>منجز</div><div class="stat"><b>'+s.active+'</b>حالي</div><div class="stat"><b>'+s.visits+'</b>زيارة</div><div class="stat"><b>'+s.rating+'</b>تقييم</div></div></div></div>'+
+  (open?'<div class="info"><b>التخصصات:</b> '+esc((t.specialties||[]).join("، ")||"لا يوجد")+'<br><b>الخبرة:</b> '+esc(t.experience)+' سنة<br><b>المهارات:</b> '+esc(t.skills||"لا يوجد")+'<br><b>الشهادات:</b> '+esc(t.certificates||"لا يوجد")+'<br><b>الدورات:</b> '+esc(t.training||"لا يوجد")+'<br><b>البريد:</b> '+esc(t.email||"غير مسجل")+'<br><b>العنوان:</b> '+esc(t.address||"غير مسجل")+'<br><b>القدرة اليومية:</b> '+esc(t.dailyCapacity||"غير محددة")+'<br><b>التطبيق الميداني:</b> '+esc(t.fieldApp||"غير مفعل")+
+  (t.leaves?.length?'<hr><b>الإجازات:</b>'+t.leaves.slice(-5).map(l=>'<div class="leave">📅 '+esc(l.type)+' — '+esc(l.from)+' إلى '+esc(l.to)+'<br>📝 '+esc(l.reason||"")+'</div>').join(""):"")+
+  '<br><b>أوامر الشغل السابقة:</b> '+s.rs.length+'<br><b>نسبة الإغلاق من أول زيارة:</b> '+(s.rs.length?Math.round(s.firstVisit/s.rs.length*100):0)+'%</div>':"")+
+  '<div class="actions"><button class="blue" data-a="profile" data-id="'+esc(t.id)+'">'+(open?"🔽 إخفاء الملف":"📂 فتح الملف")+'</button><button class="gray" data-a="leave" data-id="'+esc(t.id)+'">🏖️ إجازة</button><button class="blue" data-a="edit" data-id="'+esc(t.id)+'">✏️ تعديل</button><button class="danger" data-a="delete" data-id="'+esc(t.id)+'">🗑️ حذف</button></div></div>'
+ }).join(""):'<div class="empty">لا توجد نتائج مطابقة 🔎</div>';
+}
+function renderAssignments(){
+ const rs=requests().filter(r=>!["مكتمل","مغلق","ملغي","مؤرشف"].includes(r.status));
+ const box=$("unassigned");
+ if(!rs.length){box.innerHTML='<div class="empty">لا توجد أوامر شغل تحتاج توزيعًا حاليًا.</div>';return}
+ const ts=techs();
+ box.innerHTML=rs.map(r=>{
+  const current=r.technicianId?getTech(r.technicianId):null;
+  return '<div class="assignment"><b>🔧 '+esc(r.id)+' — '+esc(r.customerName||"بدون عميل")+'</b><br>'+
+  '📱 '+esc(r.deviceName||r.deviceType||"غير محدد")+' — 📌 '+esc(r.status||"جديد")+' — ⚡ '+esc(r.priority||"عادية")+
+  '<div class="row"><select data-assign="'+esc(r.id)+'"><option value="">'+(current?"الفني الحالي: "+esc(current.name):"اختر فنيًا للإسناد")+'</option>'+
+  ts.map(t=>'<option value="'+esc(t.id)+'">'+esc(t.name)+' — '+esc(t.availability)+' — '+esc(t.mainSpecialty)+'</option>').join("")+
+  '</select><button class="primary" data-saveassign="'+esc(r.id)+'">👨‍🔧 إسناد الأمر</button></div></div>'
+ }).join("");
+}
+function assign(id){
+ const sel=document.querySelector('select[data-assign="'+CSS.escape(String(id))+'"]'),tid=sel?.value;
+ if(!tid){notice("اختر الفني أولًا",true);return}
+ const t=getTech(tid),rs=requests(),r=rs.find(x=>String(x.id)===String(id));if(!t||!r)return;
+ if(["موقوف","غير متصل","في إجازة","خارج الخدمة"].includes(t.availability)){notice("لا يمكن إسناد المهمة لفني غير متاح حاليًا",true);return}
+ r.technicianId=t.id;r.technician=t.name;r.updatedAt=new Date().toISOString();
+ r.status=r.status==="جديد"||r.status==="بانتظار الإسناد"?"تم الإسناد":r.status;
+ r.audit=[...(r.audit||[]),{at:new Date().toISOString(),event:"إسناد الفني",technicianId:t.id,technicianName:t.name}];
+ saveReqs(rs);
+ const all=techs(),tt=all.find(x=>String(x.id)===String(t.id));tt.notifications=tt.notifications||[];tt.notifications.unshift({at:new Date().toISOString(),type:"إسناد أمر شغل",requestId:r.id,message:"تم إسناد أمر شغل جديد لك"});saveTechs(all);
+ render();renderAssignments();notice("تم إسناد أمر الشغل للفني "+t.name+" ✅");
+}
+$("saveBtn").onclick=save;$("cancelBtn").onclick=reset;$("search").oninput=render;$("statusFilter").onchange=render;$("levelFilter").onchange=render;
+$("list").onclick=e=>{const b=e.target.closest("button[data-a]");if(!b)return;const id=b.dataset.id;b.dataset.a==="edit"?edit(id):b.dataset.a==="delete"?remove(id):b.dataset.a==="leave"?addLeave(id):profile(id)};
+$("unassigned").onclick=e=>{const b=e.target.closest("button[data-saveassign]");if(b)assign(b.dataset.saveassign)};
+reset();render();renderAssignments();
+</script>
+</body>
+</html>
