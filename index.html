@@ -1,162 +1,1157 @@
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
-
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#07152f">
+<title>لوحة التحكم - الورشة الفنية</title>
 
-    <title>الورشة الفنية</title>
+<style>
+*{box-sizing:border-box}
 
-    <style>
-        * {
-            box-sizing: border-box;
-        }
+body{
+ margin:0;
+ font-family:Arial,Tahoma,sans-serif;
+ background:#f4f6f8;
+ color:#172033
+}
 
-        body {
-            margin: 0;
-            font-family: Arial, Tahoma, sans-serif;
-            background: #f4f6f8;
-            color: #222;
-        }
+header{
+ background:#07152f;
+ color:#fff;
+ padding:22px 16px
+}
 
-        header {
-            background: #07152f;
-            color: white;
-            text-align: center;
-            padding: 28px 20px;
-        }
+.header-inner{
+ max-width:1200px;
+ margin:auto
+}
 
-        header h1 {
-            margin: 0 0 8px;
-            font-size: 30px;
-        }
+header h1{
+ margin:0 0 7px;
+ font-size:28px
+}
 
-        header p {
-            margin: 0;
-            font-size: 17px;
-        }
+header p{
+ margin:0;
+ color:#dbe5ff
+}
 
-        .container {
-            max-width: 1000px;
-            margin: auto;
-            padding: 20px;
-        }
+.container{
+ max-width:1200px;
+ margin:auto;
+ padding:16px
+}
 
-        .dashboard {
-            display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            gap: 20px;
-        }
+.card{
+ background:#fff;
+ border-radius:16px;
+ padding:18px;
+ margin-bottom:16px;
+ box-shadow:0 2px 9px rgba(0,0,0,.06)
+}
 
-        .card {
-            display: block;
-            text-decoration: none;
-            color: #222;
-            background: white;
-            border-radius: 16px;
-            padding: 30px 20px;
-            text-align: center;
-            box-shadow: 0 3px 12px rgba(0, 0, 0, 0.08);
-            border: 1px solid #e5e7eb;
-            transition: 0.2s;
-        }
+h2{
+ margin:0 0 14px;
+ color:#07152f
+}
 
-        .card:hover {
-            transform: translateY(-3px);
-            box-shadow: 0 6px 18px rgba(0, 0, 0, 0.12);
-        }
+.grid{
+ display:grid;
+ grid-template-columns:repeat(4,minmax(0,1fr));
+ gap:10px
+}
 
-        .icon {
-            font-size: 50px;
-            margin-bottom: 12px;
-        }
+.stat{
+ background:#f8fafc;
+ border-radius:13px;
+ padding:14px;
+ text-align:center;
+ border:1px solid #e7ebf0
+}
 
-        .card h2 {
-            margin: 8px 0;
-            color: #07152f;
-            font-size: 24px;
-        }
+.stat b{
+ display:block;
+ font-size:25px;
+ color:#07152f;
+ margin-bottom:5px
+}
 
-        .card p {
-            margin: 0;
-            color: #666;
-            font-size: 16px;
-        }
+.stat span{
+ font-size:13px;
+ color:#687386
+}
 
-        .footer {
-            margin-top: 35px;
-            background: #07152f;
-            color: white;
-            text-align: center;
-            padding: 25px 15px;
-        }
+.links{
+ display:grid;
+ grid-template-columns:repeat(4,minmax(0,1fr));
+ gap:10px
+}
 
-        .footer h2 {
-            margin: 0 0 10px;
-        }
+.links a{
+ display:block;
+ text-decoration:none;
+ background:#07152f;
+ color:#fff;
+ border-radius:11px;
+ padding:13px;
+ text-align:center
+}
 
-        .footer p {
-            margin: 0;
-        }
+.links a small{
+ display:block;
+ color:#dbe5ff;
+ margin-top:4px
+}
 
-        @media (max-width: 700px) {
-            .dashboard {
-                grid-template-columns: 1fr;
-            }
+.search{
+ display:grid;
+ grid-template-columns:1fr auto;
+ gap:10px
+}
 
-            header h1 {
-                font-size: 26px;
-            }
+input{
+ width:100%;
+ padding:13px;
+ border:1px solid #ccd4de;
+ border-radius:10px;
+ font:inherit
+}
 
-            .card {
-                padding: 25px 15px;
-            }
-        }
-    </style>
+button{
+ border:0;
+ border-radius:10px;
+ padding:12px 16px;
+ font:inherit;
+ cursor:pointer
+}
+
+.primary{
+ background:#16803c;
+ color:#fff
+}
+
+.blue{
+ background:#1769aa;
+ color:#fff
+}
+
+.gray{
+ background:#596273;
+ color:#fff
+}
+
+.results{
+ margin-top:12px
+}
+
+.result{
+ border:1px solid #dfe4ea;
+ border-radius:12px;
+ padding:12px;
+ margin-top:8px
+}
+
+.result h3{
+ margin:0 0 6px;
+ color:#07152f
+}
+
+.badge{
+ display:inline-block;
+ padding:5px 9px;
+ border-radius:20px;
+ background:#e9edf2;
+ margin:2px;
+ font-size:12px
+}
+
+.good{
+ background:#e3f7e9;
+ color:#146c2e
+}
+
+.warn{
+ background:#fff0d6;
+ color:#8b5b00
+}
+
+.bad{
+ background:#ffe2e2;
+ color:#a00000
+}
+
+.bluebadge{
+ background:#e4f0ff;
+ color:#1769aa
+}
+
+.row{
+ display:flex;
+ justify-content:space-between;
+ gap:12px;
+ padding:10px 0;
+ border-bottom:1px solid #e8ebef
+}
+
+.row:last-child{
+ border-bottom:0
+}
+
+.notice{
+ padding:11px;
+ border-radius:10px;
+ background:#eef6ff;
+ border:1px solid #cfe2ff;
+ line-height:1.8
+}
+
+.empty{
+ text-align:center;
+ color:#777;
+ padding:20px
+}
+
+footer{
+ text-align:center;
+ color:#777;
+ padding:15px
+}
+
+@media(max-width:850px){
+ .grid,
+ .links{
+  grid-template-columns:repeat(2,minmax(0,1fr))
+ }
+}
+
+@media(max-width:600px){
+ .grid,
+ .links,
+ .search{
+  grid-template-columns:1fr
+ }
+
+ header h1{
+  font-size:23px
+ }
+}
+</style>
 </head>
 
 <body>
 
-    <header>
-        <h1>الورشة الفنية 🔧</h1>
-        <p>نظام إدارة الورشة لصيانة الأجهزة المنزلية والتكييف</p>
-    </header>
+<header>
+<div class="header-inner">
 
-    <main class="container">
+<h1>🛠️ الورشة الفنية</h1>
 
-        <div class="dashboard">
+<p>
+لوحة التحكم المركزية لإدارة صيانة الأجهزة المنزلية والتكييف
+</p>
 
-            <!-- العملاء -->
-            <a href="customers.html" class="card">
-                <div class="icon">👥</div>
+</div>
+</header>
 
-                <h2>العملاء</h2>
+<div class="container">
 
-                <p>
-                    إدارة العملاء وتسجيل بياناتهم
-                </p>
-            </a>
+<!-- =========================
+     ملخص النظام
+========================= -->
 
-            <!-- طلبات الصيانة -->
-            <a href="requests.html" class="card">
-                <div class="icon">🔧</div>
+<div class="card">
 
-                <h2>طلبات الصيانة</h2>
+<h2>📊 ملخص النظام</h2>
 
-                <p>
-                    تسجيل وإدارة طلبات الصيانة
-                </p>
-            </a>
+<div id="stats" class="grid"></div>
 
-        </div>
+</div>
 
-    </main>
 
-    <footer class="footer">
-        <h2>الورشة الفنية 👥</h2>
-        <p>صيانة الأجهزة المنزلية والتكييف</p>
-    </footer>
+<!-- =========================
+     الوصول السريع
+========================= -->
+
+<div class="card">
+
+<h2>⚡ الوصول السريع</h2>
+
+<div class="links">
+
+<a href="customers.html">
+👤 العملاء
+<small>بيانات العملاء</small>
+</a>
+
+<a href="devices.html">
+📱 الأجهزة
+<small>أجهزة العملاء</small>
+</a>
+
+<a href="requests.html">
+🔧 طلبات الصيانة
+<small>الطلبات والأعطال</small>
+</a>
+
+<a href="technicians.html">
+👨‍🔧 الفنيون
+<small>الفنيين والتكليفات</small>
+</a>
+
+<a href="visits.html">
+📅 الزيارات
+<small>مواعيد التنفيذ</small>
+</a>
+
+<a href="routes.html">
+🗺️ المسارات
+<small>خط سير الفني</small>
+</a>
+
+<a href="inventory.html">
+📦 المخزون
+<small>قطع الغيار</small>
+</a>
+
+<a href="suppliers.html">
+🏭 الموردون
+<small>الموردين والتوريد</small>
+</a>
+
+<a href="invoices.html">
+🧾 الفواتير
+<small>الحسابات</small>
+</a>
+
+<a href="payments.html">
+💳 المدفوعات
+<small>التحصيل</small>
+</a>
+
+<a href="warranties.html">
+🛡️ الضمانات
+<small>ضمان الأعمال</small>
+</a>
+
+<a href="contracts.html">
+📄 العقود
+<small>العقود والشروط</small>
+</a>
+
+<a href="loyalty.html">
+⭐ الولاء
+<small>النقاط والمكافآت</small>
+</a>
+
+<a href="notifications.html">
+🔔 الإشعارات
+<small>التنبيهات</small>
+</a>
+
+<a href="technical-library.html">
+📚 المكتبة الفنية
+<small>المراجع الفنية</small>
+</a>
+
+<a href="reports.html">
+📈 التقارير
+<small>التقارير والإحصائيات</small>
+</a>
+
+<a href="users.html">
+👥 المستخدمون
+<small>الحسابات والصلاحيات</small>
+</a>
+
+<a href="audit-log.html">
+🔐 سجل المراجعة
+<small>تتبع العمليات</small>
+</a>
+
+<a href="settings.html">
+⚙️ الإعدادات
+<small>الإعدادات المركزية</small>
+</a>
+
+<a href="customer-portal.html">
+🌐 بوابة العميل
+<small>واجهة العميل</small>
+</a>
+
+</div>
+
+</div>
+
+
+<!-- =========================
+     البحث السريع
+========================= -->
+
+<div class="card">
+
+<h2>🔎 البحث السريع</h2>
+
+<div class="search">
+
+<input
+id="search"
+placeholder="ابحث باسم العميل أو الهاتف أو رقم الطلب..."
+>
+
+<button
+class="primary"
+id="searchBtn"
+>
+بحث
+</button>
+
+</div>
+
+<div id="results" class="results">
+
+<div class="empty">
+اكتب كلمة البحث ثم اضغط «بحث».
+</div>
+
+</div>
+
+</div>
+
+
+<!-- =========================
+     التنبيهات
+========================= -->
+
+<div class="card">
+
+<h2>🚨 ما يحتاج متابعة</h2>
+
+<div id="alerts"></div>
+
+</div>
+
+
+<!-- =========================
+     حالة النظام
+========================= -->
+
+<div class="card">
+
+<h2>🔗 حالة الربط المركزي</h2>
+
+<div id="coreStatus"></div>
+
+</div>
+
+</div>
+
+
+<footer>
+الورشة الفنية — النظام المركزي V1
+</footer>
+
+
+<!-- مهم جدًا:
+     ملف الـCore يجب أن يكون في نفس
+     مجلد index.html
+-->
+
+<script src="app-core.js"></script>
+
+
+<script>
+
+(function(){
+
+"use strict";
+
+
+const C = window.WorkshopCore;
+
+
+/* =========================
+   أدوات مساعدة
+========================= */
+
+function esc(v){
+
+ return String(v ?? "")
+ .replace(/&/g,"&amp;")
+ .replace(/</g,"&lt;")
+ .replace(/>/g,"&gt;")
+ .replace(/"/g,"&quot;")
+ .replace(/'/g,"&#039;");
+
+}
+
+
+function list(key){
+
+ return C.list(key);
+
+}
+
+
+function stat(label,value){
+
+ return `
+ <div class="stat">
+
+ <b>${esc(value)}</b>
+
+ <span>${esc(label)}</span>
+
+ </div>
+ `;
+
+}
+
+
+/* =========================
+   إحصائيات النظام
+========================= */
+
+function renderStats(){
+
+ const s = C.systemSummary();
+
+ document.getElementById("stats").innerHTML =
+
+ stat("العملاء",s.customers) +
+
+ stat("الأجهزة",s.devices) +
+
+ stat("طلبات الصيانة",s.requests) +
+
+ stat("الفنيون",s.technicians) +
+
+ stat("الزيارات",s.visits) +
+
+ stat("المسارات",s.routes) +
+
+ stat("أصناف المخزون",s.inventory) +
+
+ stat("الفواتير",s.invoices) +
+
+ stat("المدفوعات",s.payments) +
+
+ stat("الضمانات",s.warranties) +
+
+ stat("العقود",s.contracts) +
+
+ stat("الموردون",s.suppliers);
+
+}
+
+
+/* =========================
+   التنبيهات
+========================= */
+
+function renderAlerts(){
+
+ const requests =
+ list(C.KEYS.requests);
+
+ const visits =
+ list(C.KEYS.visits);
+
+ const inventory =
+ list(C.KEYS.inventory);
+
+ const alerts = [];
+
+
+ const openRequests =
+ requests.filter(r=>{
+
+  const st =
+  String(
+   r.status ||
+   r.state ||
+   ""
+  ).toLowerCase();
+
+  return ![
+   "مكتمل",
+   "مغلق",
+   "ملغي",
+   "ملغى",
+   "completed",
+   "closed",
+   "cancelled"
+  ].includes(st);
+
+ }).length;
+
+
+ const todayVisits =
+ visits.filter(v=>
+  String(v.date || "")
+  .slice(0,10)
+  ===
+  C.today()
+ ).length;
+
+
+ const lowStock =
+ inventory.filter(i=>{
+
+  const q =
+  Number(i.quantity || 0);
+
+  const min =
+  Number(
+   i.minQuantity ??
+   i.minimumQuantity ??
+   i.reorderLevel ??
+   0
+  );
+
+  return min > 0 && q <= min;
+
+ }).length;
+
+
+ if(openRequests){
+
+  alerts.push(`
+
+  <div class="row">
+
+   <span>
+   🔧 طلبات صيانة مفتوحة
+   </span>
+
+   <b class="badge warn">
+   ${openRequests}
+   </b>
+
+  </div>
+
+  `);
+
+ }
+
+
+ if(todayVisits){
+
+  alerts.push(`
+
+  <div class="row">
+
+   <span>
+   📅 زيارات اليوم
+   </span>
+
+   <b class="badge bluebadge">
+   ${todayVisits}
+   </b>
+
+  </div>
+
+  `);
+
+ }
+
+
+ if(lowStock){
+
+  alerts.push(`
+
+  <div class="row">
+
+   <span>
+   📦 أصناف وصلت للحد الأدنى
+   </span>
+
+   <b class="badge bad">
+   ${lowStock}
+   </b>
+
+  </div>
+
+  `);
+
+ }
+
+
+ document.getElementById("alerts").innerHTML =
+
+ alerts.length
+
+ ?
+
+ alerts.join("")
+
+ :
+
+ `
+ <div class="notice">
+ ✅ لا توجد تنبيهات أساسية حاليًا.
+ </div>
+ `;
+
+}
+
+
+/* =========================
+   حالة الـCore
+========================= */
+
+function renderCore(){
+
+ const ok =
+ !!C;
+
+ const s =
+ C.settings();
+
+
+ document.getElementById("coreStatus").innerHTML =
+
+ `
+ <div class="row">
+
+  <span>
+  نسخة Core
+  </span>
+
+  <b>
+  ${esc(C.VERSION)}
+  </b>
+
+ </div>
+
+
+ <div class="row">
+
+  <span>
+  اسم الورشة
+  </span>
+
+  <b>
+  ${esc(s.workshopName)}
+  </b>
+
+ </div>
+
+
+ <div class="row">
+
+  <span>
+  سجل المراجعة
+  </span>
+
+  <b class="badge ${
+   s.audit === "on"
+   ?
+   "good"
+   :
+   "bad"
+  }">
+
+  ${
+   s.audit === "on"
+   ?
+   "مفعل"
+   :
+   "موقوف"
+  }
+
+  </b>
+
+ </div>
+
+
+ <div class="row">
+
+  <span>
+  الحالة
+  </span>
+
+  <b class="badge ${
+   ok
+   ?
+   "good"
+   :
+   "bad"
+  }">
+
+  ${
+   ok
+   ?
+   "يعمل"
+   :
+   "غير متصل"
+  }
+
+  </b>
+
+ </div>
+ `;
+
+}
+
+
+/* =========================
+   البحث
+========================= */
+
+function customerMatches(q){
+
+ const customers =
+ list(C.KEYS.customers);
+
+ const requests =
+ list(C.KEYS.requests);
+
+ const devices =
+ list(C.KEYS.devices);
+
+ const invoices =
+ list(C.KEYS.invoices);
+
+ const result = [];
+
+
+ /* العملاء */
+
+ customers.forEach(c=>{
+
+  const id =
+  C.idOf(c);
+
+  const text = [
+
+   id,
+   C.customerName(c),
+   c.phone,
+   c.mobile,
+   c.address
+
+  ]
+
+  .join(" ")
+  .toLowerCase();
+
+
+  if(text.includes(q)){
+
+   result.push({
+
+    kind:"عميل",
+
+    id:id,
+
+    title:
+    C.customerName(c)
+    ||
+    "عميل بدون اسم",
+
+    sub:
+    c.phone
+    ||
+    c.mobile
+    ||
+    "بدون هاتف"
+
+   });
+
+  }
+
+ });
+
+
+ /* طلبات الصيانة */
+
+ requests.forEach(r=>{
+
+  const text = [
+
+   C.idOf(r),
+   r.customerName,
+   r.phone,
+   r.fault,
+   r.description,
+   r.status
+
+  ]
+
+  .join(" ")
+  .toLowerCase();
+
+
+  if(text.includes(q)){
+
+   result.push({
+
+    kind:"طلب صيانة",
+
+    id:C.idOf(r),
+
+    title:
+    r.customerName
+    ||
+    "طلب صيانة",
+
+    sub:
+    r.fault
+    ||
+    r.description
+    ||
+    r.status
+    ||
+    ""
+
+   });
+
+  }
+
+ });
+
+
+ /* الأجهزة */
+
+ devices.forEach(d=>{
+
+  const text = [
+
+   C.idOf(d),
+   d.customerName,
+   d.brand,
+   d.model,
+   d.type,
+   d.deviceType
+
+  ]
+
+  .join(" ")
+  .toLowerCase();
+
+
+  if(text.includes(q)){
+
+   result.push({
+
+    kind:"جهاز",
+
+    id:C.idOf(d),
+
+    title:
+    d.customerName
+    ||
+    "جهاز",
+
+    sub:[
+     d.type,
+     d.brand,
+     d.model
+    ]
+
+    .filter(Boolean)
+    .join(" — ")
+
+   });
+
+  }
+
+ });
+
+
+ /* الفواتير */
+
+ invoices.forEach(i=>{
+
+  const text = [
+
+   C.idOf(i),
+   i.customerName,
+   i.invoiceNumber,
+   i.status
+
+  ]
+
+  .join(" ")
+  .toLowerCase();
+
+
+  if(text.includes(q)){
+
+   result.push({
+
+    kind:"فاتورة",
+
+    id:C.idOf(i),
+
+    title:
+    i.customerName
+    ||
+    "فاتورة",
+
+    sub:
+    i.invoiceNumber
+    ||
+    i.status
+    ||
+    ""
+
+   });
+
+  }
+
+ });
+
+
+ return result.slice(0,30);
+
+}
+
+
+/* =========================
+   تنفيذ البحث
+========================= */
+
+function runSearch(){
+
+ const q =
+ document
+ .getElementById("search")
+ .value
+ .trim()
+ .toLowerCase();
+
+
+ if(!q){
+
+  document.getElementById("results").innerHTML = `
+
+  <div class="empty">
+  اكتب كلمة البحث ثم اضغط «بحث».
+  </div>
+
+  `;
+
+  return;
+
+ }
+
+
+ const rows =
+ customerMatches(q);
+
+
+ document.getElementById("results").innerHTML =
+
+ rows.length
+
+ ?
+
+ rows.map(x=>`
+
+ <div class="result">
+
+  <h3>
+  ${esc(x.title)}
+  </h3>
+
+  <span class="badge bluebadge">
+  ${esc(x.kind)}
+  </span>
+
+  <p>
+
+  ${esc(x.sub)}
+
+  <br>
+
+  <small>
+  ${esc(x.id)}
+  </small>
+
+  </p>
+
+ </div>
+
+ `).join("")
+
+ :
+
+ `
+
+ <div class="empty">
+ لا توجد نتائج مطابقة.
+ </div>
+
+ `;
+
+}
+
+
+/* =========================
+   زر البحث
+========================= */
+
+document
+.getElementById("searchBtn")
+.onclick =
+runSearch;
+
+
+document
+.getElementById("search")
+.addEventListener(
+ "keydown",
+ function(e){
+
+  if(e.key === "Enter"){
+
+   runSearch();
+
+  }
+
+ }
+);
+
+
+/* =========================
+   تشغيل النظام
+========================= */
+
+try{
+
+ C.syncRelations();
+
+ renderStats();
+
+ renderAlerts();
+
+ renderCore();
+
+}
+
+catch(e){
+
+ document.getElementById("coreStatus").innerHTML = `
+
+ <div class="notice">
+
+ ⚠️ تم تحميل الصفحة،
+ لكن حدث خطأ أثناء المزامنة.
+
+ باقي البيانات لم يتم حذفها.
+
+ </div>
+
+ `;
+
+ console.error(e);
+
+ }
+
+})();
+
+</script>
 
 </body>
-
 </html>
