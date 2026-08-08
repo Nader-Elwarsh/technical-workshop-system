@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#07152f">
+<title>إدارة العقود - الورشة الفنية</title>
+<style>
+*{box-sizing:border-box}body{margin:0;font-family:Arial,Tahoma,sans-serif;background:#f4f6f8;color:#172033}
+header{background:#07152f;color:#fff;text-align:center;padding:22px 15px}header h1{margin:0 0 7px}header p{margin:0;color:#dbe5ff}
+.container{max-width:1150px;margin:auto;padding:16px}.card{background:#fff;border-radius:16px;padding:18px;margin-bottom:16px;box-shadow:0 2px 9px rgba(0,0,0,.06)}
+h2{margin:0 0 15px;color:#07152f}.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.full{grid-column:1/-1}
+label{display:block;font-weight:bold;margin:9px 0 6px}input,select,textarea{width:100%;padding:12px;border:1px solid #ccd4de;border-radius:10px;font:inherit}textarea{min-height:80px;resize:vertical}
+button{border:0;border-radius:10px;padding:11px 15px;font:inherit;cursor:pointer}.primary{background:#16803c;color:#fff}.blue{background:#1769aa;color:#fff}.gray{background:#596273;color:#fff}.danger{background:#d60000;color:#fff}.orange{background:#a96600;color:#fff}
+.actions{display:flex;gap:8px;margin-top:14px}.actions button{flex:1}.filters{display:grid;grid-template-columns:2fr 1fr 1fr;gap:10px}
+.summary{display:grid;grid-template-columns:repeat(5,1fr);gap:9px}.stat{background:#f8fafc;border-radius:11px;padding:12px;text-align:center}.stat b{display:block;font-size:22px;color:#07152f}
+.contract{border:1px solid #dfe4ea;border-radius:14px;padding:16px;margin-top:12px}.contract h3{margin:0 0 8px;color:#07152f}
+.badge{display:inline-block;padding:5px 9px;border-radius:20px;background:#e9edf2;margin:3px;font-size:12px}.active{background:#e3f7e9;color:#146c2e}.pending{background:#fff0d6;color:#9a5a00}.expired,.cancelled{background:#ffe2e2;color:#a00000}.archived{background:#eee;color:#666}
+.info{background:#eef6ff;border:1px solid #cfe2ff;border-radius:10px;padding:11px;line-height:1.8;margin-top:10px}.notice{display:none;padding:12px;border-radius:10px;margin-bottom:12px}.good{background:#e1f5e7;color:#146c2e}.error{background:#ffe2e2;color:#a00000}
+.empty{text-align:center;color:#777;padding:28px}.hidden{display:none!important}.back{display:block;text-align:center;background:#333;color:#fff;text-decoration:none;padding:14px;border-radius:10px}
+.devicebox,.visit{background:#f8fafc;border-radius:10px;padding:10px;margin-top:8px}.visit{border:1px solid #dde3ea}.row{display:flex;gap:8px;align-items:center}.row>*{flex:1}
+@media(max-width:700px){.grid,.filters{grid-template-columns:1fr}.full{grid-column:auto}.summary{grid-template-columns:repeat(2,1fr)}.actions,.row{flex-direction:column}}
+</style>
+</head>
+<body>
+<header><h1>📑 إدارة العقود</h1><p>الورشة الفنية لصيانة الأجهزة المنزلية والتكييف</p></header>
+<div class="container">
+<div id="notice" class="notice"></div>
+
+<div class="card">
+<h2>📊 ملخص العقود</h2>
+<div class="summary">
+<div class="stat"><b id="total">0</b>إجمالي العقود</div>
+<div class="stat"><b id="active">0</b>نشطة</div>
+<div class="stat"><b id="pending">0</b>بانتظار الاعتماد</div>
+<div class="stat"><b id="expiring">0</b>تنتهي قريبًا</div>
+<div class="stat"><b id="visits">0</b>زيارات قادمة</div>
+</div>
+</div>
+
+<div class="card">
+<h2>⚙️ إعدادات وحدة العقود</h2>
+<div class="grid">
+<div><label>تفعيل وحدة العقود</label><select id="enabled"><option value="true">مفعلة</option><option value="false">معطلة</option></select></div>
+<div><label>التجديد التلقائي</label><select id="autoRenew"><option value="false">متوقف</option><option value="true">مفعل</option></select></div>
+<div><label>إنشاء أمر شغل تلقائي للزيارات</label><select id="autoWorkOrder"><option value="false">متوقف</option><option value="true">مفعل</option></select></div>
+<div><label>تنبيه قبل انتهاء العقد (أيام)</label><input id="expiryNotice" type="number" min="0" value="30"></div>
+</div>
+<button class="blue" id="saveSettings" style="margin-top:12px">💾 حفظ إعدادات العقود</button>
+<div class="info">الوحدة اختيارية حسب الوثيقة، ويمكن تشغيلها أو إيقافها بالكامل من الإعدادات. </div>
+</div>
+
+<div class="card">
+<h2 id="formTitle">➕ إنشاء عقد</h2>
+<div class="grid">
+<div><label>رقم العقد</label><input id="contractId" readonly></div>
+<div><label>العميل *</label><select id="customer"><option value="">اختر العميل</option></select></div>
+<div><label>نوع العقد *</label><select id="type"></select></div>
+<div><label>تاريخ البداية *</label><input id="start" type="date"></div>
+<div><label>تاريخ الانتهاء *</label><input id="end" type="date"></div>
+<div><label>مدة العقد بالأيام</label><input id="duration" type="number" min="0"></div>
+<div><label>قيمة العقد</label><input id="value" type="number" min="0" step=".01" value="0"></div>
+<div><label>طريقة السداد</label><select id="payment"><option>نقدي</option><option>تحويل بنكي</option><option>دفعة واحدة</option><option>أقساط</option><option>أخرى</option></select></div>
+<div><label>حالة العقد</label><select id="status"><option>مسودة</option><option>بانتظار الاعتماد</option><option>نشط</option><option>معلق</option><option>منتهي</option><option>مجدد</option><option>ملغي</option><option>مؤرشف</option></select></div>
+<div><label>تكرار الزيارة</label><select id="frequency"><option>بدون زيارات دورية</option><option>أسبوعي</option><option>شهري</option><option>كل 3 أشهر</option><option>كل 6 أشهر</option><option>سنوي</option></select></div>
+<div class="full"><label>الأجهزة المشمولة</label><div id="devices"></div></div>
+<div class="full"><label>الخدمات المشمولة</label><div class="grid">
+<label><input type="checkbox" class="service" value="الصيانة الدورية"> الصيانة الدورية</label>
+<label><input type="checkbox" class="service" value="الصيانة الوقائية"> الصيانة الوقائية</label>
+<label><input type="checkbox" class="service" value="الإصلاحات"> الإصلاحات</label>
+<label><input type="checkbox" class="service" value="قطع الغيار"> قطع الغيار</label>
+<label><input type="checkbox" class="service" value="أجور العمالة"> أجور العمالة</label>
+<label><input type="checkbox" class="service" value="الزيارات المنزلية"> الزيارات المنزلية</label>
+<label><input type="checkbox" class="service" value="الفحص الفني"> الفحص الفني</label>
+</div></div>
+<div class="full"><label>نطاق التغطية / شروط العقد</label><textarea id="coverage"></textarea></div>
+<div class="full"><label>ملاحظات</label><textarea id="notes"></textarea></div>
+</div>
+<div class="info">إذا كان الجهاز مرتبطًا بعقد نشط، يجب أن يستطيع النظام التعرف على العقد وتطبيق الخدمات المشمولة وسياسة الزيارة المجانية/المدفوعة عند إنشاء أمر الشغل. </div>
+<div class="actions"><button class="primary" id="save">💾 حفظ العقد</button><button class="gray hidden" id="cancel">إلغاء التعديل</button></div>
+</div>
+
+<div class="card">
+<h2>🔎 البحث والتصفية</h2>
+<div class="filters">
+<input id="search" placeholder="رقم العقد / العميل / الجهاز / نوع العقد...">
+<select id="filter"><option value="">كل الحالات</option><option>مسودة</option><option>بانتظار الاعتماد</option><option>نشط</option><option>معلق</option><option>منتهي</option><option>مجدد</option><option>ملغي</option><option>مؤرشف</option></select>
+<select id="typeFilter"><option value="">كل الأنواع</option></select>
+</div>
+<div id="list"></div>
+</div>
+
+<div class="card">
+<h2>📅 الزيارات الدورية</h2>
+<div id="visitsList"></div>
+</div>
+
+<div class="card">
+<h2>🔄 التجديدات وإنهاء العقود</h2>
+<div id="actionsList"></div>
+</div>
+
+<a class="back" href="index.html">🏠 العودة إلى الرئيسية</a>
+</div>
+
+<script>
+const CK="contracts",SET="contractSettings",RK="maintenanceRequests",CUSTOMERS="customers",DEV="devices",WK="warranties",IK="invoices";
+let editing=null;
+
+const $=id=>document.getElementById(id);
+const arr=k=>{try{let x=JSON.parse(localStorage.getItem(k)||"[]");return Array.isArray(x)?x:[]}catch(e){return[]}};
+const save=(k,v)=>localStorage.setItem(k,JSON.stringify(v));
+const esc=v=>String(v??"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&#039;");
+const money=n=>Number(n||0).toFixed(2);
+const today=()=>new Date().toISOString().slice(0,10);
+function nextId(){let n=0;arr(CK).forEach(x=>{let m=String(x.id||"").match(/^CON-(\d+)$/);if(m)n=Math.max(n,+m[1])});return"CON-"+String(n+1).padStart(5,"0")}
+function notice(t,bad=false){$("notice").textContent=t;$("notice").className="notice "+(bad?"error":"good");$("notice").style.display="block";setTimeout(()=>$("notice").style.display="none",3000)}
+function settings(){return Object.assign({enabled:true,autoRenew:false,autoWorkOrder:false,expiryNotice:30},JSON.parse(localStorage.getItem(SET)||"{}"))}
+function loadSettings(){let s=settings();$("enabled").value=String(s.enabled);$("autoRenew").value=String(s.autoRenew);$("autoWorkOrder").value=String(s.autoWorkOrder);$("expiryNotice").value=s.expiryNotice}
+function saveSettings(){save(SET,{enabled:$("enabled").value==="true",autoRenew:$("autoRenew").value==="true",autoWorkOrder:$("autoWorkOrder").value==="true",expiryNotice:Number($("expiryNotice").value||30)});notice("تم حفظ إعدادات العقود")}
+function customerId(x){return x.id||x.customerId||x.code||""}
+function customerName(x){return x.name||x.fullName||x.customerName||"بدون اسم"}
+function loadCustomers(selected=""){
+ let cs=arr(CUSTOMERS);$("customer").innerHTML='<option value="">اختر العميل</option>'+cs.map(c=>'<option value="'+esc(customerId(c))+'">'+esc(customerName(c))+' — '+esc(c.phone||c.mobile||"")+'</option>').join("");if(selected)$("customer").value=selected
+}
+function devicesForCustomer(cid){
+ let ds=arr(DEV),cs=arr(CUSTOMERS);return ds.filter(d=>String(d.customerId||d.customer_id||d.ownerId||"")===String(cid)||String(d.customer)===String(cid)||(!d.customerId&&!d.customer_id&&cs.some(c=>String(customerId(c))===String(cid)&&String(customerName(c))===String(d.customerName))))
+}
+function renderDevices(selected=[]){
+ let cid=$("customer").value,ds=devicesForCustomer(cid);$("devices").innerHTML=ds.length?ds.map(d=>{let id=d.id||d.deviceId||d.code;return'<label class="devicebox"><input type="checkbox" class="device" value="'+esc(id)+'" '+(selected.map(String).includes(String(id))?"checked":"")+'><b>'+esc(d.name||d.deviceName||d.type||"جهاز")+'</b> — '+esc(d.brand||"")+' '+esc(d.model||"")+'</label>'}).join(""):'<div class="info">لا توجد أجهزة مسجلة لهذا العميل، ويمكن حفظ العقد بدون أجهزة ثم ربطها لاحقًا.</div>'
+}
+function contractTypes(){return["عقد صيانة دورية","عقد صيانة وقائية","عقد صيانة شاملة","عقد صيانة لقطع الغيار فقط","عقد صيانة للشركات","عقد مخصص حسب احتياجات العميل"]}
+function loadTypes(selected=""){
+ let ts=contractTypes();$("type").innerHTML=ts.map(x=>'<option>'+esc(x)+'</option>').join("");$("typeFilter").innerHTML='<option value="">كل الأنواع</option>'+ts.map(x=>'<option>'+esc(x)+'</option>').join("");if(selected)$("type").value=selected
+}
+function addDays(d,n){let x=new Date(d+"T00:00:00");x.setDate(x.getDate()+Number(n||0));return x.toISOString().slice(0,10)}
+function durationChange(){if($("start").value&&$("duration").value)$("end").value=addDays($("start").value,$("duration").value)}
+function endChange(){if($("start").value&&$("end").value){let a=new Date($("start").value),b=new Date($("end").value);$("duration").value=Math.max(0,Math.round((b-a)/86400000))}}
+function reset(){
+ editing=null;$("formTitle").textContent="➕ إنشاء عقد";$("save").textContent="💾 حفظ العقد";$("cancel").classList.add("hidden");$("contractId").value=nextId();loadCustomers();loadTypes();$("start").value=today();$("duration").value=365;$("end").value=addDays(today(),365);$("value").value=0;$("payment").value="نقدي";$("status").value="مسودة";$("frequency").value="بدون زيارات دورية";$("coverage").value="";$("notes").value="";document.querySelectorAll(".service").forEach(x=>x.checked=false);renderDevices([])
+}
+function saveContract(){
+ let cid=$("customer").value;if(!cid){notice("اختر العميل",true);return}
+ if(!$("start").value||!$("end").value){notice("أدخل تاريخ البداية والنهاية",true);return}
+ let selected=[...document.querySelectorAll(".device:checked")].map(x=>x.value),services=[...document.querySelectorAll(".service:checked")].map(x=>x.value),all=arr(CK),old=editing?all.find(x=>String(x.id)===String(editing)):null,now=new Date().toISOString(),cst=arr(CUSTOMERS).find(x=>String(customerId(x))===String(cid));
+ let c={id:editing||nextId(),customerId:cid,customerName:customerName(cst||{}),type:$("type").value,startDate:$("start").value,endDate:$("end").value,durationDays:Number($("duration").value||0),value:Number($("value").value||0),paymentMethod:$("payment").value,status:$("status").value,frequency:$("frequency").value,deviceIds:selected,services,coverage:$("coverage").value.trim(),notes:$("notes").value.trim(),visits:old?.visits||[],renewals:old?.renewals||[],termination:old?.termination||null,createdAt:old?.createdAt||now,updatedAt:now,audit:[...(old?.audit||[]),{at:now,event:editing?"تعديل عقد":"إنشاء عقد",status:$("status").value}]};
+ let i=all.findIndex(x=>String(x.id)===String(c.id));if(i>=0)all[i]=c;else all.unshift(c);save(CK,all);notice(editing?"تم تعديل العقد":"تم إنشاء العقد بنجاح");reset();renderAll()
+}
+function editContract(id){
+ let c=arr(CK).find(x=>String(x.id)===String(id));if(!c)return;
+ if(c.status==="مؤرشف"){notice("العقد المؤرشف لا يتم تعديله.",true);return}
+ editing=c.id;$("formTitle").textContent="✏️ تعديل العقد";$("save").textContent="💾 حفظ التعديل";$("cancel").classList.remove("hidden");loadCustomers(c.customerId);loadTypes(c.type);$("contractId").value=c.id;$("start").value=c.startDate||"";$("end").value=c.endDate||"";$("duration").value=c.durationDays||0;$("value").value=c.value||0;$("payment").value=c.paymentMethod||"نقدي";$("status").value=c.status||"مسودة";$("frequency").value=c.frequency||"بدون زيارات دورية";$("coverage").value=c.coverage||"";$("notes").value=c.notes||"";renderDevices(c.deviceIds||[]);document.querySelectorAll(".service").forEach(x=>x.checked=(c.services||[]).includes(x.value));window.scrollTo({top:0,behavior:"smooth"})
+}
+function serviceFor(id){let c=arr(CK).find(x=>String(x.id)===String(id));if(!c)return null;let ds=c.deviceIds||[];return{c,ds}}
+function statusClass(s){return s==="نشط"?"active":s==="بانتظار الاعتماد"||s==="معلق"?"pending":s==="منتهي"||s==="ملغي"?"expired":s==="مؤرشف"?"archived":""}
+function renderContracts(){
+ let cs=arr(CK),q=$("search").value.trim().toLowerCase(),f=$("filter").value,t=$("typeFilter").value;
+ let list=cs.filter(c=>[c.id,c.customerName,c.type,(c.deviceIds||[]).join(" "),c.services||""].join(" ").toLowerCase().includes(q)&&(!f||c.status===f)&&(!t||c.type===t));
+ $("list").innerHTML=list.length?list.map(c=>{let left=Math.ceil((new Date(c.endDate+"T23:59:59")-new Date())/86400000);return'<div class="contract"><h3>📑 '+esc(c.id)+' — '+esc(c.customerName)+'</h3><span class="badge '+statusClass(c.status)+'">● '+esc(c.status)+'</span><span class="badge">'+esc(c.type)+'</span><p>📅 '+esc(c.startDate)+' → '+esc(c.endDate)+' | '+(left>=0?"⏳ متبقي "+left+" يوم":"انتهى منذ "+Math.abs(left)+" يوم")+'<br>💰 '+money(c.value)+' جنيه | 💳 '+esc(c.paymentMethod)+' | 🔄 '+esc(c.frequency)+'</p><p>🔧 الأجهزة: '+esc((c.deviceIds||[]).length||"لا يوجد")+' | 🛠️ الخدمات: '+esc((c.services||[]).join("، ")||"لا يوجد")+'</p><p>📌 التغطية: '+esc(c.coverage||"غير محددة")+'</p><div class="actions"><button class="blue" data-a="edit" data-id="'+esc(c.id)+'">✏️ تعديل</button><button class="gray" data-a="renew" data-id="'+esc(c.id)+'">🔄 تجديد</button><button class="orange" data-a="terminate" data-id="'+esc(c.id)+'">⛔ إنهاء</button></div></div>'}).join(""):'<div class="empty">لا توجد عقود مطابقة.</div>'
+}
+function generateVisits(){
+ let cs=arr(CK),todayD=new Date(),out=[];cs.filter(c=>c.status==="نشط"&&c.frequency!=="بدون زيارات دورية").forEach(c=>{
+  let cur=new Date(c.startDate+"T00:00:00"),end=new Date(c.endDate+"T23:59:59");
+  let step=c.frequency==="أسبوعي"?7:c.frequency==="شهري"?30:c.frequency==="كل 3 أشهر"?90:c.frequency==="كل 6 أشهر"?180:365;
+  for(let guard=0;cur<=end&&guard<100;guard++){let ds=cur.toISOString().slice(0,10);if(ds>=today())out.push({contractId:c.id,customerName:c.customerName,date:ds,status:"مجدولة",frequency:c.frequency});cur.setDate(cur.getDate()+step)}
+ });
+ return out.sort((a,b)=>a.date.localeCompare(b.date))
+}
+function renderVisits(){
+ let vs=generateVisits();$("visitsList").innerHTML=vs.length?vs.slice(0,50).map(v=>'<div class="visit"><b>📅 '+esc(v.date)+'</b> — '+esc(v.customerName)+' — '+esc(v.contractId)+'<br>🔄 '+esc(v.frequency)+' | 📌 '+esc(v.status)+'<div class="actions"><button class="blue" data-v="work" data-id="'+esc(v.contractId)+'" data-date="'+esc(v.date)+'">🔧 إنشاء أمر شغل</button></div></div>').join(""):'<div class="empty">لا توجد زيارات قادمة.</div>'
+}
+function renew(id){
+ let all=arr(CK),c=all.find(x=>String(x.id)===String(id));if(!c)return;
+ let days=Number(prompt("مدة التجديد بالأيام",String(c.durationDays||365)));if(!days||days<1)return;
+ let mode=confirm("موافق = إنشاء عقد جديد للتجديد\nإلغاء = تمديد العقد الحالي");
+ let now=new Date().toISOString();
+ if(mode){let n={...c,id:nextId(),startDate:addDays(c.endDate,1),endDate:addDays(c.endDate,days+1),status:"مسودة",createdAt:now,updatedAt:now,renewedFrom:c.id,audit:[{at:now,event:"إنشاء عقد تجديد"}]};n.renewals=[];all.unshift(n);c.status="مجدد";c.renewals=[...(c.renewals||[]),n.id];c.updatedAt=now}
+ else{c.endDate=addDays(c.endDate,days);c.durationDays=Math.round((new Date(c.endDate)-new Date(c.startDate))/86400000);c.status="نشط";c.renewals=[...(c.renewals||[]),{date:now,mode:"تمديد"}];c.updatedAt=now}
+ save(CK,all);renderAll();notice("تم تجديد العقد")
+}
+function terminate(id){
+ let all=arr(CK),c=all.find(x=>String(x.id)===String(id));if(!c)return;
+ if(!confirm("إنهاء العقد قبل موعده؟"))return;let reason=prompt("سبب الإنهاء");if(!reason)return;
+ c.status="ملغي";c.termination={reason,endDate:today(),user:"المستخدم الحالي",remainingFinancial:Number(c.value||0),date:new Date().toISOString()};c.updatedAt=new Date().toISOString();c.audit=[...(c.audit||[]),{at:new Date().toISOString(),event:"إنهاء العقد",reason}];save(CK,all);renderAll();notice("تم إنهاء العقد وتسجيل السبب")
+}
+function createWorkOrder(contractId,date){
+ let c=arr(CK).find(x=>String(x.id)===String(contractId));if(!c)return;
+ if(settings().autoWorkOrder===false){notice("إنشاء أوامر الشغل التلقائي معطل من الإعدادات.",true);return}
+ let rs=arr(RK),id="MR-"+Date.now(),r={id,contractId:c.id,customerId:c.customerId,customerName:c.customerName,deviceId:(c.deviceIds||[])[0]||"",status:"مجدول",priority:"عادية",scheduledDate:date,source:"عقد صيانة",description:"زيارة دورية ضمن عقد "+c.id,createdAt:new Date().toISOString()};rs.unshift(r);save(RK,rs);notice("تم إنشاء أمر الشغل "+id)
+}
+function renderActions(){
+ let cs=arr(CK),now=new Date(),noticeDays=Number(settings().expiryNotice||30);
+ let exp=cs.filter(c=>c.status==="نشط"&&c.endDate&&((new Date(c.endDate)-now)/86400000)<=noticeDays&&((new Date(c.endDate)-now)/86400000)>=0);
+ $("actionsList").innerHTML=exp.length?exp.map(c=>'<div class="visit"><b>⚠️ '+esc(c.id)+' — '+esc(c.customerName)+'</b><br>ينتهي في '+esc(c.endDate)+' — متبقي '+Math.ceil((new Date(c.endDate)-now)/86400000)+' يوم<div class="actions"><button class="blue" data-r="renew" data-id="'+esc(c.id)+'">🔄 تجديد الآن</button></div></div>').join(""):'<div class="empty">لا توجد عقود تحتاج إجراءً قريبًا.</div>'
+}
+function renderAll(){
+ let cs=arr(CK),vs=generateVisits(),now=new Date(),days=Number(settings().expiryNotice||30);
+ $("total").textContent=cs.length;$("active").textContent=cs.filter(c=>c.status==="نشط").length;$("pending").textContent=cs.filter(c=>c.status==="بانتظار الاعتماد").length;$("expiring").textContent=cs.filter(c=>c.status==="نشط"&&c.endDate&&((new Date(c.endDate)-now)/86400000)<=days&&((new Date(c.endDate)-now)/86400000)>=0).length;$("visits").textContent=vs.length;
+ renderContracts();renderVisits();renderActions()
+}
+$("customer").onchange=()=>renderDevices([]);$("duration").oninput=durationChange;$("start").onchange=durationChange;$("end").onchange=endChange;
+$("saveSettings").onclick=saveSettings;$("save").onclick=saveContract;$("cancel").onclick=reset;$("search").oninput=renderContracts;$("filter").onchange=renderContracts;$("typeFilter").onchange=renderContracts;
+$("list").onclick=e=>{let b=e.target.closest("button[data-a]");if(!b)return;if(b.dataset.a==="edit")editContract(b.dataset.id);else if(b.dataset.a==="renew")renew(b.dataset.id);else terminate(b.dataset.id)};
+$("visitsList").onclick=e=>{let b=e.target.closest("button[data-v]");if(b)createWorkOrder(b.dataset.id,b.dataset.date)};
+$("actionsList").onclick=e=>{let b=e.target.closest("button[data-r]");if(b)renew(b.dataset.id)};
+loadSettings();loadTypes();reset();renderAll();
+</script>
+</body>
+</html>
