@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#07152f">
+<title>المخزون وقطع الغيار - الورشة الفنية</title>
+<style>
+*{box-sizing:border-box}body{margin:0;font-family:Arial,Tahoma,sans-serif;background:#f4f6f8;color:#172033}
+header{background:#07152f;color:#fff;text-align:center;padding:22px 15px}header h1{margin:0 0 7px}header p{margin:0;color:#dbe5ff}
+.container{max-width:1120px;margin:auto;padding:16px}.card{background:#fff;border-radius:16px;padding:18px;margin-bottom:16px;box-shadow:0 2px 9px rgba(0,0,0,.06)}
+h2{margin:0 0 15px;color:#07152f}.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.full{grid-column:1/-1}
+label{display:block;font-weight:bold;margin:9px 0 6px}input,select,textarea{width:100%;padding:12px;border:1px solid #ccd4de;border-radius:10px;font:inherit}textarea{min-height:85px;resize:vertical}
+button{border:0;border-radius:10px;padding:11px 15px;font:inherit;cursor:pointer}.primary{background:#16803c;color:#fff}.blue{background:#1769aa;color:#fff}.gray{background:#596273;color:#fff}.danger{background:#d60000;color:#fff}.dark{background:#07152f;color:#fff}
+.actions{display:flex;gap:8px;margin-top:14px}.actions button{flex:1}.filters{display:grid;grid-template-columns:2fr 1fr 1fr;gap:10px}
+.stats{display:grid;grid-template-columns:repeat(5,1fr);gap:9px}.stat{background:#f8fafc;border-radius:11px;padding:12px;text-align:center}.stat b{display:block;font-size:23px;color:#07152f}.stat small{color:#667085}
+.part{border:1px solid #dfe4ea;border-radius:14px;padding:15px;margin-top:12px}.part h3{margin:0 0 7px;color:#07152f}
+.badge{display:inline-block;padding:5px 9px;border-radius:20px;background:#e9edf2;margin:3px;font-size:12px}.low{background:#ffe2e2;color:#a00000}.ok{background:#e3f7e9;color:#146c2e}.arch{background:#eee;color:#666}
+.info{background:#eef6ff;border:1px solid #cfe2ff;border-radius:10px;padding:11px;line-height:1.8;margin-top:10px}
+.notice{display:none;padding:12px;border-radius:10px;margin-bottom:12px}.good{background:#e1f5e7;color:#146c2e}.bad{background:#ffe2e2;color:#a00000}
+.empty{text-align:center;color:#777;padding:28px}.hidden{display:none!important}.back{display:block;text-align:center;background:#333;color:#fff;text-decoration:none;padding:14px;border-radius:10px}
+.move{background:#fffaf0;border:1px solid #efd48a;padding:12px;border-radius:11px;margin-top:9px}
+@media(max-width:700px){.grid,.filters{grid-template-columns:1fr}.full{grid-column:auto}.stats{grid-template-columns:repeat(2,1fr)}.actions{flex-direction:column}}
+</style>
+</head>
+<body>
+<header><h1>📦 المخزون وقطع الغيار</h1><p>الورشة الفنية لصيانة الأجهزة المنزلية والتكييف</p></header>
+<div class="container">
+<div id="notice" class="notice"></div>
+
+<div class="card">
+<h2>📊 ملخص المخزون</h2>
+<div class="stats">
+<div class="stat"><b id="total">0</b><small>إجمالي الأصناف</small></div>
+<div class="stat"><b id="low">0</b><small>تحت الحد الأدنى</small></div>
+<div class="stat"><b id="reserved">0</b><small>كمية محجوزة</small></div>
+<div class="stat"><b id="value">0</b><small>قيمة الشراء</small></div>
+<div class="stat"><b id="moves">0</b><small>حركات المخزون</small></div>
+</div>
+</div>
+
+<div class="card">
+<h2 id="formTitle">➕ إضافة قطعة غيار</h2>
+<div class="grid">
+<div><label>رقم الصنف</label><input id="partId" readonly></div>
+<div><label>اسم الصنف *</label><input id="name" placeholder="مثال: مكثف 40µF"></div>
+<div><label>رقم القطعة</label><input id="partNumber" placeholder="رقم/كود الشركة"></div>
+<div><label>كود الصنف</label><input id="code" placeholder="كود داخلي"></div>
+<div><label>التصنيف *</label><input id="category" placeholder="مثال: مكثفات / ضواغط / حساسات"></div>
+<div><label>الشركة المصنعة</label><input id="brand"></div>
+<div><label>الوصف</label><input id="description"></div>
+<div><label>وحدة القياس</label><select id="unit"><option>قطعة</option><option>كيلو</option><option>متر</option><option>لتر</option><option>علبة</option><option>مجموعة</option></select></div>
+<div><label>المورد الرئيسي</label><input id="supplier"></div>
+<div><label>المورد البديل</label><input id="altSupplier"></div>
+<div><label>مكان التخزين</label><input id="location" placeholder="رف / دولاب / مخزن"></div>
+<div><label>سعر الشراء</label><input id="purchase" type="number" min="0" step=".01"></div>
+<div><label>سعر البيع</label><input id="selling" type="number" min="0" step=".01"></div>
+<div><label>الحد الأدنى</label><input id="min" type="number" min="0" step=".01"></div>
+<div><label>الحد الأقصى</label><input id="max" type="number" min="0" step=".01"></div>
+<div><label>الكمية الحالية</label><input id="quantity" type="number" min="0" step=".01" value="0"></div>
+<div><label>الكمية المحجوزة</label><input id="reservedQty" type="number" min="0" step=".01" value="0"></div>
+<div><label>حالة الصنف</label><select id="status"><option>نشط</option><option>موقوف</option><option>مؤرشف</option><option>منتهي</option></select></div>
+<div><label>نوع الصنف</label><select id="sourceType"><option>مخزون المركز</option><option>قطعة يملكها العميل</option></select></div>
+<div class="full"><label>ملاحظات</label><textarea id="notes"></textarea></div>
+</div>
+<div class="actions"><button class="primary" id="save">💾 حفظ الصنف</button><button class="gray hidden" id="cancel">إلغاء التعديل</button></div>
+</div>
+
+<div class="card">
+<h2>🔎 البحث والتصفية</h2>
+<div class="filters">
+<input id="search" placeholder="اسم الصنف / رقم الصنف / الكود / الشركة / QR / Barcode...">
+<select id="catFilter"><option value="">كل التصنيفات</option></select>
+<select id="stockFilter"><option value="">كل الحالات</option><option value="low">تحت الحد الأدنى</option><option value="out">نفد</option><option value="active">نشط</option><option value="archived">مؤرشف</option></select>
+</div>
+<div id="list"></div>
+</div>
+
+<div class="card">
+<h2>🔄 حركة المخزون</h2>
+<p class="info">كل حركة تُسجل باسم القطعة ونوع الحركة والكمية وأمر الشغل المرتبط والمستخدم والتاريخ والملاحظات.</p>
+<div id="transactions"></div>
+</div>
+
+<div class="card">
+<h2>🧮 الجرد</h2>
+<div class="grid">
+<div><label>الصنف</label><select id="countPart"></select></div>
+<div><label>الرصيد الفعلي</label><input id="actual" type="number" min="0" step=".01"></div>
+<div class="full"><label>ملاحظات الجرد</label><textarea id="countNotes"></textarea></div>
+</div>
+<div class="actions"><button class="blue" id="countBtn">📋 تسجيل فرق الجرد</button></div>
+</div>
+
+<a class="back" href="index.html">🏠 العودة إلى الرئيسية</a>
+</div>
+
+<script>
+const KEY="inventoryParts", MOVES="inventory_transactions", RK="maintenanceRequests";
+let editing=null;
+
+const $=id=>document.getElementById(id);
+const arr=k=>{try{let x=JSON.parse(localStorage.getItem(k)||"[]");return Array.isArray(x)?x:[]}catch(e){return[]}};
+const save=(k,v)=>localStorage.setItem(k,JSON.stringify(v));
+const esc=v=>String(v??"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&#039;");
+function nextId(){let n=0;arr(KEY).forEach(p=>{let m=String(p.id||"").match(/^PART-(\d+)$/);if(m)n=Math.max(n,+m[1])});return"PART-"+String(n+1).padStart(5,"0")}
+function moveId(){let n=0;arr(MOVES).forEach(x=>{let m=String(x.id||"").match(/^INV-(\d+)$/);if(m)n=Math.max(n,+m[1])});return"INV-"+String(n+1).padStart(6,"0")}
+function notice(t,bad=false){$("notice").textContent=t;$("notice").className="notice "+(bad?"bad":"good");$("notice").style.display="block";setTimeout(()=>$("notice").style.display="none",2800)}
+function reset(){editing=null;$("formTitle").textContent="➕ إضافة قطعة غيار";$("save").textContent="💾 حفظ الصنف";$("cancel").classList.add("hidden");$("partId").value=nextId();["name","partNumber","code","category","brand","description","supplier","altSupplier","location","purchase","selling","min","max","quantity","reservedQty","notes"].forEach(x=>$(x).value="");$("unit").value="قطعة";$("status").value="نشط";$("sourceType").value="مخزون المركز";$("quantity").value=0;$("reservedQty").value=0}
+function edit(id){const p=arr(KEY).find(x=>String(x.id)===String(id));if(!p)return;editing=p.id;$("formTitle").textContent="✏️ تعديل قطعة غيار";$("save").textContent="💾 حفظ التعديل";$("cancel").classList.remove("hidden");Object.entries({partId:p.id,name:p.name,partNumber:p.partNumber,code:p.code,category:p.category,brand:p.brand,description:p.description,unit:p.unit,supplier:p.supplier,altSupplier:p.altSupplier,location:p.location,purchase:p.purchase,selling:p.selling,min:p.min,max:p.max,quantity:p.quantity,reservedQty:p.reservedQty,status:p.status,sourceType:p.sourceType,notes:p.notes}).forEach(([k,v])=>$(k).value=v??"");window.scrollTo({top:0,behavior:"smooth"})}
+function savePart(){
+ const name=$("name").value.trim(),cat=$("category").value.trim();if(!name||!cat){notice("اكتب اسم الصنف والتصنيف",true);return}
+ let ps=arr(KEY),old=editing?ps.find(x=>String(x.id)===String(editing)):null,now=new Date().toISOString();
+ const p={id:editing||nextId(),name,partNumber:$("partNumber").value.trim(),code:$("code").value.trim(),category:cat,brand:$("brand").value.trim(),description:$("description").value.trim(),unit:$("unit").value,supplier:$("supplier").value.trim(),altSupplier:$("altSupplier").value.trim(),location:$("location").value.trim(),purchase:Number($("purchase").value||0),selling:Number($("selling").value||0),min:Number($("min").value||0),max:Number($("max").value||0),quantity:Number($("quantity").value||0),reservedQty:Number($("reservedQty").value||0),available:Math.max(0,Number($("quantity").value||0)-Number($("reservedQty").value||0)),status:$("status").value,sourceType:$("sourceType").value,notes:$("notes").value.trim(),createdAt:old?.createdAt||now,updatedAt:now,audit:[...(old?.audit||[]),{at:now,event:editing?"تعديل صنف":"إنشاء صنف"}]};
+ const i=ps.findIndex(x=>String(x.id)===String(p.id));if(i>=0)ps[i]=p;else ps.unshift(p);save(KEY,ps);notice(editing?"تم تعديل الصنف":"تمت إضافة الصنف");reset();render()
+}
+function hasOperational(id){return arr(MOVES).some(m=>String(m.partId)===String(id))}
+function removePart(id){const p=arr(KEY).find(x=>String(x.id)===String(id));if(!p)return;if(hasOperational(id)){notice("لا يمكن حذف صنف له حركات تشغيلية. استخدم الأرشفة.",true);return}if(!confirm("حذف "+p.name+"؟"))return;save(KEY,arr(KEY).filter(x=>String(x.id)!==String(id)));render();notice("تم حذف الصنف")}
+function archivePart(id){let ps=arr(KEY),p=ps.find(x=>String(x.id)===String(id));if(!p)return;p.status="مؤرشف";p.updatedAt=new Date().toISOString();save(KEY,ps);render();notice("تمت أرشفة الصنف")}
+function addMove(partId,type,qty,orderId="",notes="",user="المدير"){
+ let ps=arr(KEY),p=ps.find(x=>String(x.id)===String(partId));if(!p)return;
+ qty=Number(qty);if(qty<=0){notice("الكمية غير صحيحة",true);return}
+ if(["صرف لفني","تلف"].includes(type)&&qty>Number(p.available||0)){notice("الكمية المتاحة غير كافية",true);return}
+ if(type==="إضافة شراء"||type==="إرجاع"||type==="تعديل جرد")p.quantity+=qty;
+ if(["صرف لفني","تلف"].includes(type))p.quantity-=qty;
+ p.available=Math.max(0,p.quantity-p.reservedQty);p.updatedAt=new Date().toISOString();
+ let ms=arr(MOVES);ms.unshift({id:moveId(),partId:p.id,partName:p.name,type,quantity:qty,workOrderId:orderId,user,date:new Date().toISOString(),notes});
+ save(KEY,ps);save(MOVES,ms);render();notice("تم تسجيل حركة "+type+" للصنف")
+}
+function quickMove(id){const type=prompt("نوع الحركة: إضافة شراء / صرف لفني / إرجاع / تلف","إضافة شراء");if(!type)return;const qty=prompt("الكمية");if(qty===null)return;const order=type==="صرف لفني"?prompt("رقم أمر الشغل المرتبط (اختياري)","")||"":"";addMove(id,type,qty,order,prompt("ملاحظات","")||"")}
+function count(){
+ const id=$("countPart").value,p=arr(KEY).find(x=>String(x.id)===String(id));if(!p){notice("اختر الصنف",true);return}
+ const actual=Number($("actual").value);if(actual<0||isNaN(actual)){notice("أدخل الرصيد الفعلي",true);return}
+ const diff=actual-Number(p.quantity||0);if(diff===0){notice("لا يوجد فرق في الجرد");return}
+ let ps=arr(KEY);let pp=ps.find(x=>String(x.id)===String(id));pp.quantity=actual;pp.available=Math.max(0,actual-pp.reservedQty);pp.updatedAt=new Date().toISOString();save(KEY,ps);
+ let ms=arr(MOVES);ms.unshift({id:moveId(),partId:p.id,partName:p.name,type:"تعديل جرد",quantity:Math.abs(diff),difference:diff,user:"المدير",date:new Date().toISOString(),notes:$("countNotes").value.trim()});save(MOVES,ms);
+ $("actual").value="";$("countNotes").value="";render();notice("تم تسجيل فرق الجرد وتحديث الرصيد")
+}
+function render(){
+ const ps=arr(KEY),q=$("search").value.trim().toLowerCase(),cf=$("catFilter").value,sf=$("stockFilter").value;
+ $("total").textContent=ps.length;$("low").textContent=ps.filter(p=>p.status!=="مؤرشف"&&Number(p.quantity)<=Number(p.min)).length;$("reserved").textContent=ps.reduce((n,p)=>n+Number(p.reservedQty||0),0);$("value").textContent=ps.reduce((n,p)=>n+Number(p.quantity||0)*Number(p.purchase||0),0).toFixed(2);$("moves").textContent=arr(MOVES).length;
+ const cats=[...new Set(ps.map(p=>p.category).filter(Boolean))];let old=$("catFilter").value;$("catFilter").innerHTML='<option value="">كل التصنيفات</option>'+cats.map(c=>'<option>'+esc(c)+'</option>').join("");$("catFilter").value=old;
+ const list=ps.filter(p=>{let hay=[p.id,p.name,p.partNumber,p.code,p.brand,p.description,p.category,p.location].join(" ").toLowerCase();return hay.includes(q)&&(!cf||p.category===cf)&&(!sf||(sf==="low"?p.quantity<=p.min:sf==="out"?p.quantity<=0:sf==="active"?p.status==="نشط":sf==="archived"?p.status==="مؤرشف":true))});
+ $("list").innerHTML=list.length?list.map(p=>{const low=Number(p.quantity)<=Number(p.min),avail=Number(p.available||0);return '<div class="part"><h3>🔩 '+esc(p.name)+' <span class="badge">'+esc(p.id)+'</span></h3><span class="badge '+(low?"low":"ok")+'">'+(low?"⚠️ تحت الحد الأدنى":"✅ المخزون جيد")+'</span><span class="badge">'+esc(p.category)+'</span><span class="badge">📍 '+esc(p.location||"غير محدد")+'</span><p>🔢 رقم القطعة: '+esc(p.partNumber||"غير مسجل")+' | الشركة: '+esc(p.brand||"غير محددة")+'<br>📦 الحالي: <b>'+esc(p.quantity)+' '+esc(p.unit)+'</b> | 🔒 محجوز: <b>'+esc(p.reservedQty)+'</b> | 🟢 متاح: <b>'+esc(avail)+'</b><br>💰 شراء: '+esc(p.purchase)+' | بيع: '+esc(p.selling)+' | الحد الأدنى: '+esc(p.min)+' | الأقصى: '+esc(p.max)+'</p><div class="actions"><button class="blue" data-a="move" data-id="'+esc(p.id)+'">🔄 حركة</button><button class="gray" data-a="edit" data-id="'+esc(p.id)+'">✏️ تعديل</button><button class="gray" data-a="archive" data-id="'+esc(p.id)+'">📦 أرشفة</button><button class="danger" data-a="delete" data-id="'+esc(p.id)+'">🗑️ حذف</button></div></div>'}).join(""):'<div class="empty">لا توجد أصناف مطابقة 🔎</div>';
+ $("transactions").innerHTML=arr(MOVES).slice(0,30).map(m=>'<div class="move"><b>'+esc(m.id)+' — '+esc(m.partName)+'</b><br>🔄 '+esc(m.type)+' | 📦 '+esc(m.quantity)+' | 👤 '+esc(m.user)+' | 📅 '+esc(new Date(m.date).toLocaleString("ar-EG"))+(m.workOrderId?"<br>🔧 أمر الشغل: "+esc(m.workOrderId):"")+(m.notes?"<br>📝 "+esc(m.notes):"")+'</div>').join("")||'<div class="empty">لا توجد حركات حتى الآن.</div>';
+ $("countPart").innerHTML='<option value="">اختر الصنف</option>'+ps.filter(p=>p.status!=="مؤرشف").map(p=>'<option value="'+esc(p.id)+'">'+esc(p.name)+' — '+esc(p.id)+' — الرصيد '+esc(p.quantity)+'</option>').join("");
+}
+$("save").onclick=savePart;$("cancel").onclick=reset;$("search").oninput=render;$("catFilter").onchange=render;$("stockFilter").onchange=render;$("countBtn").onclick=count;
+$("list").onclick=e=>{let b=e.target.closest("button[data-a]");if(!b)return;let id=b.dataset.id,a=b.dataset.a;if(a==="edit")edit(id);else if(a==="delete")removePart(id);else if(a==="archive")archivePart(id);else quickMove(id)};
+reset();render();
+</script>
+</body>
+</html>
