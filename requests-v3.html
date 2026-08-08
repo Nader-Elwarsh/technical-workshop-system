@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#07152f">
+<title>أوامر الشغل | الورشة الفنية</title>
+<style>
+:root{--navy:#07152f;--card:#fff;--bg:#f3f5f7;--line:#e2e6eb;--text:#172033;--muted:#667085;--green:#16803c;--blue:#1769aa;--red:#b42318;--amber:#a96600}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font-family:Arial,Tahoma,sans-serif}
+header{background:var(--navy);color:#fff;padding:20px 16px}.wrap{max-width:1100px;margin:auto;padding:16px}header .wrap{padding:0}
+h1{margin:0 0 6px;font-size:28px}header p{margin:0;color:#dce6ff}
+.card{background:var(--card);border-radius:16px;padding:18px;margin-bottom:16px;box-shadow:0 2px 10px rgba(0,0,0,.06)}
+.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:13px}.full{grid-column:1/-1}
+label{display:block;font-weight:700;margin-bottom:6px}input,select,textarea{width:100%;border:1px solid #cfd6df;border-radius:10px;padding:11px;font:inherit;background:#fff;color:var(--text)}textarea{min-height:90px;resize:vertical}
+input:focus,select:focus,textarea:focus{outline:2px solid rgba(23,105,170,.18);border-color:var(--blue)}
+button{border:0;border-radius:10px;padding:11px 15px;font:inherit;cursor:pointer}.primary{background:var(--green);color:#fff}.blue{background:var(--blue);color:#fff}.gray{background:#596273;color:#fff}.danger{background:var(--red);color:#fff}.amber{background:var(--amber);color:#fff}
+.actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}.notice{display:none;padding:12px;border-radius:10px;margin-bottom:14px;line-height:1.7}.notice.ok{display:block;background:#e3f7e9;color:#146c2e}.notice.err{display:block;background:#ffe3e1;color:#9b1c16}.notice.warn{display:block;background:#fff0d6;color:#8b5b00}
+.info{background:#f7f9fb;border:1px solid var(--line);padding:12px;border-radius:10px;margin-top:8px;line-height:1.8}
+.filters{display:grid;grid-template-columns:2fr 1fr 1fr;gap:9px}.count{color:var(--muted);margin:10px 0}
+.request{border:1px solid var(--line);border-radius:14px;padding:15px;margin:10px 0;background:#fff}.request h3{margin:0 0 9px}.request p{line-height:1.8;margin:7px 0}.badges{display:flex;gap:6px;flex-wrap:wrap}.badge{display:inline-block;padding:5px 9px;border-radius:18px;background:#eef2f6;font-size:12px}.priority{background:#fff0d6;color:#8b5b00}.status{background:#e8f0ff;color:#164e8b}.done{background:#e3f7e9;color:#146c2e}.dangerBadge{background:#ffe3e1;color:#9b1c16}
+.panel{border-top:1px solid var(--line);margin-top:14px;padding-top:14px}.subgrid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+table{width:100%;border-collapse:collapse}th,td{padding:9px;border-bottom:1px solid var(--line);text-align:right;vertical-align:top}th{background:#f7f9fb}
+.hidden{display:none!important}.muted{color:var(--muted);font-size:13px}.required{color:var(--red)}
+.modal{position:fixed;inset:0;background:rgba(0,0,0,.55);display:none;align-items:flex-start;justify-content:center;padding:30px 12px;overflow:auto;z-index:20}.modal.open{display:flex}.modalbox{background:#fff;border-radius:16px;width:min(900px,100%);padding:18px}
+@media(max-width:700px){.grid,.subgrid,.filters{grid-template-columns:1fr}.full{grid-column:auto}.wrap{padding:10px}h1{font-size:24px}}
+</style>
+</head>
+<body>
+<header><div class="wrap">
+<h1>🔧 إدارة أوامر الشغل</h1>
+<p>المحور التشغيلي لربط العميل والجهاز والفني والزيارة والتشخيص والمخزون والفاتورة والضمان.</p>
+</div></header>
+
+<main class="wrap">
+<div id="notice" class="notice"></div>
+
+<section class="card">
+<h2 id="formTitle">➕ إنشاء أمر شغل</h2>
+<div class="muted">لا يتم تكرار بيانات العميل أو الجهاز؛ يتم اختيار السجلات الأصلية وربط أمر الشغل بها.</div>
+
+<div class="grid" style="margin-top:14px">
+<div>
+<label>العميل <span class="required">*</span></label>
+<select id="customerId"><option value="">اختر العميل</option></select>
+</div>
+<div>
+<label>الجهاز <span class="required">*</span></label>
+<select id="deviceId" disabled><option value="">اختر العميل أولًا</option></select>
+</div>
+
+<div class="full" id="customerInfo"></div>
+
+<div>
+<label>نوع أمر الشغل <span class="required">*</span></label>
+<select id="type"></select>
+</div>
+<div>
+<label>مصدر الطلب <span class="required">*</span></label>
+<select id="source">
+<option value="بلاغ هاتفي">بلاغ هاتفي</option>
+<option value="زيارة للمركز">زيارة للمركز</option>
+<option value="الموقع الإلكتروني">طلب من الموقع الإلكتروني</option>
+<option value="تطبيق العميل">طلب من تطبيق العميل</option>
+<option value="زيارة دورية من عقد">زيارة دورية من عقد صيانة</option>
+<option value="مطالبة ضمان">مطالبة ضمان</option>
+<option value="أمر متابعة بعد زيارة سابقة">أمر متابعة بعد زيارة سابقة</option>
+</select>
+</div>
+
+<div>
+<label>الأولوية</label>
+<select id="priority"></select>
+</div>
+<div>
+<label>الفني المسؤول</label>
+<select id="technicianId"><option value="">لم يتم الإسناد</option></select>
+</div>
+
+<div>
+<label>الموعد المحدد</label>
+<input id="scheduledAt" type="datetime-local">
+</div>
+<div>
+<label>عنوان الزيارة</label>
+<input id="address" placeholder="يُملأ من بيانات العميل ويمكن مراجعته">
+</div>
+
+<div class="full">
+<label>وصف العطل / طلب العميل <span class="required">*</span></label>
+<textarea id="problem" placeholder="اكتب وصف العطل أو الخدمة المطلوبة بالتفصيل"></textarea>
+</div>
+
+<div class="full panel">
+<h3>🧰 التشخيص والتنفيذ</h3>
+<div class="grid">
+<div><label>سبب العطل / التشخيص</label><textarea id="diagnosis" placeholder="يُستكمل بعد الفحص"></textarea></div>
+<div><label>الإجراءات المنفذة</label><textarea id="actionsDone" placeholder="ما تم فحصه أو تنفيذه"></textarea></div>
+<div><label>القطع المطلوبة</label><textarea id="partsRequired" placeholder="القطع المطلوبة قبل الاعتماد"></textarea></div>
+<div><label>التكلفة التقديرية</label><input id="estimatedCost" type="number" min="0" step="0.01"></div>
+<div><label>صور قبل الإصلاح</label><input id="beforePhotos" type="text" placeholder="روابط/معرفات الملفات لاحقًا"></div>
+<div><label>ملاحظات فنية</label><textarea id="technicalNotes"></textarea></div>
+</div>
+</div>
+
+<div class="full panel">
+<h3>🤝 موافقة العميل</h3>
+<div class="subgrid">
+<div><label>الحالة</label><select id="approvalStatus"><option>غير مطلوبة</option><option>معلقة</option><option>موافق</option><option>رافض</option><option>مؤجل</option></select></div>
+<div><label>تاريخ القرار</label><input id="approvalAt" type="datetime-local"></div>
+<div><label>ملاحظات العميل</label><input id="approvalNotes"></div>
+</div>
+<div class="muted">إذا كانت سياسة المركز تتطلب موافقة قبل الإصلاح، لا يُسمح بالانتقال إلى التنفيذ قبل استيفائها.</div>
+</div>
+
+<div class="full panel">
+<h3>📦 قطع الغيار المرتبطة</h3>
+<div id="partsInfo" class="info">إدارة حجز/صرف القطع التفصيلية تعتمد على وحدة المخزون. لا يتم خصم المخزون النهائي من هذه الشاشة قبل استيفاء شروط الاعتماد.</div>
+</div>
+
+<div class="full panel">
+<label>حالة أمر الشغل</label>
+<select id="status"></select>
+</div>
+
+<div class="full">
+<label>ملاحظات إضافية</label>
+<textarea id="notes"></textarea>
+</div>
+</div>
+
+<div class="actions">
+<button class="primary" id="saveBtn">💾 حفظ أمر الشغل</button>
+<button class="gray hidden" id="cancelBtn">إلغاء التعديل</button>
+<button class="blue" id="resetBtn">مسح النموذج</button>
+</div>
+</section>
+
+<section class="card">
+<h2>📋 سجل أوامر الشغل</h2>
+<div class="filters">
+<input id="search" placeholder="🔎 ابحث بالرقم أو العميل أو الهاتف أو الجهاز أو الفني...">
+<select id="statusFilter"><option value="">كل الحالات</option></select>
+<select id="priorityFilter"><option value="">كل الأولويات</option></select>
+</div>
+<div class="count" id="count">عدد الأوامر: 0</div>
+<div id="requestsList"></div>
+</section>
+
+<section class="card">
+<h2>🛡️ فحص سلامة الوحدة</h2>
+<div id="integrityBox" class="info">جاري الفحص...</div>
+</section>
+
+<div class="actions">
+<a href="index.html"><button class="gray">🏠 الرئيسية</button></a>
+<a href="core-test.html"><button class="blue">🧪 اختبار Core</button></a>
+</div>
+</main>
+
+<div class="modal" id="detailsModal">
+<div class="modalbox">
+<div style="display:flex;justify-content:space-between;gap:10px;align-items:center">
+<h2 id="modalTitle">تفاصيل أمر الشغل</h2><button class="gray" id="closeModal">إغلاق</button>
+</div>
+<div id="modalBody"></div>
+</div>
+</div>
+
+<script src="app-core.js"></script>
+<script>
+(function(){
+"use strict";
+const C=window.WorkshopCore;
+if(!C){document.body.innerHTML='<div style="padding:30px;font-family:Arial">❌ app-core.js غير محمل.</div>';return;}
+
+const $=id=>document.getElementById(id);
+let editingId=null;
+
+function esc(v){return String(v??"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&#039;")}
+function show(msg,type="ok"){const n=$("notice");n.textContent=msg;n.className="notice "+type;window.scrollTo({top:0,behavior:"smooth"});setTimeout(()=>{n.className="notice"},5000)}
+function val(id){return $(id).value.trim()}
+function localDate(v){if(!v)return"";const d=new Date(v);return Number.isNaN(d.getTime())?"":d.toISOString()}
+function displayDate(v){if(!v)return"غير محدد";const d=new Date(v);return Number.isNaN(d.getTime())?esc(v):d.toLocaleString("ar-EG")}
+function setOptions(id,arr,placeholder){
+ const el=$(id);el.innerHTML=(placeholder!==undefined?'<option value="">'+esc(placeholder)+'</option>':"")+arr.map(x=>'<option value="'+esc(x)+'">'+esc(x)+'</option>').join("");
+}
+function customerName(id){const c=C.findCustomer(id);return c?C.customerName(c):"غير معروف"}
+function deviceName(id){const d=C.findDevice(id);return d?(d.name||d.deviceName||[d.type,d.brand,d.model].filter(Boolean).join(" ")||id):"غير معروف"}
+function technicianName(id){const t=C.findTechnician(id);return t?C.technicianName(t):"غير مسند"}
+
+function loadCustomers(selected){
+ const cs=C.list(C.KEYS.customers).slice().sort((a,b)=>customerName(C.idOf(a)).localeCompare(customerName(C.idOf(b)),"ar"));
+ $("customerId").innerHTML='<option value="">اختر العميل</option>'+cs.map(c=>'<option value="'+esc(C.idOf(c))+'">'+esc(customerName(c))+' — '+esc(C.idOf(c))+(c.phone?" — "+esc(c.phone):"")+'</option>').join("");
+ if(selected){$("customerId").value=selected;loadCustomerContext()}
+}
+function loadCustomerContext(){
+ const cid=val("customerId"),c=C.findCustomer(cid);
+ if(!c){$("deviceId").innerHTML='<option value="">اختر العميل أولًا</option>';$("deviceId").disabled=true;$("customerInfo").innerHTML="";return;}
+ const devices=C.customerDevices(cid);
+ $("deviceId").disabled=false;
+ $("deviceId").innerHTML='<option value="">اختر الجهاز</option>'+devices.map(d=>'<option value="'+esc(C.idOf(d))+'">'+esc(d.name||d.deviceName||[d.type,d.brand,d.model].filter(Boolean).join(" ")||"جهاز")+' — '+esc(C.idOf(d))+'</option>').join("");
+ const address=c.address||(c.addresses&&c.addresses[0]&&[c.addresses[0].governorate,c.addresses[0].center,c.addresses[0].city,c.addresses[0].street].filter(Boolean).join(" - "))||"";
+ $("customerInfo").innerHTML='<div class="info"><b>👤 '+esc(customerName(cid))+'</b> — '+esc(cid)+'<br>📞 '+esc(c.phone||c.mobile||"غير مسجل")+'<br>📍 '+esc(address||"العنوان غير مسجل")+'<br>📱 عدد أجهزة العميل: '+devices.length+'</div>';
+ if(address&&!val("address"))$("address").value=address;
+}
+function loadTechnicians(selected){
+ const ts=C.list(C.KEYS.technicians);
+ $("technicianId").innerHTML='<option value="">لم يتم الإسناد</option>'+ts.map(t=>{
+  const id=C.idOf(t),name=technicianName(id),available=t.available??t.status;
+  return '<option value="'+esc(id)+'">'+esc(name)+' — '+esc(id)+(available?" — "+esc(available):"")+'</option>';
+ }).join("");
+ if(selected)$("technicianId").value=selected;
+}
+function initLists(){
+ setOptions("type",C.WORK_ORDER_TYPES,"اختر النوع");
+ setOptions("priority",C.PRIORITIES);
+ setOptions("status",C.STATUSES);
+ setOptions("statusFilter",C.STATUSES,"كل الحالات");
+ setOptions("priorityFilter",C.PRIORITIES,"كل الأولويات");
+ loadCustomers();loadTechnicians();
+ $("priority").value="عادية";$("status").value="جديد";
+}
+function resetForm(){
+ editingId=null;$("formTitle").textContent="➕ إنشاء أمر شغل";$("saveBtn").textContent="💾 حفظ أمر الشغل";$("cancelBtn").classList.add("hidden");
+ ["customerId","deviceId","type","source","priority","technicianId","scheduledAt","address","problem","diagnosis","actionsDone","partsRequired","estimatedCost","beforePhotos","technicalNotes","approvalStatus","approvalAt","approvalNotes","status","notes"].forEach(id=>{if($(id))$(id).value=""});
+ $("deviceId").disabled=true;$("customerInfo").innerHTML="";$("approvalStatus").value="غير مطلوبة";$("priority").value="عادية";$("status").value="جديد";
+}
+function validateForm(){
+ const cid=val("customerId"),did=val("deviceId"),type=val("type"),source=val("source"),priority=val("priority"),status=val("status"),problem=val("problem");
+ if(!cid)throw new Error("اختر العميل.");
+ if(!did)throw new Error("اختر الجهاز.");
+ C.validateCustomerDevice(cid,did);
+ if(!type||!C.WORK_ORDER_TYPES.includes(type))throw new Error("نوع أمر الشغل غير صحيح.");
+ if(!source)throw new Error("مصدر الطلب مطلوب.");
+ if(!C.PRIORITIES.includes(priority))throw new Error("الأولوية غير صحيحة.");
+ if(!C.STATUSES.includes(status))throw new Error("الحالة غير صحيحة.");
+ if(!problem)throw new Error("وصف العطل أو طلب العميل مطلوب.");
+ const tid=val("technicianId");if(tid&&!C.findTechnician(tid))throw new Error("الفني المختار غير موجود.");
+ if(C.settings().requireCustomerApproval==="on" && ["جاري الإصلاح","مكتمل","مغلق"].includes(status)){
+  if($("approvalStatus").value!=="موافق")throw new Error("سياسة المركز تتطلب موافقة العميل قبل الإصلاح.");
+ }
+ return true;
+}
+function buildData(){
+ const cid=val("customerId"),did=val("deviceId"),tid=val("technicianId");
+ return {
+  ...(editingId?{id:editingId}:{}),
+  customerId:cid,deviceId:did,type:val("type"),requestType:val("type"),source:val("source"),
+  priority:val("priority"),status:val("status"),technicianId:tid||"",
+  scheduledAt:localDate($("scheduledAt").value),visitDate:localDate($("scheduledAt").value),
+  address:val("address"),problem:val("problem"),faultDescription:val("problem"),
+  diagnosis:val("diagnosis"),cause:val("diagnosis"),actionsDone:val("actionsDone"),
+  partsRequired:val("partsRequired"),estimatedCost:Number(val("estimatedCost")||0),
+  beforePhotos:val("beforePhotos"),technicalNotes:val("technicalNotes"),
+  approvalStatus:val("approvalStatus"),approvalAt:localDate($("approvalAt").value),
+  approvalNotes:val("approvalNotes"),notes:val("notes")
+ };
+}
+function save(){
+ try{
+  validateForm();
+  const item=C.saveRequest(buildData(),"مدير/مستخدم الشاشة");
+  show(editingId?"تم تحديث أمر الشغل "+item.id:"تم إنشاء أمر الشغل "+item.id);
+  resetForm();render();integrity();
+ }catch(e){console.error(e);show(e.message||"تعذر الحفظ.","err")}
+}
+function edit(id){
+ const r=C.findRequest(id);if(!r)return;
+ editingId=id;$("formTitle").textContent="✏️ تعديل أمر الشغل "+id;$("saveBtn").textContent="💾 حفظ التعديل";$("cancelBtn").classList.remove("hidden");
+ loadCustomers(r.customerId);loadTechnicians(r.technicianId);
+ $("type").value=r.type||r.requestType||"";$("source").value=r.source||"بلاغ هاتفي";$("priority").value=r.priority||"عادية";$("status").value=r.status||"جديد";
+ loadCustomerContext();$("deviceId").value=r.deviceId||r.applianceId||"";
+ $("scheduledAt").value=r.scheduledAt?new Date(r.scheduledAt).toISOString().slice(0,16):(r.visitDate?new Date(r.visitDate).toISOString().slice(0,16):"");
+ $("address").value=r.address||"";$("problem").value=r.problem||r.faultDescription||"";$("diagnosis").value=r.diagnosis||r.cause||"";
+ $("actionsDone").value=r.actionsDone||"";$("partsRequired").value=r.partsRequired||"";$("estimatedCost").value=r.estimatedCost||"";
+ $("beforePhotos").value=r.beforePhotos||"";$("technicalNotes").value=r.technicalNotes||"";$("approvalStatus").value=r.approvalStatus||"غير مطلوبة";
+ $("approvalAt").value=r.approvalAt?new Date(r.approvalAt).toISOString().slice(0,16):"";$("approvalNotes").value=r.approvalNotes||"";$("notes").value=r.notes||"";
+ window.scrollTo({top:0,behavior:"smooth"});
+}
+function removeRequest(id){
+ const r=C.findRequest(id);if(!r)return;
+ if(!confirm("سيتم طلب الحذف عبر قواعد الـCore. هل تريد المتابعة؟"))return;
+ try{C.deleteRequest(id,"مدير/مستخدم الشاشة");show("تم حذف أمر الشغل "+id);render();integrity()}catch(e){show(e.message||"تعذر الحذف.","err")}
+}
+function setStatus(id,status){
+ try{const r=C.findRequest(id);if(!r)throw new Error("أمر الشغل غير موجود.");
+ if(["مكتمل","مغلق"].includes(status)){
+  if(!r.actionsDone)throw new Error("لا يمكن الإغلاق/الإكمال قبل تسجيل الأعمال المنفذة.");
+  if(C.settings().requireCustomerApproval==="on"&&r.approvalStatus!=="موافق")throw new Error("موافقة العميل مطلوبة قبل الإكمال.");
+ }
+ C.updateRequestStatus(id,status,"مدير/مستخدم الشاشة");show("تم تغيير حالة "+id+" إلى "+status);render();integrity();
+ }catch(e){show(e.message||"تعذر تغيير الحالة.","err")}
+}
+function render(){
+ const q=val("search").toLowerCase(),sf=val("statusFilter"),pf=val("priorityFilter");
+ const all=C.list(C.KEYS.requests);
+ const filtered=all.filter(r=>{
+  const c=customerName(C.idOf(C.findCustomer(r.customerId||r.clientId))),d=deviceName(r.deviceId||r.applianceId),t=technicianName(r.technicianId);
+  const hay=[r.id,r.customerId,c,r.customerPhone,d,r.type,r.requestType,r.source,r.problem,r.address,t,r.status,r.priority].join(" ").toLowerCase();
+  return hay.includes(q)&&(!sf||r.status===sf)&&(!pf||r.priority===pf);
+ });
+ $("count").textContent="عدد الأوامر: "+filtered.length+" من "+all.length;
+ $("requestsList").innerHTML=filtered.length?filtered.slice().reverse().map(card).join(""):'<div class="info">لا توجد أوامر مطابقة.</div>';
+}
+function card(r){
+ const id=C.idOf(r),st=r.status||"جديد",pr=r.priority||"عادية",done=["مكتمل","مغلق"].includes(st);
+ const visits=C.requestVisits(id).length,inv=C.requestInvoices(id).length,w=C.requestWarranties(id).length;
+ return '<article class="request">'+
+ '<h3>🔧 '+esc(id)+' — '+esc(customerName(r.customerId||r.clientId))+'</h3>'+
+ '<div class="badges"><span class="badge">👤 '+esc(r.customerId||"")+'</span><span class="badge">📱 '+esc(deviceName(r.deviceId||r.applianceId))+'</span>'+
+ '<span class="badge '+(pr==="عاجلة جدًا"||pr==="عاجلة"?"priority":"")+'">⚡ '+esc(pr)+'</span>'+
+ '<span class="badge '+(done?"done":"status")+'">📌 '+esc(st)+'</span>'+
+ '<span class="badge">👨‍🔧 '+esc(technicianName(r.technicianId))+'</span></div>'+
+ '<p><b>نوع الخدمة:</b> '+esc(r.type||r.requestType||"غير محدد")+' — <b>المصدر:</b> '+esc(r.source||"غير محدد")+'</p>'+
+ '<p><b>المشكلة:</b> '+esc(r.problem||"غير مسجلة")+'</p>'+
+ '<p><b>الموعد:</b> '+esc(displayDate(r.scheduledAt||r.visitDate))+'<br><b>العنوان:</b> '+esc(r.address||"غير محدد")+'</p>'+
+ '<div class="badges"><span class="badge">📅 زيارات: '+visits+'</span><span class="badge">🧾 فواتير: '+inv+'</span><span class="badge">🛡️ ضمان: '+w+'</span></div>'+
+ '<div class="actions">'+
+ '<button class="blue" data-act="view" data-id="'+esc(id)+'">👁️ التفاصيل</button>'+
+ '<button class="gray" data-act="edit" data-id="'+esc(id)+'">✏️ تعديل</button>'+
+ '<button class="amber" data-act="next" data-id="'+esc(id)+'">🔄 تغيير الحالة</button>'+
+ (C.canDeleteRequest?'<button class="danger" data-act="delete" data-id="'+esc(id)+'">🗑️ حذف</button>':"")+
+ '</div></article>';
+}
+function showDetails(id){
+ const r=C.findRequest(id);if(!r)return;
+ const visits=C.requestVisits(id),invs=C.requestInvoices(id),payments=C.requestPayments(id),ws=C.requestWarranties(id);
+ $("modalTitle").textContent="تفاصيل "+id;
+ $("modalBody").innerHTML=
+ '<div class="info"><b>العميل:</b> '+esc(customerName(r.customerId))+' ('+esc(r.customerId)+')<br>'+
+ '<b>الجهاز:</b> '+esc(deviceName(r.deviceId))+' ('+esc(r.deviceId)+')<br>'+
+ '<b>الفني:</b> '+esc(technicianName(r.technicianId))+'<br>'+
+ '<b>الحالة:</b> '+esc(r.status)+' — <b>الأولوية:</b> '+esc(r.priority)+'<br>'+
+ '<b>التاريخ:</b> '+esc(displayDate(r.createdAt))+'</div>'+
+ '<div class="panel"><h3>🧰 التشخيص والتنفيذ</h3><p><b>المشكلة:</b> '+esc(r.problem||"—")+'</p><p><b>التشخيص:</b> '+esc(r.diagnosis||r.cause||"—")+'</p><p><b>الإجراءات:</b> '+esc(r.actionsDone||"—")+'</p><p><b>القطع المطلوبة:</b> '+esc(r.partsRequired||"—")+'</p><p><b>التكلفة التقديرية:</b> '+esc(r.estimatedCost||0)+' '+esc(C.settings().currency)+'</p></div>'+
+ '<div class="panel"><h3>🤝 الموافقة</h3><p>'+esc(r.approvalStatus||"غير مطلوبة")+' — '+esc(r.approvalNotes||"لا توجد ملاحظات")+'</p></div>'+
+ '<div class="panel"><h3>🔗 العلاقات</h3><p>الزيارات: '+visits.length+' | الفواتير: '+invs.length+' | المدفوعات: '+payments.length+' | الضمانات: '+ws.length+'</p></div>'+
+ '<div class="actions">'+C.STATUSES.map(s=>'<button class="'+(s==="ملغي"?"danger":"gray")+'" data-modalstatus="'+esc(s)+'" data-id="'+esc(id)+'">'+esc(s)+'</button>').join("")+'</div>';
+ $("detailsModal").classList.add("open");
+}
+function integrity(){
+ try{
+  const x=C.validateIntegrity();
+  $("integrityBox").className="info "+(x.ok?"":"dangerBadge");
+  $("integrityBox").innerHTML=x.ok?"✅ العلاقات الحالية سليمة.":"❌ توجد "+x.count+" مشكلة:<br>"+x.problems.slice(0,10).map(esc).join("<br>");
+ }catch(e){$("integrityBox").textContent="تعذر فحص العلاقات: "+e.message}
+}
+
+$("customerId").addEventListener("change",loadCustomerContext);
+$("saveBtn").addEventListener("click",save);
+$("cancelBtn").addEventListener("click",resetForm);
+$("resetBtn").addEventListener("click",resetForm);
+$("search").addEventListener("input",render);$("statusFilter").addEventListener("change",render);$("priorityFilter").addEventListener("change",render);
+$("requestsList").addEventListener("click",e=>{
+ const b=e.target.closest("button");if(!b)return;const id=b.dataset.id,act=b.dataset.act;
+ if(act==="view")showDetails(id);if(act==="edit")edit(id);if(act==="delete")removeRequest(id);
+ if(act==="next"){const r=C.findRequest(id);if(!r)return;const i=C.STATUSES.indexOf(r.status);const next=C.STATUSES[Math.min(i+1,C.STATUSES.length-1)];if(next&&next!==r.status)setStatus(id,next);}
+});
+$("closeModal").addEventListener("click",()=>$("detailsModal").classList.remove("open"));
+$("detailsModal").addEventListener("click",e=>{
+ if(e.target===$("detailsModal"))$("detailsModal").classList.remove("open");
+ const b=e.target.closest("[data-modalstatus]");if(b){setStatus(b.dataset.id,b.dataset.modalstatus);showDetails(b.dataset.id)}
+});
+
+initLists();render();integrity();
+})();
+</script>
+</body>
+</html>
