@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#07152f">
+<title>الموردون والمشتريات - الورشة الفنية</title>
+<style>
+*{box-sizing:border-box}body{margin:0;font-family:Arial,Tahoma,sans-serif;background:#f4f6f8;color:#172033}
+header{background:#07152f;color:#fff;text-align:center;padding:22px 15px}header h1{margin:0 0 7px}header p{margin:0;color:#dbe5ff}
+.container{max-width:1150px;margin:auto;padding:16px}.card{background:#fff;border-radius:16px;padding:18px;margin-bottom:16px;box-shadow:0 2px 9px rgba(0,0,0,.06)}
+h2{margin:0 0 15px;color:#07152f}.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.full{grid-column:1/-1}
+label{display:block;font-weight:bold;margin:9px 0 6px}input,select,textarea{width:100%;padding:12px;border:1px solid #ccd4de;border-radius:10px;font:inherit}textarea{min-height:80px;resize:vertical}
+button{border:0;border-radius:10px;padding:11px 15px;font:inherit;cursor:pointer}.primary{background:#16803c;color:#fff}.blue{background:#1769aa;color:#fff}.gray{background:#596273;color:#fff}.danger{background:#d60000;color:#fff}
+.actions{display:flex;gap:8px;margin-top:14px}.actions button{flex:1}.filters{display:grid;grid-template-columns:2fr 1fr 1fr;gap:10px}
+.summary{display:grid;grid-template-columns:repeat(5,1fr);gap:9px}.stat{background:#f8fafc;border-radius:11px;padding:12px;text-align:center}.stat b{display:block;font-size:22px;color:#07152f}
+.supplier,.purchase{border:1px solid #dfe4ea;border-radius:14px;padding:16px;margin-top:12px}.supplier h3,.purchase h3{margin:0 0 8px;color:#07152f}
+.badge{display:inline-block;padding:5px 9px;border-radius:20px;background:#e9edf2;margin:3px;font-size:12px}.active{background:#e3f7e9;color:#146c2e}.paused{background:#fff0d6;color:#9a5a00}.archived{background:#eee;color:#666}.bad{background:#ffe2e2;color:#a00000}
+.info{background:#eef6ff;border:1px solid #cfe2ff;border-radius:10px;padding:11px;line-height:1.8;margin-top:10px}.notice{display:none;padding:12px;border-radius:10px;margin-bottom:12px}.good{background:#e1f5e7;color:#146c2e}.error{background:#ffe2e2;color:#a00000}
+.empty{text-align:center;color:#777;padding:28px}.hidden{display:none!important}.line{display:grid;grid-template-columns:2fr 1fr 1fr auto;gap:8px;margin-top:8px}.line button{padding:8px}.receive{background:#fffaf0;border:1px solid #efd48a;border-radius:11px;padding:12px;margin-top:10px}.rating{background:#f8fafc;border-radius:10px;padding:10px;margin-top:8px}
+.back{display:block;text-align:center;background:#333;color:#fff;text-decoration:none;padding:14px;border-radius:10px}
+@media(max-width:700px){.grid,.filters,.line{grid-template-columns:1fr}.full{grid-column:auto}.summary{grid-template-columns:repeat(2,1fr)}.actions{flex-direction:column}}
+</style>
+</head>
+<body>
+<header><h1>🚚 الموردون والمشتريات</h1><p>الورشة الفنية لصيانة الأجهزة المنزلية والتكييف</p></header>
+<div class="container">
+<div id="notice" class="notice"></div>
+
+<div class="card">
+<h2>📊 ملخص المشتريات</h2>
+<div class="summary">
+<div class="stat"><b id="supplierCount">0</b>الموردون</div>
+<div class="stat"><b id="poCount">0</b>طلبات الشراء</div>
+<div class="stat"><b id="pendingCount">0</b>بانتظار الاستلام</div>
+<div class="stat"><b id="receivedCount">0</b>تم الاستلام</div>
+<div class="stat"><b id="purchaseValue">0</b>قيمة المشتريات</div>
+</div>
+</div>
+
+<div class="card">
+<h2 id="supplierTitle">➕ إضافة مورد</h2>
+<div class="grid">
+<div><label>رقم المورد</label><input id="supplierId" readonly></div>
+<div><label>اسم المورد *</label><input id="supplierName"></div>
+<div><label>اسم الشركة</label><input id="company"></div>
+<div><label>الهاتف *</label><input id="phone" type="tel"></div>
+<div><label>هاتف بديل</label><input id="phone2" type="tel"></div>
+<div><label>البريد الإلكتروني</label><input id="email" type="email"></div>
+<div><label>العنوان</label><input id="address"></div>
+<div><label>المدينة</label><input id="city"></div>
+<div><label>المحافظة</label><input id="governorate" value="المنيا"></div>
+<div><label>التصنيف</label><select id="category"><option>مورد رئيسي</option><option>مورد معتمد</option><option>مورد احتياطي</option><option>مورد محلي</option><option>مورد مستورد</option><option>مورد أدوات</option><option>مورد قطع غيار</option><option>مورد مواد استهلاكية</option></select></div>
+<div><label>التخصص</label><input id="specialty" placeholder="مثال: تبريد / تكييف / إلكترونيات"></div>
+<div><label>مدة التوريد المعتادة بالأيام</label><input id="leadTime" type="number" min="0"></div>
+<div><label>طريقة الدفع</label><select id="paymentMethod"><option>نقدي</option><option>تحويل بنكي</option><option>آجل</option><option>محفظة إلكترونية</option><option>أخرى</option></select></div>
+<div><label>الرصيد الحالي</label><input id="balance" type="number" step=".01"></div>
+<div><label>الحالة</label><select id="status"><option>نشط</option><option>موقوف مؤقتًا</option><option>غير متعاون</option><option>مؤرشف</option></select></div>
+<div class="full"><label>المنتجات التي يوفرها</label><textarea id="products" placeholder="أسماء أو أنواع قطع الغيار والأدوات والمستلزمات"></textarea></div>
+<div class="full"><label>ملاحظات</label><textarea id="notes"></textarea></div>
+</div>
+<div class="actions"><button class="primary" id="saveSupplier">💾 حفظ المورد</button><button class="gray hidden" id="cancelSupplier">إلغاء التعديل</button></div>
+</div>
+
+<div class="card">
+<h2>🔎 الموردون</h2>
+<div class="filters">
+<input id="supplierSearch" placeholder="اسم المورد / الشركة / الهاتف / المنتج / المدينة...">
+<select id="supplierFilter"><option value="">كل الحالات</option><option>نشط</option><option>موقوف مؤقتًا</option><option>غير متعاون</option><option>مؤرشف</option></select>
+<select id="supplierCatFilter"><option value="">كل التصنيفات</option></select>
+</div>
+<div id="supplierList"></div>
+</div>
+
+<div class="card">
+<h2>🛒 إنشاء طلب شراء</h2>
+<div class="grid">
+<div><label>رقم طلب الشراء</label><input id="poId" readonly></div>
+<div><label>المورد</label><select id="poSupplier"><option value="">اختر المورد</option></select></div>
+<div><label>مصدر الطلب</label><select id="poSource"><option>انخفاض المخزون</option><option>طلب فني</option><option>اقتراح النظام</option><option>طلب المدير</option><option>طلب يدوي</option></select></div>
+<div><label>الأولوية</label><select id="poPriority"><option>عاجلة</option><option selected>عادية</option><option>منخفضة</option></select></div>
+<div><label>تاريخ الإنشاء</label><input id="poDate" type="date"></div>
+<div><label>ملاحظات</label><input id="poNotes"></div>
+<div class="full">
+<label>الأصناف المطلوبة</label>
+<div id="poLines"></div>
+<button class="btn blue" id="addLine" type="button">➕ إضافة صنف</button>
+</div>
+</div>
+<div class="actions"><button class="primary" id="savePO">💾 حفظ طلب الشراء</button></div>
+</div>
+
+<div class="card">
+<h2>📋 أوامر الشراء والاستلام</h2>
+<div class="filters">
+<input id="poSearch" placeholder="رقم الطلب / المورد / الصنف...">
+<select id="poFilter"><option value="">كل الحالات</option><option>مسودة</option><option>بانتظار الاعتماد</option><option>معتمد</option><option>تم الإرسال للمورد</option><option>تم الاستلام جزئيًا</option><option>تم الاستلام بالكامل</option><option>ملغي</option><option>مؤرشف</option></select>
+<select id="receivePO"><option value="">استلام طلب شراء...</option></select>
+</div>
+<div id="poList"></div>
+</div>
+
+<div class="card">
+<h2>⭐ تقييم الموردين</h2>
+<div class="grid">
+<div><label>المورد</label><select id="ratingSupplier"></select></div>
+<div><label>جودة المنتجات (1-5)</label><input id="quality" type="number" min="1" max="5"></div>
+<div><label>الالتزام بالمواعيد (1-5)</label><input id="delivery" type="number" min="1" max="5"></div>
+<div><label>الأسعار (1-5)</label><input id="prices" type="number" min="1" max="5"></div>
+<div><label>سرعة الاستجابة (1-5)</label><input id="response" type="number" min="1" max="5"></div>
+<div><label>خدمة ما بعد البيع (1-5)</label><input id="afterSales" type="number" min="1" max="5"></div>
+<div><label>نسبة المرتجعات (1-5)</label><input id="returns" type="number" min="1" max="5"></div>
+<div class="full"><label>ملاحظات التقييم</label><textarea id="ratingNotes"></textarea></div>
+</div>
+<div class="actions"><button class="blue" id="saveRating">⭐ حفظ التقييم</button></div>
+<div id="ratingsList"></div>
+</div>
+
+<div class="card">
+<h2>↩️ المرتجعات</h2>
+<div class="grid">
+<div><label>طلب الشراء</label><select id="returnPO"></select></div>
+<div><label>الصنف</label><select id="returnPart"></select></div>
+<div><label>الكمية</label><input id="returnQty" type="number" min="1"></div>
+<div><label>نوع المرتجع</label><select id="returnType"><option>تالف</option><option>غير مطابق</option><option>استبدال</option></select></div>
+<div class="full"><label>سبب الإرجاع</label><textarea id="returnReason"></textarea></div>
+</div>
+<div class="actions"><button class="danger" id="saveReturn">↩️ تسجيل المرتجع</button></div>
+<div id="returnsList"></div>
+</div>
+
+<a class="back" href="index.html">🏠 العودة إلى الرئيسية</a>
+</div>
+
+<script>
+const SK="suppliers",PK="purchaseOrders",RK="purchaseReceipts",TK="supplierRatings",RET="purchaseReturns",IK="purchaseInvoices",INVKEY="inventoryParts";
+let editingSupplier=null;
+
+const $=id=>document.getElementById(id);
+const arr=k=>{try{let x=JSON.parse(localStorage.getItem(k)||"[]");return Array.isArray(x)?x:[]}catch(e){return[]}};
+const save=(k,v)=>localStorage.setItem(k,JSON.stringify(v));
+const esc=v=>String(v??"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&#039;");
+const money=n=>Number(n||0).toFixed(2);
+function nextId(key,prefix,pad){let n=0;arr(key).forEach(x=>{let m=String(x.id||"").match(new RegExp("^"+prefix+"-(\\\\d+)$"));if(m)n=Math.max(n,+m[1])});return prefix+"-"+String(n+1).padStart(pad,"0")}
+function notice(t,bad=false){$("notice").textContent=t;$("notice").className="notice "+(bad?"error":"good");$("notice").style.display="block";setTimeout(()=>$("notice").style.display="none",3000)}
+function resetSupplier(){editingSupplier=null;$("supplierTitle").textContent="➕ إضافة مورد";$("saveSupplier").textContent="💾 حفظ المورد";$("cancelSupplier").classList.add("hidden");$("supplierId").value=nextId(SK,"SUP",4);["supplierName","company","phone","phone2","email","address","city","specialty","leadTime","balance","products","notes"].forEach(x=>$(x).value="");$("governorate").value="المنيا";$("category").value="مورد رئيسي";$("paymentMethod").value="نقدي";$("status").value="نشط"}
+function editSupplier(id){let s=arr(SK).find(x=>String(x.id)===String(id));if(!s)return;editingSupplier=s.id;$("supplierTitle").textContent="✏️ تعديل المورد";$("saveSupplier").textContent="💾 حفظ التعديل";$("cancelSupplier").classList.remove("hidden");Object.entries({supplierId:s.id,supplierName:s.name,company:s.company,phone:s.phone,phone2:s.phone2,email:s.email,address:s.address,city:s.city,governorate:s.governorate,category:s.category,specialty:s.specialty,leadTime:s.leadTime,balance:s.balance,paymentMethod:s.paymentMethod,status:s.status,products:s.products,notes:s.notes}).forEach(([k,v])=>$(k).value=v??"");window.scrollTo({top:0,behavior:"smooth"})}
+function saveSupplier(){
+ let name=$("supplierName").value.trim(),phone=$("phone").value.trim();if(!name||!phone){notice("اكتب اسم المورد ورقم الهاتف",true);return}
+ let all=arr(SK),old=editingSupplier?all.find(x=>String(x.id)===String(editingSupplier)):null,now=new Date().toISOString();
+ let s={id:editingSupplier||nextId(SK,"SUP",4),name,company:$("company").value.trim(),phone,phone2:$("phone2").value.trim(),email:$("email").value.trim(),address:$("address").value.trim(),city:$("city").value.trim(),governorate:$("governorate").value.trim(),category:$("category").value,specialty:$("specialty").value.trim(),products:$("products").value.trim(),leadTime:Number($("leadTime").value||0),paymentMethod:$("paymentMethod").value,balance:Number($("balance").value||0),status:$("status").value,notes:$("notes").value.trim(),ratings:old?.ratings||[],createdAt:old?.createdAt||now,updatedAt:now,audit:[...(old?.audit||[]),{at:now,event:editingSupplier?"تعديل مورد":"إنشاء مورد"}]};
+ let i=all.findIndex(x=>String(x.id)===String(s.id));if(i>=0)all[i]=s;else all.unshift(s);save(SK,all);notice(editingSupplier?"تم تعديل المورد":"تم إنشاء المورد");resetSupplier();renderAll()
+}
+function hasPurchases(id){return arr(PK).some(p=>String(p.supplierId)===String(id))}
+function deleteSupplier(id){let s=arr(SK).find(x=>String(x.id)===String(id));if(!s)return;if(hasPurchases(id)){notice("لا يمكن حذف مورد مرتبط بعمليات شراء سابقة؛ استخدم الأرشفة.",true);return}if(!confirm("حذف المورد "+s.name+"؟"))return;save(SK,arr(SK).filter(x=>String(x.id)!==String(id)));renderAll();notice("تم حذف المورد")}
+function archiveSupplier(id){let all=arr(SK),s=all.find(x=>String(x.id)===String(id));if(!s)return;s.status="مؤرشف";s.updatedAt=new Date().toISOString();save(SK,all);renderAll();notice("تمت أرشفة المورد")}
+function supplierRating(s){let rs=s.ratings||[];if(!rs.length)return"—";let vals=rs.map(r=>Number(r.average)).filter(Boolean);return vals.length?(vals.reduce((a,b)=>a+b,0)/vals.length).toFixed(1):"—"}
+function renderSuppliers(){
+ let ss=arr(SK),q=$("supplierSearch").value.trim().toLowerCase(),f=$("supplierFilter").value,c=$("supplierCatFilter").value;
+ let cats=[...new Set(ss.map(x=>x.category).filter(Boolean))],old=$("supplierCatFilter").value;$("supplierCatFilter").innerHTML='<option value="">كل التصنيفات</option>'+cats.map(x=>'<option>'+esc(x)+'</option>').join("");$("supplierCatFilter").value=old;
+ let list=ss.filter(s=>[s.id,s.name,s.company,s.phone,s.phone2,s.products,s.specialty,s.city,s.governorate].join(" ").toLowerCase().includes(q)&&(!f||s.status===f)&&(!c||s.category===c));
+ $("supplierList").innerHTML=list.length?list.map(s=>{let cls=s.status==="نشط"?"active":s.status==="موقوف مؤقتًا"||s.status==="غير متعاون"?"paused":"archived";return'<div class="supplier"><h3>🚚 '+esc(s.name)+' <span class="badge">'+esc(s.id)+'</span></h3><span class="badge '+cls+'">● '+esc(s.status)+'</span><span class="badge">'+esc(s.category)+'</span><span class="badge">⭐ '+supplierRating(s)+'</span><p>🏢 '+esc(s.company||"بدون شركة")+'<br>📞 '+esc(s.phone)+' '+(s.phone2?"| "+esc(s.phone2):"")+'<br>📍 '+esc([s.city,s.governorate].filter(Boolean).join(" - ")||"غير محدد")+'<br>🔧 '+esc(s.specialty||"غير محدد")+'<br>📦 '+esc(s.products||"غير محدد")+'<br>⏱️ مدة التوريد: '+esc(s.leadTime||0)+' يوم | 💳 '+esc(s.paymentMethod)+' | 💰 الرصيد: '+money(s.balance)+'</p><div class="actions"><button class="blue" data-s="edit" data-id="'+esc(s.id)+'">✏️ تعديل</button><button class="gray" data-s="archive" data-id="'+esc(s.id)+'">📦 أرشفة</button><button class="danger" data-s="delete" data-id="'+esc(s.id)+'">🗑️ حذف</button></div></div>'}).join(""):'<div class="empty">لا توجد نتائج مطابقة.</div>';
+}
+function inventory(){return arr(INVKEY)}
+function lineTemplate(){
+ let div=document.createElement("div");div.className="line";
+ div.innerHTML='<select class="linePart"><option value="">اختر الصنف</option>'+inventory().filter(p=>p.status!=="مؤرشف").map(p=>'<option value="'+esc(p.id)+'">'+esc(p.name)+' — '+esc(p.id)+' — رصيد '+esc(p.quantity)+'</option>').join("")+'</select><input class="lineQty" type="number" min="1" value="1"><input class="linePrice" type="number" min="0" step=".01" placeholder="سعر الشراء"><button class="danger removeLine" type="button">×</button>';
+ $("poLines").appendChild(div)
+}
+function loadSupplierSelects(){
+ let ss=arr(SK);let opts='<option value="">اختر المورد</option>'+ss.filter(s=>s.status==="نشط").map(s=>'<option value="'+esc(s.id)+'">'+esc(s.name)+' — '+esc(s.id)+'</option>').join("");
+ $("poSupplier").innerHTML=opts;$("ratingSupplier").innerHTML=opts.replace('اختر المورد','اختر المورد');$("returnPO").innerHTML='<option value="">اختر طلب الشراء</option>'+arr(PK).map(p=>'<option value="'+esc(p.id)+'">'+esc(p.id)+' — '+esc(p.supplierName)+'</option>').join("");
+}
+function savePO(){
+ let sid=$("poSupplier").value,ss=arr(SK),s=ss.find(x=>String(x.id)===String(sid));if(!s){notice("اختر المورد",true);return}
+ let lines=[...document.querySelectorAll("#poLines .line")].map(x=>({partId:x.querySelector(".linePart").value,quantity:Number(x.querySelector(".lineQty").value||0),unitPrice:Number(x.querySelector(".linePrice").value||0)})).filter(x=>x.partId&&x.quantity>0);
+ if(!lines.length){notice("أضف صنفًا واحدًا على الأقل",true);return}
+ let now=new Date().toISOString(),p={id:nextId(PK,"PO",5),supplierId:s.id,supplierName:s.name,source:$("poSource").value,priority:$("poPriority").value,createdDate:$("poDate").value||now.slice(0,10),status:"مسودة",notes:$("poNotes").value.trim(),lines,total:lines.reduce((n,x)=>n+x.quantity*x.unitPrice,0),receipts:[],audit:[{at:now,event:"إنشاء طلب شراء"}]};
+ let ps=arr(PK);ps.unshift(p);save(PK,ps);notice("تم إنشاء طلب الشراء "+p.id);$("poLines").innerHTML="";lineTemplate();$("poNotes").value="";renderAll()
+}
+function changePOStatus(id,status){
+ let ps=arr(PK),p=ps.find(x=>String(x.id)===String(id));if(!p)return;p.status=status;p.updatedAt=new Date().toISOString();p.audit=[...(p.audit||[]),{at:new Date().toISOString(),event:"تغيير حالة الطلب",status}];save(PK,ps);renderAll();notice("تم تحديث حالة الطلب")
+}
+function receivePO(id){
+ let p=arr(PK).find(x=>String(x.id)===String(id));if(!p)return;
+ let rows=p.lines.map(l=>{let part=inventory().find(x=>String(x.id)===String(l.partId));return'<div style="margin-top:8px"><b>'+esc(part?.name||l.partId)+'</b> — المطلوب '+esc(l.quantity)+'<br><input data-rec="'+esc(l.partId)+'" type="number" min="0" max="'+esc(l.quantity)+'" value="'+esc(l.quantity)+'" style="margin-top:5px;padding:8px;border:1px solid #ccc;border-radius:8px;width:100%"></div>'}).join("");
+ const wrapper=document.createElement("div");wrapper.className="receive";wrapper.innerHTML="<b>استلام "+esc(p.id)+"</b>"+rows+'<textarea id="receiveNotes" placeholder="ملاحظات الاستلام" style="margin-top:10px"></textarea><button class="primary" style="margin-top:8px;width:100%">اعتماد الاستلام</button>';
+ $("poList").prepend(wrapper);
+ wrapper.querySelector("button").onclick=()=>confirmReceipt(p,wrapper)
+}
+function confirmReceipt(p,wrapper){
+ let qtys={};wrapper.querySelectorAll("[data-rec]").forEach(x=>qtys[x.dataset.rec]=Number(x.value||0));
+ let totalReceived=0,parts=inventory(),now=new Date().toISOString(),ms=arr("inventory_transactions");
+ p.lines.forEach(l=>{let q=qtys[l.partId]||0;if(q<=0)return;let part=parts.find(x=>String(x.id)===String(l.partId));if(!part)return;part.quantity=Number(part.quantity||0)+q;part.available=Math.max(0,part.quantity-Number(part.reservedQty||0));part.updatedAt=now;totalReceived+=q;ms.unshift({id:"INV-"+Date.now()+"-"+Math.random().toString(36).slice(2,6),partId:part.id,partName:part.name,type:"إضافة شراء",quantity:q,purchaseOrderId:p.id,user:"المستخدم الحالي",date:now,notes:"استلام مشتريات"})});
+ let expected=p.lines.reduce((n,x)=>n+Number(x.quantity||0),0),received=p.receipts?.reduce((n,x)=>n+Number(x.totalQuantity||0),0)||0,total=received+totalReceived;
+ p.receipts=p.receipts||[];p.receipts.push({id:"REC-"+Date.now(),date:now,totalQuantity:totalReceived,notes:wrapper.querySelector("#receiveNotes").value.trim(),items:qtys,employee:"المستخدم الحالي"});
+ p.status=total>=expected?"تم الاستلام بالكامل":"تم الاستلام جزئيًا";p.updatedAt=now;p.audit=[...(p.audit||[]),{at:now,event:"اعتماد استلام",quantity:totalReceived}];
+ save(INVKEY,parts);save("inventory_transactions",ms);let ps=arr(PK),i=ps.findIndex(x=>String(x.id)===String(p.id));ps[i]=p;save(PK,ps);renderAll();notice("تم اعتماد الاستلام وتحديث المخزون ✅")
+}
+function saveRating(){
+ let sid=$("ratingSupplier").value,s=arr(SK).find(x=>String(x.id)===String(sid));if(!s){notice("اختر المورد",true);return}
+ let vals=["quality","delivery","prices","response","afterSales","returns"].map(x=>Number($(x).value||0));if(vals.some(v=>v<1||v>5)){notice("أدخل كل مؤشرات التقييم من 1 إلى 5",true);return}
+ let average=vals.reduce((a,b)=>a+b,0)/vals.length,r={id:"RATE-"+Date.now(),supplierId:s.id,supplierName:s.name,quality:vals[0],delivery:vals[1],prices:vals[2],response:vals[3],afterSales:vals[4],returns:vals[5],average:Number(average.toFixed(2)),notes:$("ratingNotes").value.trim(),date:new Date().toISOString()};
+ let all=arr(TK);all.unshift(r);save(TK,all);let ss=arr(SK),i=ss.findIndex(x=>String(x.id)===String(s.id));ss[i].ratings=ss[i].ratings||[];ss[i].ratings.push(r);ss[i].updatedAt=new Date().toISOString();save(SK,ss);notice("تم حفظ تقييم المورد");["quality","delivery","prices","response","afterSales","returns","ratingNotes"].forEach(x=>$(x).value="");renderAll()
+}
+function saveReturn(){
+ let po=$("returnPO").value,part=$("returnPart").value,q=Number($("returnQty").value||0);if(!po||!part||q<=0){notice("أكمل بيانات المرتجع",true);return}
+ let p=inventory().find(x=>String(x.id)===String(part));if(!p||q>Number(p.quantity||0)){notice("الكمية غير متاحة في المخزون",true);return}
+ let r={id:"RET-"+Date.now(),purchaseOrderId:po,partId:part,partName:p.name,quantity:q,type:$("returnType").value,reason:$("returnReason").value.trim(),status:"قيد المتابعة",date:new Date().toISOString()};
+ let rs=arr(RET);rs.unshift(r);save(RET,rs);notice("تم تسجيل المرتجع");$("returnQty").value="";$("returnReason").value="";renderAll()
+}
+function renderPO(){
+ let ps=arr(PK),q=$("poSearch").value.trim().toLowerCase(),f=$("poFilter").value;
+ let list=ps.filter(p=>[p.id,p.supplierName,p.source,p.lines.map(x=>x.partId).join(" ")].join(" ").toLowerCase().includes(q)&&(!f||p.status===f));
+ $("poList").innerHTML=list.length?list.map(p=>'<div class="purchase"><h3>🛒 '+esc(p.id)+' — '+esc(p.supplierName)+'</h3><span class="badge">'+esc(p.status)+'</span><span class="badge">⚡ '+esc(p.priority)+'</span><p>📅 '+esc(p.createdDate)+' | 📥 المصدر: '+esc(p.source)+'<br>💰 الإجمالي: '+money(p.total)+' جنيه</p><p>'+p.lines.map(l=>{let x=inventory().find(i=>String(i.id)===String(l.partId));return'🔩 '+esc(x?.name||l.partId)+' × '+esc(l.quantity)+' @ '+money(l.unitPrice)}).join("<br>")+'</p><div class="actions"><button class="blue" data-po="receive" data-id="'+esc(p.id)+'">📥 استلام</button><button class="gray" data-po="approve" data-id="'+esc(p.id)+'">✅ اعتماد</button><button class="gray" data-po="send" data-id="'+esc(p.id)+'">📤 إرسال للمورد</button></div></div>').join(""):'<div class="empty">لا توجد طلبات شراء.</div>';
+ $("receivePO").innerHTML='<option value="">استلام طلب شراء...</option>'+ps.filter(p=>["معتمد","تم الإرسال للمورد","تم الاستلام جزئيًا"].includes(p.status)).map(p=>'<option value="'+esc(p.id)+'">'+esc(p.id)+' — '+esc(p.supplierName)+'</option>').join("");
+}
+function renderRatings(){let rs=arr(TK);$("ratingsList").innerHTML=rs.slice(0,20).map(r=>'<div class="rating"><b>⭐ '+esc(r.supplierName)+' — '+esc(r.average)+'/5</b><br>جودة '+r.quality+' | مواعيد '+r.delivery+' | أسعار '+r.prices+' | استجابة '+r.response+' | خدمة '+r.afterSales+' | مرتجعات '+r.returns+'<br>📅 '+new Date(r.date).toLocaleDateString("ar-EG")+(r.notes?"<br>📝 "+esc(r.notes):"")+'</div>').join("")||'<div class="empty">لا توجد تقييمات بعد.</div>'}
+function renderReturns(){let rs=arr(RET);$("returnsList").innerHTML=rs.slice(0,20).map(r=>'<div class="rating"><b>↩️ '+esc(r.id)+' — '+esc(r.partName)+'</b><br>الكمية: '+esc(r.quantity)+' | النوع: '+esc(r.type)+' | الحالة: '+esc(r.status)+'<br>طلب الشراء: '+esc(r.purchaseOrderId)+'<br>السبب: '+esc(r.reason||"غير محدد")+'</div>').join("")||'<div class="empty">لا توجد مرتجعات.</div>'}
+function renderAll(){
+ let ss=arr(SK),ps=arr(PK);$("supplierCount").textContent=ss.length;$("poCount").textContent=ps.length;$("pendingCount").textContent=ps.filter(p=>!["تم الاستلام بالكامل","ملغي","مؤرشف"].includes(p.status)).length;$("receivedCount").textContent=ps.filter(p=>p.status==="تم الاستلام بالكامل").length;$("purchaseValue").textContent=money(ps.reduce((n,p)=>n+Number(p.total||0),0));
+ loadSupplierSelects();renderSuppliers();renderPO();renderRatings();renderReturns();
+ let parts=inventory();$("returnPart").innerHTML='<option value="">اختر الصنف</option>'+parts.map(p=>'<option value="'+esc(p.id)+'">'+esc(p.name)+' — '+esc(p.id)+'</option>').join("");
+}
+$("saveSupplier").onclick=saveSupplier;$("cancelSupplier").onclick=resetSupplier;$("supplierSearch").oninput=renderSuppliers;$("supplierFilter").onchange=renderSuppliers;$("supplierCatFilter").onchange=renderSuppliers;
+$("supplierList").onclick=e=>{let b=e.target.closest("button[data-s]");if(!b)return;let a=b.dataset.s,id=b.dataset.id;if(a==="edit")editSupplier(id);else if(a==="delete")deleteSupplier(id);else archiveSupplier(id)};
+$("addLine").onclick=lineTemplate;$("savePO").onclick=savePO;$("poSearch").oninput=renderPO;$("poFilter").onchange=renderPO;
+$("poList").onclick=e=>{let b=e.target.closest("button[data-po]");if(!b)return;let id=b.dataset.id;if(b.dataset.po==="receive")receivePO(id);else if(b.dataset.po==="approve")changePOStatus(id,"معتمد");else changePOStatus(id,"تم الإرسال للمورد")};
+$("receivePO").onchange=()=>{if($("receivePO").value)receivePO($("receivePO").value)};
+$("saveRating").onclick=saveRating;$("saveReturn").onclick=saveReturn;
+resetSupplier();lineTemplate();renderAll();
+</script>
+</body>
+</html>
