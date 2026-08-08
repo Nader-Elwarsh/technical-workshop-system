@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#07152f">
+<title>التقارير والإحصائيات - الورشة الفنية</title>
+<style>
+*{box-sizing:border-box}body{margin:0;font-family:Arial,Tahoma,sans-serif;background:#f4f6f8;color:#172033}
+header{background:#07152f;color:#fff;text-align:center;padding:22px 15px}header h1{margin:0 0 7px}header p{margin:0;color:#dbe5ff}
+.container{max-width:1200px;margin:auto;padding:16px}.card{background:#fff;border-radius:16px;padding:18px;margin-bottom:16px;box-shadow:0 2px 9px rgba(0,0,0,.06)}
+h2{margin:0 0 15px;color:#07152f}.grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}.full{grid-column:1/-1}
+label{display:block;font-weight:bold;margin:7px 0 5px}input,select{width:100%;padding:11px;border:1px solid #ccd4de;border-radius:10px;font:inherit}
+button{border:0;border-radius:10px;padding:11px 15px;font:inherit;cursor:pointer}.blue{background:#1769aa;color:#fff}.gray{background:#596273;color:#fff}.green{background:#16803c;color:#fff}
+.actions{display:flex;gap:8px;margin-top:12px}.actions button{flex:1}.stats{display:grid;grid-template-columns:repeat(5,1fr);gap:9px}.stat{background:#f8fafc;border-radius:11px;padding:13px;text-align:center}.stat b{display:block;font-size:22px;color:#07152f}
+.reportgrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}.report{border:1px solid #dfe4ea;border-radius:14px;padding:15px}.report h3{margin:0 0 10px;color:#07152f}.number{font-size:27px;font-weight:bold}.muted{color:#667085}
+table{width:100%;border-collapse:collapse;margin-top:10px}th,td{padding:9px;border-bottom:1px solid #e5e7eb;text-align:right}th{background:#f8fafc}
+.bar{height:11px;background:#e9edf2;border-radius:10px;overflow:hidden;margin-top:6px}.bar i{display:block;height:100%;background:#1769aa}
+.empty{text-align:center;color:#777;padding:25px}.notice{display:none;padding:12px;border-radius:10px;margin-bottom:12px}.good{background:#e1f5e7;color:#146c2e}.error{background:#ffe2e2;color:#a00000}
+.back{display:block;text-align:center;background:#333;color:#fff;text-decoration:none;padding:14px;border-radius:10px}
+@media(max-width:800px){.grid,.reportgrid{grid-template-columns:1fr 1fr}.stats{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:550px){.grid,.reportgrid{grid-template-columns:1fr}.stats{grid-template-columns:repeat(2,1fr)}table{font-size:12px}}
+@media print{header,.filters,.actions,.back{display:none!important}.card{box-shadow:none;border:1px solid #ddd}.reportgrid{grid-template-columns:1fr 1fr}body{background:#fff}}
+</style>
+</head>
+<body>
+<header><h1>📊 التقارير والإحصائيات</h1><p>الورشة الفنية لصيانة الأجهزة المنزلية والتكييف</p></header>
+<div class="container">
+<div id="notice" class="notice"></div>
+
+<div class="card filters">
+<h2>🔎 فلاتر التقرير</h2>
+<div class="grid">
+<div><label>من تاريخ</label><input id="from" type="date"></div>
+<div><label>إلى تاريخ</label><input id="to" type="date"></div>
+<div><label>الفني</label><select id="technician"><option value="">كل الفنيين</option></select></div>
+<div><label>حالة طلب الصيانة</label><select id="orderStatus"><option value="">كل الحالات</option></select></div>
+<div><label>العميل</label><select id="customer"><option value="">كل العملاء</option></select></div>
+<div><label>نوع الجهاز</label><select id="deviceType"><option value="">كل الأجهزة</option></select></div>
+<div><label>حالة الدفع</label><select id="paymentStatus"><option value="">كل الحالات</option></select></div>
+<div><label>نوع التقرير</label><select id="reportType"><option value="all">لوحة شاملة</option><option value="operations">التشغيل والصيانة</option><option value="financial">المالية</option><option value="technicians">الفنيون</option><option value="inventory">المخزون والمشتريات</option><option value="customers">العملاء</option><option value="warranty">الضمانات</option><option value="contracts">العقود</option></select></div>
+</div>
+<div class="actions"><button class="blue" id="refresh">🔄 تحديث التقرير</button><button class="gray" id="print">🖨️ طباعة التقرير</button></div>
+</div>
+
+<div class="card">
+<h2>📌 مؤشرات الأداء الرئيسية KPI</h2>
+<div class="stats">
+<div class="stat"><b id="kpiOrders">0</b>طلبات الصيانة</div>
+<div class="stat"><b id="kpiCompleted">0</b>مكتملة</div>
+<div class="stat"><b id="kpiRevenue">0</b>إيرادات</div>
+<div class="stat"><b id="kpiOutstanding">0</b>متبقي</div>
+<div class="stat"><b id="kpiCustomers">0</b>عملاء نشطون</div>
+</div>
+</div>
+
+<div id="reports" class="reportgrid"></div>
+
+<div class="card">
+<h2>📋 التقرير التفصيلي</h2>
+<div id="detail"></div>
+</div>
+
+<a class="back" href="index.html">🏠 العودة إلى الرئيسية</a>
+</div>
+
+<script>
+const REQ="maintenanceRequests",USERS="users",DEV="devices",INV="invoices",SUP="suppliers",PO="purchaseOrders",WAR="warranties",CON="contracts",CUST="customers",RAT="customerRatings",PAY="payments",TRANS="inventory_transactions";
+const $=id=>document.getElementById(id);
+const arr=k=>{try{let x=JSON.parse(localStorage.getItem(k)||"[]");return Array.isArray(x)?x:[]}catch(e){return[]}};
+const esc=v=>String(v??"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&#039;");
+const money=n=>Number(n||0).toFixed(2);
+const dateOf=x=>x?.date||x?.createdAt||x?.createdDate||x?.scheduledDate||x?.startDate||"";
+function inRange(x){
+ let d=String(dateOf(x)).slice(0,10),f=$("from").value,t=$("to").value;
+ return (!f||!d||d>=f)&&(!t||!d||d<=t);
+}
+function options(){
+ let users=arr(USERS).filter(u=>u.role==="فني"),customers=arr(CUST),req=arr(REQ),devs=arr(DEV),inv=arr(INV);
+ $("technician").innerHTML='<option value="">كل الفنيين</option>'+users.map(u=>'<option value="'+esc(u.id)+'">'+esc(u.name)+'</option>').join("");
+ $("customer").innerHTML='<option value="">كل العملاء</option>'+customers.map(c=>'<option value="'+esc(c.id||c.customerId||c.code)+'">'+esc(c.name||c.fullName||c.customerName)+'</option>').join("");
+ let types=[...new Set(devs.map(d=>d.type||d.deviceType).filter(Boolean))];
+ $("deviceType").innerHTML='<option value="">كل الأجهزة</option>'+types.map(x=>'<option>'+esc(x)+'</option>').join("");
+ let sts=[...new Set(req.map(r=>r.status).filter(Boolean))];
+ $("orderStatus").innerHTML='<option value="">كل الحالات</option>'+sts.map(x=>'<option>'+esc(x)+'</option>').join("");
+ let ps=[...new Set(inv.map(i=>i.status).filter(Boolean))];
+ $("paymentStatus").innerHTML='<option value="">كل الحالات</option>'+ps.map(x=>'<option>'+esc(x)+'</option>').join("");
+}
+function filteredOrders(){
+ let t=$("technician").value,c=$("customer").value,dt=$("deviceType").value,s=$("orderStatus").value;
+ return arr(REQ).filter(r=>inRange(r)&&(!t||String(r.technicianId||r.assignedTechnicianId)===String(t))&&(!c||String(r.customerId||r.customer_id)===String(c))&&(!dt||String(r.deviceType||r.type)===String(dt))&&(!s||r.status===s));
+}
+function filteredInvoices(){
+ let c=$("customer").value,ps=$("paymentStatus").value;
+ return arr(INV).filter(i=>inRange(i)&&(!c||String(i.customerId||i.customer_id)===String(c))&&(!ps||i.status===ps));
+}
+function filteredDevices(){
+ let c=$("customer").value,dt=$("deviceType").value;
+ return arr(DEV).filter(d=>(!c||String(d.customerId)===String(c))&&(!dt||String(d.type)===String(dt)));
+}
+function filteredCustomers(){
+ let c=$("customer").value;
+ return arr(CUST).filter(x=>!c||String(x.id||x.customerId||x.code)===String(c));
+}
+function filteredWarranties(){return arr(WAR).filter(w=>inRange(w)&&(!$("customer").value||String(w.customerId)===String($("customer").value)))}
+function filteredContracts(){return arr(CON).filter(c=>inRange(c)&&(!$("customer").value||String(c.customerId)===String($("customer").value)))}
+function filteredPO(){return arr(PO).filter(p=>inRange(p))}
+function renderKPI(){
+ let o=filteredOrders(),i=filteredInvoices(),cs=filteredCustomers();
+ $("kpiOrders").textContent=o.length;$("kpiCompleted").textContent=o.filter(x=>["مكتمل","مغلق","تم الإصلاح"].includes(x.status)).length;
+ $("kpiRevenue").textContent=money(i.reduce((n,x)=>n+Number(x.total||x.amount||0),0));
+ $("kpiOutstanding").textContent=money(i.reduce((n,x)=>n+Math.max(0,Number(x.remaining??((x.total||x.amount||0)-(x.paid||x.paidAmount||0)))),0));
+ $("kpiCustomers").textContent=cs.length
+}
+function pct(n,d){return d?Math.round(n/d*100):0}
+function renderOperations(){
+ let o=filteredOrders(),completed=o.filter(x=>["مكتمل","مغلق","تم الإصلاح"].includes(x.status)),cancel=o.filter(x=>x.status==="ملغي"),pending=o.filter(x=>!completed.includes(x)&&!cancel.includes(x));
+ let types={};o.forEach(x=>{let k=x.deviceType||x.type||"غير محدد";types[k]=(types[k]||0)+1});
+ return '<div class="report"><h3>🔧 أداء التشغيل</h3><div class="number">'+o.length+'</div><div class="muted">إجمالي الطلبات</div><p>مكتملة: '+completed.length+' ('+pct(completed.length,o.length)+'%)<br>قيد التنفيذ/انتظار: '+pending.length+'<br>ملغاة: '+cancel.length+'</p><b>أنواع الأجهزة</b>'+Object.entries(types).sort((a,b)=>b[1]-a[1]).slice(0,8).map(([k,v])=>'<div>'+esc(k)+' — '+v+'<div class="bar"><i style="width:'+pct(v,o.length)+'%"></i></div></div>').join("")+'</div>'
+}
+function renderFinancial(){
+ let i=filteredInvoices(),total=i.reduce((n,x)=>n+Number(x.total||x.amount||0),0),paid=i.reduce((n,x)=>n+Number(x.paid||x.paidAmount||0),0),remaining=Math.max(0,total-paid);
+ let methods={};i.forEach(x=>{let m=x.paymentMethod||x.method||"غير محدد";methods[m]=(methods[m]||0)+Number(x.paid||x.paidAmount||0)});
+ return '<div class="report"><h3>💰 التقرير المالي</h3><div class="number">'+money(total)+' ج</div><div class="muted">إجمالي الفواتير</div><p>المدفوع: '+money(paid)+' جنيه<br>المتبقي: '+money(remaining)+' جنيه<br>عدد الفواتير: '+i.length+'</p><b>المدفوع حسب الطريقة</b>'+Object.entries(methods).map(([k,v])=>'<p>'+esc(k)+': <b>'+money(v)+' ج</b></p>').join("")+'</div>'
+}
+function renderTechnicians(){
+ let users=arr(USERS).filter(u=>u.role==="فني"),o=filteredOrders();
+ return '<div class="report"><h3>👨‍🔧 أداء الفنيين</h3>'+users.map(u=>{let x=o.filter(r=>String(r.technicianId||r.assignedTechnicianId)===String(u.id)),done=x.filter(r=>["مكتمل","مغلق","تم الإصلاح"].includes(r.status)).length,ratings=arr(RAT).filter(r=>String(r.technicianId||"")===String(u.id)||String(r.technicianName||"")===String(u.name)),avg=ratings.length?(ratings.reduce((n,r)=>n+Number(r.satisfaction||r.average||0),0)/ratings.length).toFixed(1):"—";return'<p><b>'+esc(u.name)+'</b><br>الطلبات: '+x.length+' | المكتمل: '+done+' | التقييم: '+avg+'</p>'}).join("")+'</div>'
+}
+function renderInventory(){
+ let ds=arr(DEV),po=filteredPO(),tr=arr(TRANS).filter(inRange),low=ds.filter(d=>Number(d.quantity||0)<=Number(d.minQuantity||d.minimumStock||0));
+ let value=ds.reduce((n,x)=>n+Number(x.quantity||0)*Number(x.purchasePrice||x.cost||0),0),pval=po.reduce((n,x)=>n+Number(x.total||0),0);
+ return '<div class="report"><h3>📦 المخزون والمشتريات</h3><div class="number">'+money(value)+' ج</div><div class="muted">قيمة المخزون المحسوبة</div><p>طلبات شراء: '+po.length+'<br>قيمة المشتريات: '+money(pval)+' جنيه<br>حركات المخزون: '+tr.length+'<br>أصناف منخفضة: '+low.length+'</p></div>'
+}
+function renderCustomers(){
+ let cs=filteredCustomers(),o=filteredOrders(),devices=filteredDevices();
+ let active=cs.filter(c=>o.some(r=>String(r.customerId)===String(c.id||c.customerId))).length;
+ return '<div class="report"><h3>👥 العملاء</h3><div class="number">'+cs.length+'</div><div class="muted">العملاء في النطاق</div><p>عملاء لديهم طلبات: '+active+'<br>أجهزة مرتبطة: '+devices.length+'<br>متوسط الأجهزة/عميل: '+(cs.length?(devices.length/cs.length).toFixed(1):"0")+'</p></div>'
+}
+function renderWarranty(){
+ let w=filteredWarranties(),claims=w.reduce((n,x)=>n+Number((x.claims||[]).length),0);
+ return '<div class="report"><h3>🛡️ الضمانات</h3><div class="number">'+w.length+'</div><div class="muted">الضمانات</div><p>سارية: '+w.filter(x=>x.status==="ساري").length+'<br>منتهية: '+w.filter(x=>x.status==="منتهي").length+'<br>قيد المراجعة: '+w.filter(x=>x.status==="قيد المراجعة").length+'<br>مطالبات مرتبطة: '+claims+'</p></div>'
+}
+function renderContracts(){
+ let c=filteredContracts();
+ return '<div class="report"><h3>📑 العقود</h3><div class="number">'+c.length+'</div><div class="muted">العقود</div><p>نشطة: '+c.filter(x=>x.status==="نشط").length+'<br>بانتظار الاعتماد: '+c.filter(x=>x.status==="بانتظار الاعتماد").length+'<br>منتهية: '+c.filter(x=>x.status==="منتهي").length+'<br>مجدد: '+c.filter(x=>x.status==="مجدد").length+'</p></div>'
+}
+function renderReports(){
+ let type=$("reportType").value,all={operations:renderOperations,financial:renderFinancial,technicians:renderTechnicians,inventory:renderInventory,customers:renderCustomers,warranty:renderWarranty,contracts:renderContracts};
+ let funcs=type==="all"?Object.values(all):[all[type]];
+ $("reports").innerHTML=funcs.map(f=>f()).join("");
+ renderDetail(type)
+}
+function renderDetail(type){
+ let o=filteredOrders(),i=filteredInvoices(),p=filteredPO(),c=filteredCustomers();
+ if(type==="financial"){
+  $("detail").innerHTML='<table><thead><tr><th>الفاتورة</th><th>العميل</th><th>الإجمالي</th><th>المدفوع</th><th>المتبقي</th><th>الحالة</th></tr></thead><tbody>'+i.map(x=>'<tr><td>'+esc(x.id||x.invoiceId)+'</td><td>'+esc(x.customerName||"")+'</td><td>'+money(x.total||x.amount)+'</td><td>'+money(x.paid||x.paidAmount)+'</td><td>'+money(x.remaining??((x.total||x.amount||0)-(x.paid||x.paidAmount||0)))+'</td><td>'+esc(x.status||"")+'</td></tr>').join("")+'</tbody></table>'
+ }else if(type==="inventory"){
+  $("detail").innerHTML='<table><thead><tr><th>طلب شراء</th><th>المورد</th><th>التاريخ</th><th>الحالة</th><th>الإجمالي</th></tr></thead><tbody>'+p.map(x=>'<tr><td>'+esc(x.id)+'</td><td>'+esc(x.supplierName)+'</td><td>'+esc(x.createdDate)+'</td><td>'+esc(x.status)+'</td><td>'+money(x.total)+'</td></tr>').join("")+'</tbody></table>'
+ }else{
+  $("detail").innerHTML='<table><thead><tr><th>أمر/طلب</th><th>العميل</th><th>الجهاز</th><th>الفني</th><th>الحالة</th><th>التاريخ</th></tr></thead><tbody>'+o.slice(0,200).map(x=>'<tr><td>'+esc(x.id)+'</td><td>'+esc(x.customerName||"")+'</td><td>'+esc([x.deviceType,x.brand,x.model].filter(Boolean).join(" — "))+'</td><td>'+esc(x.technicianName||x.assignedTechnicianName||"—")+'</td><td>'+esc(x.status||"")+'</td><td>'+esc(dateOf(x).slice(0,10))+'</td></tr>').join("")+'</tbody></table>'
+ }
+ if(type==="customers")$("detail").innerHTML='<table><thead><tr><th>العميل</th><th>الهاتف</th><th>الطلبات</th><th>الأجهزة</th></tr></thead><tbody>'+c.map(x=>{let id=x.id||x.customerId;return'<tr><td>'+esc(x.name||x.fullName||x.customerName)+'</td><td>'+esc(x.phone||"")+'</td><td>'+o.filter(r=>String(r.customerId)===String(id)).length+'</td><td>'+filteredDevices().filter(d=>String(d.customerId)===String(id)).length+'</td></tr>'}).join("")+'</tbody></table>'
+}
+$("refresh").onclick=()=>{options();renderKPI();renderReports();notice("تم تحديث التقارير")};
+$("print").onclick=()=>window.print();
+$("reportType").onchange=renderReports;
+["from","to","technician","orderStatus","customer","deviceType","paymentStatus"].forEach(id=>$(id).onchange=()=>{renderKPI();renderReports()});
+function init(){let d=new Date(),first=new Date(d.getFullYear(),d.getMonth(),1);$("from").value=first.toISOString().slice(0,10);$("to").value=d.toISOString().slice(0,10);options();renderKPI();renderReports()}
+init();
+</script>
+</body>
+</html>
