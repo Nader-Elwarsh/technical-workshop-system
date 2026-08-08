@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#07152f">
+<title>الفواتير والمدفوعات - الورشة الفنية</title>
+<style>
+*{box-sizing:border-box}body{margin:0;font-family:Arial,Tahoma,sans-serif;background:#f4f6f8;color:#172033}
+header{background:#07152f;color:#fff;text-align:center;padding:22px 15px}header h1{margin:0 0 7px}header p{margin:0;color:#dbe5ff}
+.container{max-width:1120px;margin:auto;padding:16px}.card{background:#fff;border-radius:16px;padding:18px;margin-bottom:16px;box-shadow:0 2px 9px rgba(0,0,0,.06)}
+h2{margin:0 0 15px;color:#07152f}.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.full{grid-column:1/-1}
+label{display:block;font-weight:bold;margin:9px 0 6px}input,select,textarea{width:100%;padding:12px;border:1px solid #ccd4de;border-radius:10px;font:inherit}textarea{min-height:80px}
+button{border:0;border-radius:10px;padding:11px 15px;font:inherit;cursor:pointer}.primary{background:#16803c;color:#fff}.blue{background:#1769aa;color:#fff}.gray{background:#596273;color:#fff}.danger{background:#d60000;color:#fff}.dark{background:#07152f;color:#fff}
+.actions{display:flex;gap:8px;margin-top:14px}.actions button{flex:1}.filters{display:grid;grid-template-columns:2fr 1fr;gap:10px}
+.invoice{border:1px solid #dfe4ea;border-radius:14px;padding:16px;margin-top:12px}.invoice h3{margin:0 0 8px;color:#07152f}
+.badge{display:inline-block;padding:5px 9px;border-radius:20px;background:#e9edf2;margin:3px;font-size:12px}.paid{background:#e3f7e9;color:#146c2e}.due{background:#fff0d6;color:#9a5a00}.void{background:#ffe2e2;color:#a00000}
+.summary{display:grid;grid-template-columns:repeat(4,1fr);gap:9px}.stat{background:#f8fafc;border-radius:11px;padding:12px;text-align:center}.stat b{display:block;font-size:22px;color:#07152f}
+.info{background:#eef6ff;border:1px solid #cfe2ff;border-radius:10px;padding:11px;line-height:1.8;margin-top:10px}.notice{display:none;padding:12px;border-radius:10px;margin-bottom:12px}.good{background:#e1f5e7;color:#146c2e}.bad{background:#ffe2e2;color:#a00000}
+.empty{text-align:center;color:#777;padding:28px}.hidden{display:none!important}.back{display:block;text-align:center;background:#333;color:#fff;text-decoration:none;padding:14px;border-radius:10px}
+.payment{background:#f8fafc;border-radius:10px;padding:10px;margin-top:8px}.line{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+@media(max-width:700px){.grid,.filters,.line{grid-template-columns:1fr}.full{grid-column:auto}.summary{grid-template-columns:repeat(2,1fr)}.actions{flex-direction:column}}
+</style>
+</head>
+<body>
+<header><h1>🧾 الفواتير والمدفوعات</h1><p>الورشة الفنية لصيانة الأجهزة المنزلية والتكييف</p></header>
+<div class="container">
+<div id="notice" class="notice"></div>
+
+<div class="card">
+<h2>📊 الملخص المالي</h2>
+<div class="summary">
+<div class="stat"><b id="count">0</b>الفواتير</div><div class="stat"><b id="total">0</b>إجمالي الفواتير</div>
+<div class="stat"><b id="received">0</b>المحصّل</div><div class="stat"><b id="remaining">0</b>المتبقي</div>
+</div>
+</div>
+
+<div class="card">
+<h2 id="formTitle">➕ إنشاء فاتورة</h2>
+<div class="grid">
+<div><label>رقم الفاتورة</label><input id="invoiceId" readonly></div>
+<div><label>أمر الشغل *</label><select id="order"><option value="">جارٍ التحميل...</option></select></div>
+<div><label>العميل</label><input id="customer" readonly></div>
+<div><label>الهاتف</label><input id="phone" readonly></div>
+<div><label>قيمة الكشف</label><input id="inspection" type="number" min="0" step=".01" value="0"></div>
+<div><label>قيمة الإصلاح</label><input id="repair" type="number" min="0" step=".01" value="0"></div>
+<div><label>تكلفة قطع الغيار</label><input id="parts" type="number" min="0" step=".01" value="0"></div>
+<div><label>تكلفة العمالة</label><input id="labor" type="number" min="0" step=".01" value="0"></div>
+<div><label>خصم</label><input id="discount" type="number" min="0" step=".01" value="0"></div>
+<div><label>حالة الفاتورة</label><select id="status"><option>مسودة</option><option>معتمدة</option><option>جزئي</option><option>مدفوعة</option><option>متأخرة</option><option>ملغاة</option><option>مرتجع</option></select></div>
+<div><label>تاريخ الإصدار</label><input id="date" type="datetime-local"></div>
+<div><label>ملاحظات</label><input id="notes"></div>
+</div>
+<div class="info">الإجمالي الحالي: <b id="liveTotal">0</b> جنيه</div>
+<div class="actions"><button class="primary" id="save">💾 حفظ الفاتورة</button><button class="gray hidden" id="cancel">إلغاء التعديل</button></div>
+</div>
+
+<div class="card">
+<h2>💳 تسجيل دفعة</h2>
+<div class="grid">
+<div><label>الفاتورة</label><select id="payInvoice"><option value="">اختر الفاتورة</option></select></div>
+<div><label>المبلغ</label><input id="payAmount" type="number" min="0" step=".01"></div>
+<div><label>طريقة الدفع</label><select id="payMethod"><option>نقدي</option><option>تحويل بنكي</option><option>InstaPay</option><option>دفع إلكتروني</option><option>محفظة إلكترونية</option><option>أخرى</option></select></div>
+<div><label>رقم التحويل / المرجع</label><input id="reference"></div>
+<div><label>المستلم</label><input id="receivedBy" placeholder="اسم المستخدم"></div>
+<div><label>تاريخ الدفع</label><input id="payDate" type="datetime-local"></div>
+<div class="full"><label>ملاحظات</label><textarea id="payNotes"></textarea></div>
+</div>
+<div class="actions"><button class="blue" id="addPayment">💳 تسجيل الدفعة</button></div>
+</div>
+
+<div class="card">
+<h2>📋 سجل الفواتير</h2>
+<div class="filters"><input id="search" placeholder="🔎 رقم الفاتورة / أمر الشغل / العميل / الهاتف"><select id="filter"><option value="">كل الحالات</option><option>مسودة</option><option>معتمدة</option><option>جزئي</option><option>مدفوعة</option><option>متأخرة</option><option>ملغاة</option><option>مرتجع</option></select></div>
+<div id="list"></div>
+</div>
+
+<a class="back" href="index.html">🏠 العودة إلى الرئيسية</a>
+</div>
+
+<script>
+const IK="invoices",PK="payments",RK="maintenanceRequests";
+let editing=null;
+const $=id=>document.getElementById(id);
+const arr=k=>{try{let x=JSON.parse(localStorage.getItem(k)||"[]");return Array.isArray(x)?x:[]}catch(e){return[]}};
+const save=(k,v)=>localStorage.setItem(k,JSON.stringify(v));
+const esc=v=>String(v??"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&#039;");
+function nextId(){let n=0;arr(IK).forEach(x=>{let m=String(x.id||"").match(/^INV-(\d+)$/);if(m)n=Math.max(n,+m[1])});return"INV-"+String(n+1).padStart(6,"0")}
+function payId(){let n=0;arr(PK).forEach(x=>{let m=String(x.id||"").match(/^PAY-(\d+)$/);if(m)n=Math.max(n,+m[1])});return"PAY-"+String(n+1).padStart(6,"0")}
+function notice(t,bad=false){$("notice").textContent=t;$("notice").className="notice "+(bad?"bad":"good");$("notice").style.display="block";setTimeout(()=>$("notice").style.display="none",2800)}
+function money(n){return Number(n||0).toFixed(2)}
+function totalForm(){return Math.max(0,Number($("inspection").value||0)+Number($("repair").value||0)+Number($("parts").value||0)+Number($("labor").value||0)-Number($("discount").value||0))}
+function reset(){editing=null;$("formTitle").textContent="➕ إنشاء فاتورة";$("save").textContent="💾 حفظ الفاتورة";$("cancel").classList.add("hidden");$("invoiceId").value=nextId();$("order").value="";$("customer").value="";$("phone").value="";["inspection","repair","parts","labor","discount"].forEach(x=>$(x).value=0);$("status").value="مسودة";$("date").value=new Date().toISOString().slice(0,16);$("notes").value="";updateTotal()}
+function loadOrders(selected=""){
+ const rs=arr(RK);$("order").innerHTML='<option value="">اختر أمر شغل</option>'+rs.map(r=>'<option value="'+esc(r.id)+'">'+esc(r.id)+' — '+esc(r.customerName||"بدون عميل")+' — '+esc(r.status||"")+'</option>').join("");if(selected)$("order").value=selected;orderInfo()
+}
+function orderInfo(){
+ const r=arr(RK).find(x=>String(x.id)===String($("order").value));if(!r){$("customer").value="";$("phone").value="";return}
+ $("customer").value=r.customerName||"";$("phone").value=r.customerPhone||"";
+ if(!$("parts").value&&r.parts) $("parts").value=0;
+}
+function updateTotal(){$("liveTotal").textContent=money(totalForm())}
+function saveInvoice(){
+ const oid=$("order").value,r=arr(RK).find(x=>String(x.id)===String(oid));if(!r){notice("اختر أمر الشغل المرتبط بالفاتورة",true);return}
+ const now=new Date().toISOString(),old=editing?arr(IK).find(x=>String(x.id)===String(editing)):null,all=arr(IK);
+ const inv={id:editing||nextId(),workOrderId:r.id,customerId:r.customerId||"",customerName:r.customerName||"",customerPhone:r.customerPhone||"",inspection:Number($("inspection").value||0),repair:Number($("repair").value||0),parts:Number($("parts").value||0),labor:Number($("labor").value||0),discount:Number($("discount").value||0),total:totalForm(),status:$("status").value,createdAt:old?.createdAt||now,issueDate:$("date").value||now,notes:$("notes").value.trim(),payments:old?.payments||[],audit:[...(old?.audit||[]),{at:now,event:editing?"تعديل فاتورة":"إنشاء فاتورة",status:$("status").value}]};
+ const i=all.findIndex(x=>String(x.id)===String(inv.id));if(i>=0)all[i]=inv;else all.unshift(inv);save(IK,all);notice(editing?"تم تعديل الفاتورة":"تم إنشاء الفاتورة");reset();render()
+}
+function edit(id){
+ const x=arr(IK).find(i=>String(i.id)===String(id));if(!x)return;
+ if(x.status==="معتمدة"||x.status==="مدفوعة"){notice("الفاتورة المعتمدة لا يتم تعديلها؛ أنشئ تسوية/مرتجع وفق سياسة المركز.",true);return}
+ editing=x.id;$("formTitle").textContent="✏️ تعديل فاتورة";$("save").textContent="💾 حفظ التعديل";$("cancel").classList.remove("hidden");loadOrders(x.workOrderId);$("inspection").value=x.inspection||0;$("repair").value=x.repair||0;$("parts").value=x.parts||0;$("labor").value=x.labor||0;$("discount").value=x.discount||0;$("status").value=x.status||"مسودة";$("date").value=(x.issueDate||"").slice(0,16);$("notes").value=x.notes||"";updateTotal();window.scrollTo({top:0,behavior:"smooth"})
+}
+function addPayment(){
+ const id=$("payInvoice").value,inv=arr(IK).find(x=>String(x.id)===String(id));if(!inv){notice("اختر الفاتورة",true);return}
+ const amount=Number($("payAmount").value||0),paid=arr(PK).filter(p=>String(p.invoiceId)===String(id)).reduce((n,p)=>n+Number(p.amount||0),0),remaining=Math.max(0,Number(inv.total)-paid);
+ if(amount<=0||amount>remaining){notice("قيمة الدفعة غير صحيحة. المتبقي: "+money(remaining)+" جنيه",true);return}
+ const p={id:payId(),invoiceId:inv.id,customerId:inv.customerId,amount,method:$("payMethod").value,reference:$("reference").value.trim(),receivedBy:$("receivedBy").value.trim()||"المستخدم الحالي",paymentDate:$("payDate").value||new Date().toISOString(),notes:$("payNotes").value.trim(),createdAt:new Date().toISOString()};
+ let ps=arr(PK);ps.unshift(p);save(PK,ps);
+ const newPaid=paid+amount;let ins=arr(IK),ii=ins.findIndex(x=>String(x.id)===String(id));ins[ii].payments=[...(ins[ii].payments||[]),p.id];ins[ii].paid=newPaid;ins[ii].remaining=Math.max(0,Number(ins[ii].total)-newPaid);ins[ii].status=newPaid>=Number(ins[ii].total)?"مدفوعة":"جزئي";save(IK,ins);
+ $("payAmount").value="";$("reference").value="";$("payNotes").value="";render();notice("تم تسجيل الدفعة بنجاح ✅")
+}
+function recalc(inv){const paid=arr(PK).filter(p=>String(p.invoiceId)===String(inv.id)).reduce((n,p)=>n+Number(p.amount||0),0);return{paid,remaining:Math.max(0,Number(inv.total)-paid)}}
+function render(){
+ const invs=arr(IK),ps=arr(PK);let grand=invs.reduce((n,x)=>n+Number(x.total||0),0),rec=ps.reduce((n,x)=>n+Number(x.amount||0),0);
+ $("count").textContent=invs.length;$("total").textContent=money(grand);$("received").textContent=money(rec);$("remaining").textContent=money(Math.max(0,grand-rec));
+ const q=$("search").value.trim().toLowerCase(),f=$("filter").value;const list=invs.filter(x=>[x.id,x.workOrderId,x.customerName,x.customerPhone].join(" ").toLowerCase().includes(q)&&(!f||x.status===f));
+ $("list").innerHTML=list.length?list.map(x=>{const p=recalc(x);const cls=x.status==="مدفوعة"?"paid":(x.status==="ملغاة"||x.status==="مرتجع"?"void":"due");return '<div class="invoice"><h3>🧾 '+esc(x.id)+' — '+esc(x.customerName)+'</h3><span class="badge">'+esc(x.workOrderId)+'</span><span class="badge '+cls+'">💳 '+esc(x.status)+'</span><p>📞 '+esc(x.customerPhone||"غير مسجل")+'<br>📅 '+esc(x.issueDate||"")+'</p><p>🔍 كشف: '+money(x.inspection)+' | 🔧 إصلاح: '+money(x.repair)+' | 🔩 قطع: '+money(x.parts)+' | 👨‍🔧 عمالة: '+money(x.labor)+' | خصم: '+money(x.discount)+'</p><p><b>الإجمالي: '+money(x.total)+' جنيه</b> | المدفوع: '+money(p.paid)+' | المتبقي: '+money(p.remaining)+'</p>'+((arr(PK).filter(y=>String(y.invoiceId)===String(x.id)).length)?'<div class="payment"><b>الدفعات:</b>'+arr(PK).filter(y=>String(y.invoiceId)===String(x.id)).map(y=>'<div>💳 '+money(y.amount)+' — '+esc(y.method)+' — '+esc(y.paymentDate||"")+(y.reference?" — مرجع: "+esc(y.reference):"")+'</div>').join("")+'</div>':"")+(x.notes?'<p>📝 '+esc(x.notes)+'</p>':"")+'<div class="actions"><button class="blue" data-a="pay" data-id="'+esc(x.id)+'">💳 دفعة</button><button class="gray" data-a="edit" data-id="'+esc(x.id)+'">✏️ تعديل</button><button class="gray" data-a="print" data-id="'+esc(x.id)+'">🖨️ طباعة</button></div></div>'}).join(""):'<div class="empty">لا توجد فواتير مطابقة.</div>';
+ $("payInvoice").innerHTML='<option value="">اختر الفاتورة</option>'+invs.filter(x=>x.status!=="ملغاة").map(x=>{const p=recalc(x);return'<option value="'+esc(x.id)+'">'+esc(x.id)+' — '+esc(x.customerName)+' — متبقي '+money(p.remaining)+'</option>'}).join("");
+}
+function printInvoice(id){
+ const x=arr(IK).find(i=>String(i.id)===String(id));if(!x)return;const p=recalc(x);
+ const w=window.open("","_blank");w.document.write('<html lang="ar" dir="rtl"><head><title>'+esc(x.id)+'</title><style>body{font-family:Arial;padding:30px}table{width:100%;border-collapse:collapse}td,th{border:1px solid #ccc;padding:9px;text-align:right}</style></head><body><h1>الورشة الفنية</h1><h2>فاتورة رقم '+esc(x.id)+'</h2><p>العميل: '+esc(x.customerName)+' | الهاتف: '+esc(x.customerPhone)+'</p><p>أمر الشغل: '+esc(x.workOrderId)+' | التاريخ: '+esc(x.issueDate)+'</p><table><tr><th>البند</th><th>القيمة</th></tr><tr><td>الكشف</td><td>'+money(x.inspection)+'</td></tr><tr><td>الإصلاح</td><td>'+money(x.repair)+'</td></tr><tr><td>قطع الغيار</td><td>'+money(x.parts)+'</td></tr><tr><td>العمالة</td><td>'+money(x.labor)+'</td></tr><tr><td>الخصم</td><td>'+money(x.discount)+'</td></tr><tr><th>الإجمالي</th><th>'+money(x.total)+'</th></tr><tr><th>المدفوع</th><th>'+money(p.paid)+'</th></tr><tr><th>المتبقي</th><th>'+money(p.remaining)+'</th></tr></table><script>window.print()<\/script></body></html>');w.document.close()
+}
+$("order").onchange=orderInfo;["inspection","repair","parts","labor","discount"].forEach(x=>$(x).oninput=updateTotal);$("save").onclick=saveInvoice;$("cancel").onclick=reset;$("addPayment").onclick=addPayment;$("search").oninput=render;$("filter").onchange=render;
+$("list").onclick=e=>{const b=e.target.closest("button[data-a]");if(!b)return;if(b.dataset.a==="edit")edit(b.dataset.id);if(b.dataset.a==="pay"){$("payInvoice").value=b.dataset.id;window.scrollTo({top:document.body.scrollHeight,behavior:"smooth"})}if(b.dataset.a==="print")printInvoice(b.dataset.id)};
+loadOrders();$("payDate").value=new Date().toISOString().slice(0,16);reset();render();
+</script>
+</body>
+</html>
