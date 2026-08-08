@@ -1,70 +1,406 @@
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
+
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-<title>العملاء - الورشة الفنية</title>
+    <title>إدارة العملاء - الورشة الفنية</title>
 
-<style>
-body {
-    margin: 0;
-    font-family: Arial, sans-serif;
-    background: #f4f6f8;
-    color: #222;
+    <style>
+        body {
+            margin: 0;
+            font-family: Arial, sans-serif;
+            background: #f4f6f8;
+            color: #222;
+        }
+
+        header {
+            background: #1f2937;
+            color: white;
+            padding: 22px 20px;
+            text-align: center;
+        }
+
+        header h1 {
+            margin: 0 0 8px;
+        }
+
+        header p {
+            margin: 0;
+            color: #d1d5db;
+        }
+
+        .container {
+            max-width: 750px;
+            margin: auto;
+            padding: 20px;
+        }
+
+        .box {
+            background: white;
+            padding: 20px;
+            border-radius: 15px;
+            margin-bottom: 20px;
+            box-shadow: 0 3px 10px rgba(0,0,0,0.07);
+        }
+
+        .box h2 {
+            margin-top: 0;
+        }
+
+        input {
+            width: 100%;
+            box-sizing: border-box;
+            padding: 14px;
+            margin: 7px 0;
+            border: 1px solid #d1d5db;
+            border-radius: 10px;
+            font-size: 16px;
+        }
+
+        button {
+            width: 100%;
+            padding: 14px;
+            border: none;
+            border-radius: 10px;
+            background: #1f2937;
+            color: white;
+            font-size: 16px;
+            margin-top: 10px;
+            cursor: pointer;
+        }
+
+        .customer {
+            background: #f8fafc;
+            border: 1px solid #e5e7eb;
+            border-radius: 12px;
+            padding: 15px;
+            margin-top: 12px;
+        }
+
+        .customer-name {
+            font-size: 19px;
+            font-weight: bold;
+        }
+
+        .customer-id {
+            margin-top: 5px;
+            color: #555;
+            font-size: 14px;
+        }
+
+        .customer p {
+            margin: 8px 0;
+        }
+
+        .delete-button {
+            background: #b91c1c;
+            margin-top: 12px;
+        }
+
+        .empty {
+            text-align: center;
+            color: #777;
+            padding: 20px;
+        }
+    </style>
+
+</head>
+
+<body>
+
+<header>
+
+    <h1>👥 إدارة العملاء</h1>
+
+    <p>
+        الورشة الفنية لصيانة الأجهزة المنزلية والتكييف
+    </p>
+
+</header>
+
+
+<div class="container">
+
+
+    <!-- إضافة عميل -->
+
+    <div class="box">
+
+        <h2>➕ إضافة عميل جديد</h2>
+
+        <input
+            id="name"
+            type="text"
+            placeholder="اسم العميل"
+        >
+
+        <input
+            id="phone"
+            type="tel"
+            placeholder="رقم الهاتف"
+        >
+
+        <input
+            id="address"
+            type="text"
+            placeholder="العنوان"
+        >
+
+        <button onclick="addCustomer()">
+            💾 حفظ العميل
+        </button>
+
+    </div>
+
+
+    <!-- قائمة العملاء -->
+
+    <div class="box">
+
+        <h2>📋 العملاء المسجلون</h2>
+
+        <div id="customers"></div>
+
+    </div>
+
+
+</div>
+
+
+<script>
+
+
+/* ==============================
+   تحميل العملاء المحفوظين
+   ============================== */
+
+let customers =
+    JSON.parse(
+        localStorage.getItem("customers")
+    ) || [];
+
+
+/* ==============================
+   عرض العملاء عند فتح الصفحة
+   ============================== */
+
+displayCustomers();
+
+
+/* ==============================
+   إضافة عميل
+   ============================== */
+
+function addCustomer() {
+
+    let name =
+        document.getElementById("name").value.trim();
+
+    let phone =
+        document.getElementById("phone").value.trim();
+
+    let address =
+        document.getElementById("address").value.trim();
+
+
+    /* التحقق من البيانات */
+
+    if (name === "" || phone === "") {
+
+        alert(
+            "من فضلك اكتب اسم العميل ورقم الهاتف"
+        );
+
+        return;
+    }
+
+
+    /* إنشاء رقم العميل */
+
+    let customerNumber =
+        customers.length + 1;
+
+
+    let customerId =
+        "CUS-" +
+        String(customerNumber).padStart(4, "0");
+
+
+    /* إنشاء العميل */
+
+    let customer = {
+
+        id: customerId,
+
+        name: name,
+
+        phone: phone,
+
+        address: address
+    };
+
+
+    /* إضافة العميل */
+
+    customers.push(customer);
+
+
+    /* حفظ العملاء */
+
+    localStorage.setItem(
+        "customers",
+        JSON.stringify(customers)
+    );
+
+
+    /* إعادة عرض العملاء */
+
+    displayCustomers();
+
+
+    /* تنظيف الخانات */
+
+    document.getElementById("name").value = "";
+
+    document.getElementById("phone").value = "";
+
+    document.getElementById("address").value = "";
+
 }
 
-header {
-    background: #1f2937;
-    color: white;
-    padding: 20px;
-    text-align: center;
+
+/* ==============================
+   عرض العملاء
+   ============================== */
+
+function displayCustomers() {
+
+    let box =
+        document.getElementById("customers");
+
+
+    /* لا يوجد عملاء */
+
+    if (customers.length === 0) {
+
+        box.innerHTML =
+            '<div class="empty">' +
+            'لا يوجد عملاء حتى الآن.' +
+            '</div>';
+
+        return;
+    }
+
+
+    /* تنظيف القائمة */
+
+    box.innerHTML = "";
+
+
+    /* عرض العملاء */
+
+    customers.forEach(function(customer) {
+
+        box.innerHTML += `
+
+            <div class="customer">
+
+                <div class="customer-name">
+
+                    👤 ${customer.name}
+
+                </div>
+
+                <div class="customer-id">
+
+                    🆔 رقم العميل:
+                    ${customer.id}
+
+                </div>
+
+                <p>
+
+                    📞 ${customer.phone}
+
+                </p>
+
+                <p>
+
+                    📍 ${
+                        customer.address ||
+                        "لم يتم تسجيل العنوان"
+                    }
+
+                </p>
+
+                <button
+                    class="delete-button"
+                    onclick="deleteCustomer('${customer.id}')"
+                >
+
+                    🗑️ حذف العميل
+
+                </button>
+
+            </div>
+
+        `;
+
+    });
+
 }
 
-header h1 {
-    margin: 0 0 8px;
+
+/* ==============================
+   حذف العميل
+   ============================== */
+
+function deleteCustomer(customerId) {
+
+    let confirmDelete =
+        confirm(
+            "هل أنت متأكد من حذف هذا العميل؟"
+        );
+
+
+    if (!confirmDelete) {
+
+        return;
+    }
+
+
+    customers =
+        customers.filter(
+            function(customer) {
+
+                return customer.id !== customerId;
+
+            }
+        );
+
+
+    /* تحديث التخزين */
+
+    localStorage.setItem(
+        "customers",
+        JSON.stringify(customers)
+    );
+
+
+    /* تحديث الشاشة */
+
+    displayCustomers();
+
 }
 
-header p {
-    margin: 0;
-    color: #d1d5db;
-}
 
-.container {
-    padding: 20px;
-    max-width: 700px;
-    margin: auto;
-}
+</script>
 
-.box {
-    background: white;
-    padding: 20px;
-    border-radius: 15px;
-    margin-bottom: 20px;
-    box-shadow: 0 3px 10px rgba(0,0,0,0.06);
-}
+</body>
 
-.box h2 {
-    margin-top: 0;
-}
-
-input {
-    width: 100%;
-    box-sizing: border-box;
-    padding: 14px;
-    margin: 8px 0;
-    border: 1px solid #ddd;
-    border-radius: 10px;
-    font-size: 16px;
-}
-
-button {
-    width: 100%;
-    padding: 14px;
-    border: none;
-    border-radius: 10px;
-    background: #1f2937;
-    color: white;
+</html>    color: white;
     font-size: 16px;
     margin-top: 10px;
 }
