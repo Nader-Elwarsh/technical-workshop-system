@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#07152f">
+<title>المسارات والزيارات اليومية - الورشة الفنية</title>
+<style>
+*{box-sizing:border-box}body{margin:0;font-family:Arial,Tahoma,sans-serif;background:#f4f6f8;color:#172033}
+header{background:#07152f;color:#fff;text-align:center;padding:22px 15px}header h1{margin:0 0 7px}header p{margin:0;color:#dbe5ff}
+.container{max-width:1150px;margin:auto;padding:16px}.card{background:#fff;border-radius:16px;padding:18px;margin-bottom:16px;box-shadow:0 2px 9px rgba(0,0,0,.06)}
+h2{margin:0 0 15px;color:#07152f}.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.full{grid-column:1/-1}
+label{display:block;font-weight:bold;margin:8px 0 5px}input,select,textarea{width:100%;padding:12px;border:1px solid #ccd4de;border-radius:10px;font:inherit}textarea{min-height:80px;resize:vertical}
+button{border:0;border-radius:10px;padding:11px 15px;font:inherit;cursor:pointer}.primary{background:#16803c;color:#fff}.blue{background:#1769aa;color:#fff}.gray{background:#596273;color:#fff}.danger{background:#d60000;color:#fff}.orange{background:#a96600;color:#fff}
+.actions{display:flex;gap:8px;margin-top:12px}.actions button{flex:1}.stats{display:grid;grid-template-columns:repeat(5,1fr);gap:9px}.stat{background:#f8fafc;border-radius:11px;padding:12px;text-align:center}.stat b{display:block;font-size:22px;color:#07152f}
+.filters{display:grid;grid-template-columns:2fr 1fr 1fr;gap:10px}.item{border:1px solid #dfe4ea;border-radius:14px;padding:15px;margin-top:10px}.item h3{margin:0 0 8px;color:#07152f}
+.badge{display:inline-block;padding:5px 9px;border-radius:20px;background:#e9edf2;margin:3px;font-size:12px}.ok{background:#e3f7e9;color:#146c2e}.warn{background:#fff0d6;color:#8b5b00}.bad{background:#ffe2e2;color:#a00000}.bluebadge{background:#e4f0ff;color:#1769aa}
+.notice{display:none;padding:12px;border-radius:10px;margin-bottom:12px}.good{background:#e1f5e7;color:#146c2e}.error{background:#ffe2e2;color:#a00000}.info{background:#eef6ff;border:1px solid #cfe2ff;border-radius:10px;padding:11px;line-height:1.8;margin-top:10px}.empty{text-align:center;color:#777;padding:28px}
+.stop{display:grid;grid-template-columns:50px 1.5fr 1.5fr 1fr auto;gap:8px;align-items:end;border:1px solid #e0e5eb;border-radius:12px;padding:10px;margin-top:9px;background:#fafbfc}.num{font-size:20px;font-weight:bold;text-align:center;padding:12px;background:#eef3f8;border-radius:10px}
+.route{border:1px solid #dfe4ea;border-radius:14px;padding:15px;margin-top:10px}.route h3{margin:0 0 7px}.route-head{display:flex;justify-content:space-between;gap:8px;align-items:center}.stops{margin-top:12px}.stopview{padding:10px;border-right:3px solid #1769aa;margin:6px 0;background:#fafbfc;border-radius:8px}
+.back{display:block;text-align:center;background:#333;color:#fff;text-decoration:none;padding:14px;border-radius:10px}
+@media(max-width:700px){.grid,.filters,.stop{grid-template-columns:1fr}.full{grid-column:auto}.stats{grid-template-columns:repeat(2,1fr)}.actions{flex-direction:column}.route-head{display:block}}
+</style>
+</head>
+<body>
+<header><h1>🗺️ المسارات والزيارات اليومية</h1><p>تنظيم خط سير الفنيين وترتيب الزيارات</p></header>
+<div class="container">
+<div id="notice" class="notice"></div>
+
+<div class="card"><h2>📊 ملخص اليوم</h2><div class="stats">
+<div class="stat"><b id="routes">0</b>المسارات</div><div class="stat"><b id="visits">0</b>زيارات اليوم</div><div class="stat"><b id="assigned">0</b>مرتبة</div><div class="stat"><b id="urgent">0</b>عاجلة</div><div class="stat"><b id="completed">0</b>مكتملة</div>
+</div></div>
+
+<div class="card">
+<h2 id="formTitle">➕ إنشاء مسار يومي</h2>
+<div class="grid">
+<div><label>رقم المسار</label><input id="id" readonly></div>
+<div><label>التاريخ *</label><input id="date" type="date"></div>
+<div><label>الفني *</label><select id="technician"><option value="">اختر الفني</option></select></div>
+<div><label>حالة المسار</label><select id="status"><option>مخطط</option><option>جاهز</option><option>جاري التنفيذ</option><option>مكتمل</option><option>ملغى</option></select></div>
+<div><label>منطقة العمل</label><input id="area" placeholder="مثال: مطاي - بني مزار"></div>
+<div><label>وسيلة الانتقال</label><select id="transport"><option>سيارة الورشة</option><option>دراجة نارية</option><option>خاص بالفني</option><option>أخرى</option></select></div>
+<div class="full"><label>ملاحظات المسار</label><textarea id="notes"></textarea></div>
+</div>
+
+<h3 style="color:#07152f;margin-top:20px">📍 ترتيب الزيارات</h3>
+<div id="stops"></div>
+<div class="actions"><button class="gray" id="addStop">➕ إضافة زيارة</button><button class="blue" id="loadDay">📅 تحميل زيارات اليوم غير المرتبة</button></div>
+<div class="info">رتّب الزيارات بالسحب الذهني عبر أرقام الترتيب. عند حفظ المسار تُحفظ أولوية كل زيارة داخله. المسار لا يحذف الزيارة ولا يغير بياناتها الأساسية.</div>
+<div class="actions"><button class="primary" id="save">💾 حفظ المسار</button><button class="gray" id="cancel" style="display:none">إلغاء التعديل</button></div>
+</div>
+
+<div class="card"><h2>🔎 المسارات المحفوظة</h2>
+<div class="filters"><input id="search" placeholder="رقم المسار / الفني / المنطقة..."><select id="filterDate"><option value="">كل التواريخ</option><option value="today">اليوم</option><option value="tomorrow">غدًا</option></select><select id="filterStatus"><option value="">كل الحالات</option><option>مخطط</option><option>جاهز</option><option>جاري التنفيذ</option><option>مكتمل</option><option>ملغى</option></select></div>
+<div id="list"></div></div>
+
+<div class="card"><h2>📋 زيارات اليوم غير المرتبة</h2><div id="unassigned"></div></div>
+<a class="back" href="index.html">🏠 العودة إلى الرئيسية</a>
+</div>
+
+<script>
+const KEY="routes",VIS="visits",TECH="technicians";
+let editing=null;
+const $=id=>document.getElementById(id);
+const arr=k=>{try{let x=JSON.parse(localStorage.getItem(k)||"[]");return Array.isArray(x)?x:[]}catch(e){return[]}};
+const save=(k,v)=>localStorage.setItem(k,JSON.stringify(v));
+const esc=v=>String(v??"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&#039;");
+const today=()=>new Date().toISOString().slice(0,10);
+const tomorrow=()=>{let d=new Date();d.setDate(d.getDate()+1);return d.toISOString().slice(0,10)};
+const tid=t=>t.id||t.technicianId||t.code||"";
+const tname=t=>t.name||t.fullName||t.technicianName||"بدون اسم";
+const vid=v=>v.id||v.visitId||"";
+function notice(t,b=false){$("notice").textContent=t;$("notice").className="notice "+(b?"error":"good");$("notice").style.display="block";setTimeout(()=>$("notice").style.display="none",3200)}
+function nextId(){let n=0;arr(KEY).forEach(x=>{let m=String(x.id||"").match(/^ROUTE-(\d+)$/);if(m)n=Math.max(n,+m[1])});return"ROUTE-"+String(n+1).padStart(5,"0")}
+function loadTechs(selected=""){
+ let a=arr(TECH);$("technician").innerHTML='<option value="">اختر الفني</option>'+a.map(t=>'<option value="'+esc(tid(t))+'" '+(String(tid(t))===String(selected)?"selected":"")+'>'+esc(tname(t))+'</option>').join("")
+}
+function availableVisits(){
+ let d=$("date").value||today(),t=$("technician").value,vis=arr(VIS),routes=arr(KEY),assigned=new Set();
+ routes.forEach(r=>(r.stops||[]).forEach(s=>assigned.add(String(s.visitId))));
+ return vis.filter(v=>v.date===d&&(!t||String(v.technicianId)===String(t))&&!["ملغاة"].includes(v.status)).map(v=>({...v,alreadyAssigned:assigned.has(String(vid(v)))}))
+}
+function addStop(v={}){
+ let d=document.createElement("div");d.className="stop";
+ d.innerHTML='<div class="num">'+(document.querySelectorAll(".stop").length+1)+'</div><div><label>الزيارة</label><select class="visit">'+visitOptions(v.visitId)+'</select></div><div><label>العنوان</label><input class="address" value="'+esc(v.address||"")+'" readonly></div><div><label>ملاحظات</label><input class="stopNotes" value="'+esc(v.notes||"")+'"></div><button type="button" class="danger remove">حذف</button>';
+ d.querySelector(".remove").onclick=()=>{d.remove();renumber()};d.querySelector(".visit").onchange=()=>syncStop(d);$("stops").appendChild(d);syncStop(d)
+}
+function visitOptions(selected=""){
+ let a=availableVisits();return '<option value="">اختر الزيارة</option>'+a.map(v=>'<option value="'+esc(vid(v))+'" '+(String(vid(v))===String(selected)?"selected":"")+'>'+esc(vid(v))+' — '+esc(v.customerName||"")+' — '+esc(v.startTime||"")+' — '+esc(v.address||"")+(v.alreadyAssigned?' [مسندة]':'')+'</option>').join("")
+}
+function syncStop(d){
+ let id=d.querySelector(".visit").value,v=arr(VIS).find(x=>String(vid(x))===String(id));if(v)d.querySelector(".address").value=v.address||""
+}
+function renumber(){document.querySelectorAll(".stop").forEach((d,i)=>d.querySelector(".num").textContent=i+1)}
+function loadDay(){
+ $("stops").innerHTML="";availableVisits().filter(v=>!v.alreadyAssigned).sort((a,b)=>(a.startTime||"").localeCompare(b.startTime||"")).forEach(v=>addStop({visitId:vid(v),address:v.address}));if(!document.querySelector(".stop"))addStop()
+}
+function reset(){
+ editing=null;$("formTitle").textContent="➕ إنشاء مسار يومي";$("save").textContent="💾 حفظ المسار";$("cancel").style.display="none";$("id").value=nextId();$("date").value=today();loadTechs();$("status").value="مخطط";$("area").value="";$("transport").value="سيارة الورشة";$("notes").value="";$("stops").innerHTML="";addStop()
+}
+function getStops(){
+ return [...document.querySelectorAll(".stop")].map((d,i)=>({visitId:d.querySelector(".visit").value,order:i+1,address:d.querySelector(".address").value,notes:d.querySelector(".stopNotes").value.trim()})).filter(x=>x.visitId)
+}
+function saveRoute(){
+ let tech=$("technician").value,stops=getStops();if(!tech){notice("اختر الفني",true);return}if(!stops.length){notice("أضف زيارة واحدة على الأقل",true);return}
+ let all=arr(KEY),old=editing?all.find(x=>String(x.id)===String(editing)):null,now=new Date().toISOString(),x={id:editing||nextId(),date:$("date").value,technicianId:tech,technicianName:tname(arr(TECH).find(t=>String(tid(t))===String(tech))||{}),status:$("status").value,area:$("area").value.trim(),transport:$("transport").value,notes:$("notes").value.trim(),stops,createdAt:old?.createdAt||now,updatedAt:now};
+ let i=all.findIndex(a=>String(a.id)===String(x.id));if(i>=0)all[i]=x;else all.unshift(x);save(KEY,all);
+ // Save route/order reference on visits without changing their basic data.
+ let vs=arr(VIS);vs.forEach(v=>{let s=stops.find(z=>String(z.visitId)===String(vid(v)));if(s){v.routeId=x.id;v.routeOrder=s.order;v.updatedAt=now}else if(v.routeId===x.id){delete v.routeId;delete v.routeOrder}});save(VIS,vs);
+ notice(editing?"تم تعديل المسار":"تم إنشاء المسار");reset();renderAll()
+}
+function editRoute(id){
+ let x=arr(KEY).find(r=>String(r.id)===String(id));if(!x)return;editing=x.id;$("formTitle").textContent="✏️ تعديل المسار";$("save").textContent="💾 حفظ التعديل";$("cancel").style.display="block";$("id").value=x.id;$("date").value=x.date||today();loadTechs(x.technicianId);$("status").value=x.status||"مخطط";$("area").value=x.area||"";$("transport").value=x.transport||"سيارة الورشة";$("notes").value=x.notes||"";$("stops").innerHTML="";(x.stops||[]).forEach(addStop);if(!x.stops?.length)addStop();window.scrollTo({top:0,behavior:"smooth"})
+}
+function deleteRoute(id){
+ let all=arr(KEY),x=all.find(r=>String(r.id)===String(id));if(!x)return;if(x.status==="جاري التنفيذ"||x.status==="مكتمل"){notice("لا يمكن حذف مسار بدأ التنفيذ",true);return}if(!confirm("حذف المسار؟"))return;
+ let vs=arr(VIS);vs.forEach(v=>{if(v.routeId===id){delete v.routeId;delete v.routeOrder}});save(VIS,vs);save(KEY,all.filter(r=>String(r.id)!==String(id)));renderAll();notice("تم حذف المسار")
+}
+function routeStatus(id,status){
+ let all=arr(KEY),x=all.find(r=>String(r.id)===String(id));if(!x)return;x.status=status;x.updatedAt=new Date().toISOString();save(KEY,all);renderAll();notice("تم تحديث حالة المسار")
+}
+function renderUnassigned(){
+ let d=today(),a=availableVisits().filter(v=>!v.alreadyAssigned).sort((x,y)=>(x.startTime||"").localeCompare(y.startTime||""));
+ $("unassigned").innerHTML=a.length?a.map(v=>'<div class="item"><b>📅 '+esc(vid(v))+' — '+esc(v.customerName||"")+'</b><br>⏰ '+esc(v.startTime||"")+' | 👨‍🔧 '+esc(v.technicianName||"")+'<br>📍 '+esc(v.address||"غير محدد")+'<br><span class="badge '+(["عاجلة","طوارئ"].includes(v.priority)?"bad":"bluebadge")+'">'+esc(v.priority||"عادية")+'</span></div>').join(""):'<div class="empty">لا توجد زيارات غير مرتبة اليوم.</div>'
+}
+function renderList(){
+ let q=$("search").value.trim().toLowerCase(),df=$("filterDate").value,s=$("filterStatus").value,a=arr(KEY).filter(x=>[x.id,x.technicianName,x.area].join(" ").toLowerCase().includes(q)&&(!df||(df==="today"?x.date===today():x.date===tomorrow()))&&(!s||x.status===s));
+ $("list").innerHTML=a.length?a.map(r=>'<div class="route"><div class="route-head"><div><h3>🗺️ '+esc(r.id)+' — '+esc(r.technicianName)+'</h3><span class="badge '+(r.status==="مكتمل"?"ok":r.status==="ملغى"?"bad":"warn")+'">'+esc(r.status)+'</span><span class="badge bluebadge">'+esc(r.area||"المنطقة غير محددة")+'</span></div><b>📅 '+esc(r.date)+'</b></div><p>🚗 '+esc(r.transport)+' | 📍 '+esc(r.stops?.length||0)+' زيارات</p><div class="stops">'+(r.stops||[]).map((s,i)=>{let v=arr(VIS).find(z=>String(vid(z))===String(s.visitId));return'<div class="stopview"><b>'+((i+1)+'.')+' '+esc(v?.startTime||"")+' — '+esc(v?.customerName||"")+'</b><br>📍 '+esc(s.address||v?.address||"غير محدد")+'<br><small>🛠️ '+esc(s.visitId)+' | '+esc(v?.status||"")+'</small></div>'}).join("")+'</div><div class="actions"><button class="blue" data-a="start" data-id="'+esc(r.id)+'">▶️ بدء التنفيذ</button><button class="gray" data-a="edit" data-id="'+esc(r.id)+'">✏️ تعديل</button><button class="primary" data-a="done" data-id="'+esc(r.id)+'">✅ مكتمل</button><button class="danger" data-a="delete" data-id="'+esc(r.id)+'">🗑️ حذف</button></div></div>').join(""):'<div class="empty">لا توجد مسارات.</div>'
+}
+function renderAll(){
+ let a=arr(KEY),d=today(),todayRoutes=a.filter(x=>x.date===d),todayVisits=arr(VIS).filter(v=>v.date===d);$("routes").textContent=todayRoutes.length;$("visits").textContent=todayVisits.length;$("assigned").textContent=todayVisits.filter(v=>v.routeId).length;$("urgent").textContent=todayVisits.filter(v=>["عاجلة","طوارئ"].includes(v.priority)&&v.status!=="ملغاة").length;$("completed").textContent=todayVisits.filter(v=>v.status==="مكتملة").length;renderList();renderUnassigned()
+}
+$("date").onchange=()=>{loadDay()};$("technician").onchange=()=>{loadDay()};$("addStop").onclick=()=>addStop();$("loadDay").onclick=loadDay;$("save").onclick=saveRoute;$("cancel").onclick=reset;$("search").oninput=renderList;$("filterDate").onchange=renderList;$("filterStatus").onchange=renderList;
+$("list").onclick=e=>{let b=e.target.closest("button[data-a]");if(!b)return;let a=b.dataset.a,id=b.dataset.id;if(a==="edit")editRoute(id);else if(a==="start")routeStatus(id,"جاري التنفيذ");else if(a==="done")routeStatus(id,"مكتمل");else deleteRoute(id)};
+loadTechs();reset();renderAll();
+</script>
+</body>
+</html>
