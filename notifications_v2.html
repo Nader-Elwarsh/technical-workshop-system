@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#07152f">
+<title>الإشعارات والتنبيهات - الورشة الفنية</title>
+<style>
+*{box-sizing:border-box}body{margin:0;font-family:Arial,Tahoma,sans-serif;background:#f4f6f8;color:#172033}
+header{background:#07152f;color:#fff;text-align:center;padding:22px 15px}header h1{margin:0 0 7px}header p{margin:0;color:#dbe5ff}
+.container{max-width:1100px;margin:auto;padding:16px}.card{background:#fff;border-radius:16px;padding:18px;margin-bottom:16px;box-shadow:0 2px 9px rgba(0,0,0,.06)}
+h2{margin:0 0 15px;color:#07152f}.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.full{grid-column:1/-1}
+label{display:block;font-weight:bold;margin:8px 0 5px}input,select,textarea{width:100%;padding:12px;border:1px solid #ccd4de;border-radius:10px;font:inherit}textarea{min-height:85px;resize:vertical}
+button{border:0;border-radius:10px;padding:11px 15px;font:inherit;cursor:pointer}.primary{background:#16803c;color:#fff}.blue{background:#1769aa;color:#fff}.gray{background:#596273;color:#fff}.danger{background:#d60000;color:#fff}.orange{background:#a96600;color:#fff}
+.actions{display:flex;gap:8px;margin-top:12px}.actions button{flex:1}.filters{display:grid;grid-template-columns:2fr 1fr 1fr;gap:10px}
+.stats{display:grid;grid-template-columns:repeat(5,1fr);gap:9px}.stat{background:#f8fafc;border-radius:11px;padding:12px;text-align:center}.stat b{display:block;font-size:22px;color:#07152f}
+.note{border:1px solid #dfe4ea;border-radius:14px;padding:15px;margin-top:10px;position:relative}.note.unread{border-right:5px solid #1769aa;background:#f9fcff}.note.high{border-right-color:#d60000}.note.medium{border-right-color:#a96600}.note.low{border-right-color:#16803c}
+.badge{display:inline-block;padding:5px 9px;border-radius:20px;background:#e9edf2;margin:3px;font-size:12px}.unreadBadge{background:#e1efff;color:#1769aa}.highBadge{background:#ffe2e2;color:#a00000}.mediumBadge{background:#fff0d6;color:#8b5b00}.lowBadge{background:#e3f7e9;color:#146c2e}
+.notice{display:none;padding:12px;border-radius:10px;margin-bottom:12px}.good{background:#e1f5e7;color:#146c2e}.error{background:#ffe2e2;color:#a00000}.info{background:#eef6ff;border:1px solid #cfe2ff;border-radius:10px;padding:11px;line-height:1.8;margin-top:10px}.empty{text-align:center;color:#777;padding:28px}
+.checkgrid{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}.check{background:#f8fafc;padding:10px;border-radius:10px}.check label{margin:0;font-weight:normal}
+.back{display:block;text-align:center;background:#333;color:#fff;text-decoration:none;padding:14px;border-radius:10px}
+@media(max-width:700px){.grid,.filters,.checkgrid{grid-template-columns:1fr}.full{grid-column:auto}.stats{grid-template-columns:repeat(2,1fr)}.actions{flex-direction:column}}
+</style>
+</head>
+<body>
+<header><h1>🔔 الإشعارات والتنبيهات</h1><p>الورشة الفنية لصيانة الأجهزة المنزلية والتكييف</p></header>
+<div class="container">
+<div id="notice" class="notice"></div>
+
+<div class="card">
+<h2>📊 مركز الإشعارات</h2>
+<div class="stats">
+<div class="stat"><b id="total">0</b>كل الإشعارات</div>
+<div class="stat"><b id="unread">0</b>غير مقروءة</div>
+<div class="stat"><b id="high">0</b>عالية الأولوية</div>
+<div class="stat"><b id="today">0</b>اليوم</div>
+<div class="stat"><b id="users">0</b>مستخدمون مستهدفون</div>
+</div>
+</div>
+
+<div class="card">
+<h2>⚙️ إعدادات الإشعارات</h2>
+<div class="grid">
+<div><label>تفعيل نظام الإشعارات</label><select id="enabled"><option value="true">مفعل</option><option value="false">معطل</option></select></div>
+<div><label>تفعيل الإشعارات داخل الموقع</label><select id="inApp"><option value="true">مفعل</option><option value="false">معطل</option></select></div>
+<div><label>تنبيه المخزون المنخفض</label><select id="stockAlert"><option value="true">مفعل</option><option value="false">معطل</option></select></div>
+<div><label>تنبيه انتهاء الضمان</label><select id="warrantyAlert"><option value="true">مفعل</option><option value="false">معطل</option></select></div>
+<div><label>تنبيه انتهاء العقود</label><select id="contractAlert"><option value="true">مفعل</option><option value="false">معطل</option></select></div>
+<div><label>تنبيه الفواتير والمتأخرات</label><select id="invoiceAlert"><option value="true">مفعل</option><option value="false">معطل</option></select></div>
+<div><label>تنبيهات طلبات الصيانة</label><select id="requestAlert"><option value="true">مفعل</option><option value="false">معطل</option></select></div>
+<div><label>تنبيهات طلبات الشراء</label><select id="purchaseAlert"><option value="true">مفعل</option><option value="false">معطل</option></select></div>
+</div>
+<button class="blue" id="saveSettings" style="margin-top:12px">💾 حفظ الإعدادات</button>
+<div class="info">النسخة الحالية تنفذ مركز إشعارات محليًا داخل الواجهة. الإرسال الحقيقي عبر Push / SMS / WhatsApp / Email يحتاج Backend وخدمة إرسال في مرحلة الربط النهائي.</div>
+</div>
+
+<div class="card">
+<h2>➕ إنشاء إشعار يدوي</h2>
+<div class="grid">
+<div><label>المستهدف</label><select id="targetType"><option value="all">كل المستخدمين</option><option value="customer">عميل</option><option value="technician">فني</option><option value="role">دور محدد</option><option value="user">مستخدم محدد</option></select></div>
+<div><label>المستخدم / العميل</label><select id="targetUser"><option value="">اختر بعد تحديد المستهدف</option></select></div>
+<div><label>نوع الإشعار</label><select id="manualType"><option>طلب صيانة</option><option>موعد زيارة</option><option>فاتورة</option><option>ضمان</option><option>عقد</option><option>مخزون</option><option>مشتريات</option><option>عام</option></select></div>
+<div><label>الأولوية</label><select id="priority"><option value="high">عالية</option><option value="medium" selected>متوسطة</option><option value="low">منخفضة</option></select></div>
+<div class="full"><label>العنوان *</label><input id="title"></div>
+<div class="full"><label>الرسالة *</label><textarea id="message"></textarea></div>
+<div><label>رقم الطلب/العقد/الفاتورة (اختياري)</label><input id="referenceId"></div>
+<div><label>موعد الإشعار (اختياري)</label><input id="scheduledAt" type="datetime-local"></div>
+</div>
+<div class="actions"><button class="primary" id="create">📨 إنشاء الإشعار</button></div>
+</div>
+
+<div class="card">
+<h2>🔎 البحث والتصفية</h2>
+<div class="filters">
+<input id="search" placeholder="بحث في العنوان أو الرسالة أو المستهدف...">
+<select id="filterType"><option value="">كل الأنواع</option></select>
+<select id="filterStatus"><option value="">الكل</option><option value="unread">غير مقروء</option><option value="read">مقروء</option></select>
+</div>
+<div id="list"></div>
+<div class="actions"><button class="blue" id="readAll">✓ تعليم الكل كمقروء</button><button class="danger" id="clearRead">🗑️ حذف المقروء</button></div>
+</div>
+
+<div class="card">
+<h2>🤖 توليد التنبيهات من بيانات النظام</h2>
+<p>اضغط على الزر لفحص البيانات الحالية وإنشاء تنبيهات مهمة فقط، بدون تكرار التنبيه نفسه بشكل مستمر.</p>
+<div class="actions"><button class="orange" id="scan">🔍 فحص النظام الآن</button></div>
+<div id="scanResult" class="info hidden"></div>
+</div>
+
+<a class="back" href="index.html">🏠 العودة إلى الرئيسية</a>
+</div>
+
+<script>
+const KEY="notifications",SET="notificationSettings",USERS="users",CUSTOMERS="customers",REQ="maintenanceRequests",INV="invoices",WAR="warranties",CON="contracts",DEV="devices",PO="purchaseOrders";
+const $=id=>document.getElementById(id);
+const arr=k=>{try{let x=JSON.parse(localStorage.getItem(k)||"[]");return Array.isArray(x)?x:[]}catch(e){return[]}};
+const save=(k,v)=>localStorage.setItem(k,JSON.stringify(v));
+const esc=v=>String(v??"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&#039;");
+const today=()=>new Date().toISOString().slice(0,10);
+function settings(){return Object.assign({enabled:true,inApp:true,stockAlert:true,warrantyAlert:true,contractAlert:true,invoiceAlert:true,requestAlert:true,purchaseAlert:true},JSON.parse(localStorage.getItem(SET)||"{}"))}
+function loadSettings(){let s=settings();["enabled","inApp","stockAlert","warrantyAlert","contractAlert","invoiceAlert","requestAlert","purchaseAlert"].forEach(k=>$(k).value=String(s[k]))}
+function saveSettings(){let o={};["enabled","inApp","stockAlert","warrantyAlert","contractAlert","invoiceAlert","requestAlert","purchaseAlert"].forEach(k=>o[k]=$(k).value==="true");save(SET,o);notice("تم حفظ إعدادات الإشعارات")}
+function notice(t,bad=false){$("notice").textContent=t;$("notice").className="notice "+(bad?"error":"good");$("notice").style.display="block";setTimeout(()=>$("notice").style.display="none",3000)}
+function uid(x){return x.id||x.userId||x.customerId||x.code||""}
+function uname(x){return x.name||x.fullName||x.customerName||x.username||"مستخدم"}
+function loadTargets(){
+ let type=$("targetType").value,us=arr(USERS),cs=arr(CUSTOMERS),list=[];
+ if(type==="customer")list=cs.map(x=>({id:uid(x),name:"👤 "+uname(x)}));
+ else if(type==="technician")list=us.filter(x=>x.role==="فني").map(x=>({id:uid(x),name:"🔧 "+uname(x)}));
+ else if(type==="user")list=us.map(x=>({id:uid(x),name:"👤 "+uname(x)}));
+ else if(type==="role")list=[...new Set(us.map(x=>x.role).filter(Boolean))].map(x=>({id:x,name:"👥 "+x}));
+ $("targetUser").innerHTML='<option value="">'+(type==="all"?"لا يحتاج تحديد":"اختر المستهدف")+'</option>'+list.map(x=>'<option value="'+esc(x.id)+'">'+esc(x.name)+'</option>').join("")
+}
+function types(){return[...new Set(arr(KEY).map(x=>x.type).filter(Boolean).concat(["طلب صيانة","موعد زيارة","فاتورة","ضمان","عقد","مخزون","مشتريات","عام"]))]}
+function notificationExists(type,ref,target,title){
+ return arr(KEY).some(n=>n.type===type&&String(n.referenceId||"")===String(ref||"")&&String(n.targetId||"")===String(target||"")&&n.title===title&&!n.deleted)
+}
+function addNotification(o){
+ let s=settings();if(!s.enabled)return false;
+ let all=arr(KEY),n={id:"NTF-"+Date.now()+"-"+Math.random().toString(36).slice(2,6),type:o.type||"عام",title:o.title,message:o.message,priority:o.priority||"medium",targetType:o.targetType||"all",targetId:o.targetId||"",targetName:o.targetName||"",referenceId:o.referenceId||"",read:false,createdAt:new Date().toISOString(),scheduledAt:o.scheduledAt||null,source:o.source||"manual"};
+ all.unshift(n);save(KEY,all);return true
+}
+function createManual(){
+ let title=$("title").value.trim(),message=$("message").value.trim(),type=$("targetType").value,target=$("targetUser").value;
+ if(!title||!message){notice("اكتب عنوان الرسالة ومحتواها",true);return}
+ if(type!=="all"&&!target){notice("حدد المستهدف",true);return}
+ let targetName="كل المستخدمين";
+ if(type!=="all"){let pool=type==="customer"?arr(CUSTOMERS):arr(USERS),x=pool.find(a=>String(uid(a))===String(target));if(type==="role")targetName=target;else targetName=uname(x||{})}
+ addNotification({type:$("manualType").value,title,message,priority:$("priority").value,targetType:type,targetId:target,targetName,referenceId:$("referenceId").value.trim(),scheduledAt:$("scheduledAt").value,source:"manual"});
+ ["title","message","referenceId","scheduledAt"].forEach(x=>$(x).value="");notice("تم إنشاء الإشعار");renderAll()
+}
+function statusClass(p){return p==="high"?"high":p==="medium"?"medium":"low"}
+function renderList(){
+ let q=$("search").value.trim().toLowerCase(),t=$("filterType").value,s=$("filterStatus").value,ns=arr(KEY).filter(n=>!n.deleted&&[n.title,n.message,n.type,n.targetName,n.referenceId].join(" ").toLowerCase().includes(q)&&(!t||n.type===t)&&(!s||(s==="unread"?!n.read:n.read)));
+ $("list").innerHTML=ns.length?ns.map(n=>'<div class="note '+(!n.read?"unread ":"")+statusClass(n.priority)+'"><h3>🔔 '+esc(n.title)+'</h3><span class="badge '+statusClass(n.priority)+'Badge">'+(n.priority==="high"?"عالية":n.priority==="medium"?"متوسطة":"منخفضة")+'</span><span class="badge">'+esc(n.type)+'</span><span class="badge">'+(n.read?"مقروء":"غير مقروء")+'</span><p>'+esc(n.message)+'</p><small>🎯 '+esc(n.targetName||n.targetType)+' | 🕒 '+esc(n.createdAt)+' '+(n.referenceId?"| 🔗 "+esc(n.referenceId):"")+'</small><div class="actions"><button class="blue" data-a="read" data-id="'+esc(n.id)+'">'+(n.read?"↩️ تعليم كغير مقروء":"✓ تعليم كمقروء")+'</button><button class="danger" data-a="delete" data-id="'+esc(n.id)+'">🗑️ حذف</button></div></div>').join(""):'<div class="empty">لا توجد إشعارات.</div>'
+}
+function toggleRead(id){let all=arr(KEY),n=all.find(x=>String(x.id)===String(id));if(!n)return;n.read=!n.read;save(KEY,all);renderAll()}
+function deleteOne(id){let all=arr(KEY),n=all.find(x=>String(x.id)===String(id));if(!n)return;n.deleted=true;save(KEY,all);renderAll()}
+function readAll(){let all=arr(KEY);all.forEach(n=>n.read=true);save(KEY,all);renderAll();notice("تم تعليم الإشعارات كمقروءة")}
+function clearRead(){let all=arr(KEY);all.forEach(n=>{if(n.read)n.deleted=true});save(KEY,all);renderAll();notice("تم حذف الإشعارات المقروءة")}
+function addAuto(type,title,message,priority,ref,targetId,targetName){
+ if(notificationExists(type,ref,targetId,title))return false;
+ return addNotification({type,title,message,priority,referenceId:ref,targetType:targetId?"user":"all",targetId,targetName,source:"system"})
+}
+function scan(){
+ let s=settings(),count=0;
+ if(s.requestAlert){
+  arr(REQ).filter(r=>["جديد","بانتظار المراجعة","مقبول","مجدول"].includes(r.status)).slice(0,50).forEach(r=>{if(addAuto("طلب صيانة","طلب صيانة يحتاج متابعة","الطلب "+(r.id||"")+" للعميل "+(r.customerName||"") +" حالته "+(r.status||""),"high",r.id)){count++}})
+ }
+ if(s.invoiceAlert){
+  arr(INV).filter(i=>Number(i.remaining??((i.total||i.amount||0)-(i.paid||i.paidAmount||0)))>0).slice(0,50).forEach(i=>{if(addAuto("فاتورة","فاتورة عليها مبلغ متبقي","الفاتورة "+(i.id||i.invoiceId||"")+" عليها مبلغ متبقي.","medium",i.id)){count++}})
+ }
+ if(s.contractAlert){
+  let now=new Date();arr(CON).filter(c=>c.status==="نشط"&&c.endDate).forEach(c=>{let d=Math.ceil((new Date(c.endDate)-now)/86400000);if(d>=0&&d<=30&&addAuto("عقد","عقد يقترب من الانتهاء","العقد "+c.id+" ينتهي خلال "+d+" يوم.","high",c.id)){count++}})
+ }
+ if(s.warrantyAlert){
+  let now=new Date();arr(WAR).filter(w=>w.endDate).forEach(w=>{let d=Math.ceil((new Date(w.endDate)-now)/86400000);if(d>=0&&d<=30&&addAuto("ضمان","ضمان يقترب من الانتهاء","الضمان "+(w.id||w.warrantyId||"")+" ينتهي خلال "+d+" يوم.","medium",w.id||w.warrantyId)){count++}})
+ }
+ if(s.stockAlert){
+  arr(DEV).filter(d=>Number(d.quantity||0)<=Number(d.minQuantity||d.minimumStock||0)&&Number(d.minQuantity||d.minimumStock||0)>0).forEach(d=>{if(addAuto("مخزون","تنبيه مخزون منخفض","الصنف "+(d.name||d.brand||d.id||"")+" وصل إلى الحد الأدنى.","high",d.id)){count++}})
+ }
+ if(s.purchaseAlert){
+  arr(PO).filter(p=>["جديد","بانتظار الاعتماد","مسودة"].includes(p.status)).slice(0,30).forEach(p=>{if(addAuto("مشتريات","طلب شراء يحتاج متابعة","طلب الشراء "+(p.id||"")+" حالته "+(p.status||""),"medium",p.id)){count++}})
+ }
+ $("scanResult").classList.remove("hidden");$("scanResult").textContent="تم فحص النظام وإنشاء "+count+" إشعار جديد. الإشعارات المكررة تم تجاهلها.";renderAll()
+}
+function renderAll(){
+ let all=arr(KEY).filter(n=>!n.deleted),now=today();$("total").textContent=all.length;$("unread").textContent=all.filter(n=>!n.read).length;$("high").textContent=all.filter(n=>n.priority==="high").length;$("today").textContent=all.filter(n=>String(n.createdAt).slice(0,10)===now).length;$("users").textContent=new Set(all.map(n=>n.targetId).filter(Boolean)).size;
+ $("filterType").innerHTML='<option value="">كل الأنواع</option>'+types().map(x=>'<option>'+esc(x)+'</option>').join("");
+ renderList()
+}
+$("saveSettings").onclick=saveSettings;$("targetType").onchange=loadTargets;$("create").onclick=createManual;$("search").oninput=renderList;$("filterType").onchange=renderList;$("filterStatus").onchange=renderList;$("readAll").onclick=readAll;$("clearRead").onclick=clearRead;$("scan").onclick=scan;
+$("list").onclick=e=>{let b=e.target.closest("button[data-a]");if(!b)return;if(b.dataset.a==="read")toggleRead(b.dataset.id);else deleteOne(b.dataset.id)};
+loadSettings();loadTargets();renderAll();
+</script>
+</body>
+</html>
