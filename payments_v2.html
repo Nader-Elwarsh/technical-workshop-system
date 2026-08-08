@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#07152f"><title>المدفوعات والتحصيل - الورشة الفنية</title>
+<style>
+*{box-sizing:border-box}body{margin:0;font-family:Arial,Tahoma,sans-serif;background:#f4f6f8;color:#172033}
+header{background:#07152f;color:#fff;text-align:center;padding:22px 15px}header h1{margin:0 0 7px}header p{margin:0;color:#dbe5ff}
+.container{max-width:1150px;margin:auto;padding:16px}.card{background:#fff;border-radius:16px;padding:18px;margin-bottom:16px;box-shadow:0 2px 9px rgba(0,0,0,.06)}
+h2{margin:0 0 15px;color:#07152f}.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.full{grid-column:1/-1}
+label{display:block;font-weight:bold;margin:8px 0 5px}input,select,textarea{width:100%;padding:12px;border:1px solid #ccd4de;border-radius:10px;font:inherit}textarea{min-height:80px;resize:vertical}
+button{border:0;border-radius:10px;padding:11px 15px;font:inherit;cursor:pointer}.primary{background:#16803c;color:#fff}.blue{background:#1769aa;color:#fff}.gray{background:#596273;color:#fff}.danger{background:#d60000;color:#fff}.orange{background:#a96600;color:#fff}
+.actions{display:flex;gap:8px;margin-top:12px}.actions button{flex:1}.filters{display:grid;grid-template-columns:2fr 1fr 1fr;gap:10px}
+.stats{display:grid;grid-template-columns:repeat(5,1fr);gap:9px}.stat{background:#f8fafc;border-radius:11px;padding:12px;text-align:center}.stat b{display:block;font-size:22px;color:#07152f}
+.item{border:1px solid #dfe4ea;border-radius:14px;padding:15px;margin-top:10px}.item h3{margin:0 0 8px;color:#07152f}
+.badge{display:inline-block;padding:5px 9px;border-radius:20px;background:#e9edf2;margin:3px;font-size:12px}.ok{background:#e3f7e9;color:#146c2e}.warn{background:#fff0d6;color:#8b5b00}.bad{background:#ffe2e2;color:#a00000}.bluebadge{background:#e4f0ff;color:#1769aa}
+.notice{display:none;padding:12px;border-radius:10px;margin-bottom:12px}.good{background:#e1f5e7;color:#146c2e}.error{background:#ffe2e2;color:#a00000}.info{background:#eef6ff;border:1px solid #cfe2ff;border-radius:10px;padding:11px;line-height:1.8;margin-top:10px}.empty{text-align:center;color:#777;padding:28px}
+.back{display:block;text-align:center;background:#333;color:#fff;text-decoration:none;padding:14px;border-radius:10px}.hidden{display:none!important}
+@media(max-width:700px){.grid,.filters{grid-template-columns:1fr}.full{grid-column:auto}.stats{grid-template-columns:repeat(2,1fr)}.actions{flex-direction:column}}
+</style>
+</head>
+<body>
+<header><h1>💳 المدفوعات والتحصيل</h1><p>الورشة الفنية لصيانة الأجهزة المنزلية والتكييف</p></header>
+<div class="container">
+<div id="notice" class="notice"></div>
+
+<div class="card"><h2>📊 ملخص التحصيل</h2><div class="stats">
+<div class="stat"><b id="total">0</b>عمليات الدفع</div>
+<div class="stat"><b id="collected">0</b>إجمالي المحصل</div>
+<div class="stat"><b id="today">0</b>تحصيل اليوم</div>
+<div class="stat"><b id="refunds">0</b>مرتجعات</div>
+<div class="stat"><b id="outstanding">0</b>إجمالي المتبقي</div>
+</div></div>
+
+<div class="card">
+<h2 id="formTitle">➕ تسجيل دفعة</h2>
+<div class="grid">
+<div><label>رقم العملية</label><input id="id" readonly></div>
+<div><label>العميل *</label><select id="customer"><option value="">اختر العميل</option></select></div>
+<div><label>الفاتورة</label><select id="invoice"><option value="">اختر الفاتورة</option></select></div>
+<div><label>طلب الصيانة</label><select id="request"><option value="">اختياري</option></select></div>
+<div><label>نوع العملية</label><select id="type"><option>دفعة</option><option>دفعة مقدمة</option><option>دفعة جزئية</option><option>تسوية</option><option>استرداد</option></select></div>
+<div><label>المبلغ *</label><input id="amount" type="number" min="0.01" step=".01"></div>
+<div><label>طريقة الدفع</label><select id="method"><option>نقدي</option><option>Vodafone Cash</option><option>InstaPay</option><option>تحويل بنكي</option><option>بطاقة</option><option>محفظة إلكترونية</option><option>أخرى</option></select></div>
+<div><label>تاريخ العملية</label><input id="date" type="date"></div>
+<div><label>رقم المرجع</label><input id="reference" placeholder="رقم التحويل / الإيصال..."></div>
+<div><label>حالة العملية</label><select id="status"><option>مؤكدة</option><option>قيد المراجعة</option><option>ملغاة</option></select></div>
+<div class="full"><label>ملاحظات</label><textarea id="notes"></textarea></div>
+</div>
+<div class="actions"><button class="primary" id="save">💾 حفظ العملية</button><button class="gray hidden" id="cancel">إلغاء التعديل</button></div>
+<div class="info">الدفعة لا تعني إنشاء الفاتورة؛ هي حركة مالية مرتبطة بها. عند ربطها بفاتورة يتم حساب المدفوع والمتبقي تلقائيًا من بيانات الفاتورة المتاحة في المتصفح.</div>
+</div>
+
+<div class="card"><h2>🔎 سجل المدفوعات</h2>
+<div class="filters"><input id="search" placeholder="رقم العملية / العميل / المرجع..."><select id="filterMethod"><option value="">كل طرق الدفع</option></select><select id="filterStatus"><option value="">كل الحالات</option><option>مؤكدة</option><option>قيد المراجعة</option><option>ملغاة</option></select></div>
+<div id="list"></div></div>
+
+<div class="card"><h2>💰 أرصدة الفواتير</h2><div id="balances"></div></div>
+<a class="back" href="index.html">🏠 العودة إلى الرئيسية</a>
+</div>
+
+<script>
+const KEY="payments",CUSTOMERS="customers",INV="invoices",REQ="maintenanceRequests";
+let editing=null;
+const $=id=>document.getElementById(id);
+const arr=k=>{try{let x=JSON.parse(localStorage.getItem(k)||"[]");return Array.isArray(x)?x:[]}catch(e){return[]}};
+const save=(k,v)=>localStorage.setItem(k,JSON.stringify(v));
+const esc=v=>String(v??"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&#039;");
+const today=()=>new Date().toISOString().slice(0,10);
+function notice(t,b=false){$("notice").textContent=t;$("notice").className="notice "+(b?"error":"good");$("notice").style.display="block";setTimeout(()=>$("notice").style.display="none",3200)}
+function cid(c){return c.id||c.customerId||c.code||""}function cname(c){return c.name||c.fullName||c.customerName||"بدون اسم"}
+function nextId(){let n=0;arr(KEY).forEach(x=>{let m=String(x.id||"").match(/^PAY-(\d+)$/);if(m)n=Math.max(n,+m[1])});return"PAY-"+String(n+1).padStart(5,"0")}
+function invoiceId(i){return i.id||i.invoiceId||i.number||i.invoiceNumber||""}
+function invoiceCustomer(i){return i.customerId||i.clientId||""}
+function invoiceTotal(i){return Number(i.total||i.grandTotal||i.amount||i.finalTotal||0)}
+function loadCustomers(selected=""){
+ let cs=arr(CUSTOMERS);$("customer").innerHTML='<option value="">اختر العميل</option>'+cs.map(c=>'<option value="'+esc(cid(c))+'">'+esc(cname(c))+' — '+esc(c.phone||c.mobile||"")+'</option>').join("");if(selected)$("customer").value=selected;loadInvoices();loadRequests()
+}
+function loadInvoices(selected=""){
+ let c=$("customer").value,a=arr(INV).filter(i=>!c||String(invoiceCustomer(i))===String(c));$("invoice").innerHTML='<option value="">بدون فاتورة</option>'+a.map(i=>'<option value="'+esc(invoiceId(i))+'">'+esc(invoiceId(i))+' — '+Number(invoiceTotal(i)).toFixed(2)+' ج</option>').join("");if(selected)$("invoice").value=selected
+}
+function loadRequests(selected=""){
+ let c=$("customer").value,a=arr(REQ).filter(r=>!c||String(r.customerId||r.clientId)===String(c));$("request").innerHTML='<option value="">اختياري</option>'+a.map(r=>'<option value="'+esc(r.id||r.requestId)+'">'+esc(r.id||r.requestId)+' — '+esc(r.status||"")+'</option>').join("");if(selected)$("request").value=selected
+}
+function reset(){editing=null;$("formTitle").textContent="➕ تسجيل دفعة";$("save").textContent="💾 حفظ العملية";$("cancel").classList.add("hidden");$("id").value=nextId();loadCustomers();$("type").value="دفعة";$("amount").value="";$("method").value="نقدي";$("date").value=today();$("reference").value="";$("status").value="مؤكدة";$("notes").value=""}
+function savePayment(){
+ let c=$("customer").value,a=Number($("amount").value||0);if(!c){notice("اختر العميل",true);return}if(a<=0){notice("أدخل مبلغًا صحيحًا",true);return}
+ let all=arr(KEY),old=editing?all.find(x=>String(x.id)===String(editing)):null,cu=arr(CUSTOMERS).find(x=>String(cid(x))===String(c)),now=new Date().toISOString();
+ let p={id:editing||nextId(),customerId:c,customerName:cname(cu||{}),invoiceId:$("invoice").value,requestId:$("request").value,type:$("type").value,amount:a,method:$("method").value,date:$("date").value||today(),reference:$("reference").value.trim(),status:$("status").value,notes:$("notes").value.trim(),createdAt:old?.createdAt||now,updatedAt:now};
+ let i=all.findIndex(x=>String(x.id)===String(p.id));if(i>=0)all[i]=p;else all.unshift(p);save(KEY,all);notice(editing?"تم تعديل الدفعة":"تم تسجيل الدفعة");reset();renderAll()
+}
+function editPayment(id){
+ let p=arr(KEY).find(x=>String(x.id)===String(id));if(!p)return;if(p.status==="ملغاة"){notice("لا يمكن تعديل عملية ملغاة",true);return}
+ editing=p.id;$("formTitle").textContent="✏️ تعديل الدفعة";$("save").textContent="💾 حفظ التعديل";$("cancel").classList.remove("hidden");$("id").value=p.id;loadCustomers(p.customerId);$("invoice").value=p.invoiceId||"";$("request").value=p.requestId||"";$("type").value=p.type||"دفعة";$("amount").value=p.amount||0;$("method").value=p.method||"نقدي";$("date").value=p.date||today();$("reference").value=p.reference||"";$("status").value=p.status||"مؤكدة";$("notes").value=p.notes||"";scrollTo({top:0,behavior:"smooth"})
+}
+function cancelPayment(id){
+ let all=arr(KEY),p=all.find(x=>String(x.id)===String(id));if(!p)return;if(!confirm("إلغاء عملية الدفع؟"))return;p.status="ملغاة";p.updatedAt=new Date().toISOString();save(KEY,all);renderAll();notice("تم إلغاء العملية")
+}
+function renderList(){
+ let q=$("search").value.trim().toLowerCase(),m=$("filterMethod").value,s=$("filterStatus").value,a=arr(KEY).filter(x=>[x.id,x.customerName,x.reference,x.invoiceId,x.requestId].join(" ").toLowerCase().includes(q)&&(!m||x.method===m)&&(!s||x.status===s));
+ $("list").innerHTML=a.length?a.map(p=>'<div class="item"><h3>💳 '+esc(p.id)+' — '+esc(p.customerName)+'</h3><span class="badge '+(p.status==="مؤكدة"?"ok":p.status==="قيد المراجعة"?"warn":"bad")+'">'+esc(p.status)+'</span><span class="badge">'+esc(p.type)+'</span><span class="badge bluebadge">'+esc(p.method)+'</span><p>💰 المبلغ: <b>'+Number(p.amount||0).toFixed(2)+' جنيه</b><br>📅 '+esc(p.date)+' | 🧾 الفاتورة: '+esc(p.invoiceId||"غير مرتبطة")+' | 🛠️ الطلب: '+esc(p.requestId||"غير مرتبط")+'<br>🔢 المرجع: '+esc(p.reference||"غير موجود")+'</p><div class="actions"><button class="blue" data-a="edit" data-id="'+esc(p.id)+'">✏️ تعديل</button><button class="danger" data-a="cancel" data-id="'+esc(p.id)+'">🚫 إلغاء</button></div></div>').join(""):'<div class="empty">لا توجد عمليات دفع.</div>'
+}
+function renderBalances(){
+ let inv=arr(INV),pay=arr(KEY),rows=inv.map(i=>{let id=invoiceId(i),total=invoiceTotal(i),paid=pay.filter(p=>String(p.invoiceId)===String(id)&&p.status==="مؤكدة"&&p.type!=="استرداد").reduce((n,p)=>n+Number(p.amount||0),0),refund=pay.filter(p=>String(p.invoiceId)===String(id)&&p.status==="مؤكدة"&&p.type==="استرداد").reduce((n,p)=>n+Number(p.amount||0),0),net=paid-refund,rem=Math.max(0,total-net);return{id,total,paid,refund,rem}});
+ $("balances").innerHTML=rows.length?'<table><thead><tr><th>الفاتورة</th><th>الإجمالي</th><th>المدفوع</th><th>المرتجع</th><th>المتبقي</th></tr></thead><tbody>'+rows.map(x=>'<tr><td>'+esc(x.id)+'</td><td>'+x.total.toFixed(2)+'</td><td>'+x.paid.toFixed(2)+'</td><td>'+x.refund.toFixed(2)+'</td><td><b>'+x.rem.toFixed(2)+'</b></td></tr>').join("")+'</tbody></table>':'<div class="empty">لا توجد فواتير مسجلة.</div>'
+}
+function renderAll(){
+ let a=arr(KEY),confirmed=a.filter(x=>x.status==="مؤكدة"),todayTotal=confirmed.filter(x=>x.date===today()).reduce((n,x)=>n+(x.type==="استرداد"?-Number(x.amount||0):Number(x.amount||0)),0),collected=confirmed.reduce((n,x)=>n+(x.type==="استرداد"?-Number(x.amount||0):Number(x.amount||0)),0),refund=confirmed.filter(x=>x.type==="استرداد").reduce((n,x)=>n+Number(x.amount||0),0);
+ let outstanding=arr(INV).reduce((n,i)=>{let id=invoiceId(i),t=invoiceTotal(i),p=confirmed.filter(x=>String(x.invoiceId)===String(id)&&x.type!=="استرداد").reduce((s,x)=>s+Number(x.amount||0),0),r=confirmed.filter(x=>String(x.invoiceId)===String(id)&&x.type==="استرداد").reduce((s,x)=>s+Number(x.amount||0),0);return n+Math.max(0,t-p+r)},0);
+ $("total").textContent=a.length;$("collected").textContent=collected.toFixed(2);$("today").textContent=todayTotal.toFixed(2);$("refunds").textContent=refund.toFixed(2);$("outstanding").textContent=outstanding.toFixed(2);
+ $("filterMethod").innerHTML='<option value="">كل طرق الدفع</option>'+[...new Set(a.map(x=>x.method).filter(Boolean))].map(x=>'<option>'+esc(x)+'</option>').join("");renderList();renderBalances()
+}
+$("customer").onchange=()=>{loadInvoices();loadRequests()};$("save").onclick=savePayment;$("cancel").onclick=reset;$("search").oninput=renderList;$("filterMethod").onchange=renderList;$("filterStatus").onchange=renderList;
+$("list").onclick=e=>{let b=e.target.closest("button[data-a]");if(!b)return;if(b.dataset.a==="edit")editPayment(b.dataset.id);else cancelPayment(b.dataset.id)};
+reset();renderAll();
+</script>
+</body>
+</html>
