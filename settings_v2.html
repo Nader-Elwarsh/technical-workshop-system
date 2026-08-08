@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#07152f"><title>إعدادات النظام - الورشة الفنية</title>
+<style>
+*{box-sizing:border-box}body{margin:0;font-family:Arial,Tahoma,sans-serif;background:#f4f6f8;color:#172033}
+header{background:#07152f;color:#fff;text-align:center;padding:22px 15px}header h1{margin:0 0 7px}header p{margin:0;color:#dbe5ff}
+.container{max-width:1150px;margin:auto;padding:16px}.card{background:#fff;border-radius:16px;padding:18px;margin-bottom:16px;box-shadow:0 2px 9px rgba(0,0,0,.06)}
+h2{margin:0 0 15px;color:#07152f}.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.full{grid-column:1/-1}
+label{display:block;font-weight:bold;margin:8px 0 5px}input,select,textarea{width:100%;padding:12px;border:1px solid #ccd4de;border-radius:10px;font:inherit}textarea{min-height:90px;resize:vertical}
+button{border:0;border-radius:10px;padding:11px 15px;font:inherit;cursor:pointer}.primary{background:#16803c;color:#fff}.blue{background:#1769aa;color:#fff}.gray{background:#596273;color:#fff}.danger{background:#d60000;color:#fff}.orange{background:#a96600;color:#fff}
+.actions{display:flex;gap:8px;margin-top:12px}.actions button{flex:1}.notice{display:none;padding:12px;border-radius:10px;margin-bottom:12px}.good{background:#e1f5e7;color:#146c2e}.error{background:#ffe2e2;color:#a00000}.info{background:#eef6ff;border:1px solid #cfe2ff;border-radius:10px;padding:11px;line-height:1.8;margin-top:10px}
+.badge{display:inline-block;padding:5px 9px;border-radius:20px;background:#e9edf2;margin:3px;font-size:12px}.on{background:#e3f7e9;color:#146c2e}.off{background:#ffe2e2;color:#a00000}
+.row{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid #e6e9ed}.row:last-child{border-bottom:0}
+.back{display:block;text-align:center;background:#333;color:#fff;text-decoration:none;padding:14px;border-radius:10px}.empty{text-align:center;color:#777;padding:20px}
+@media(max-width:700px){.grid{grid-template-columns:1fr}.full{grid-column:auto}.actions{flex-direction:column}.row{display:block}}
+</style>
+</head>
+<body>
+<header><h1>⚙️ إعدادات النظام</h1><p>الإعدادات المركزية للورشة الفنية</p></header>
+<div class="container">
+<div id="notice" class="notice"></div>
+
+<div class="card">
+<h2>🏪 بيانات الورشة</h2>
+<div class="grid">
+<div><label>اسم الورشة</label><input id="workshopName"></div>
+<div><label>الاسم المختصر</label><input id="shortName"></div>
+<div><label>الهاتف الرئيسي</label><input id="phone"></div>
+<div><label>هاتف إضافي</label><input id="phone2"></div>
+<div><label>البريد الإلكتروني</label><input id="email" type="email"></div>
+<div><label>العنوان</label><input id="address"></div>
+<div><label>مركز الخدمة</label><input id="serviceCenter" placeholder="مثال: مطاي - المنيا"></div>
+<div><label>مناطق الخدمة</label><input id="serviceAreas" placeholder="مطاي، بني مزار..."></div>
+<div class="full"><label>وصف مختصر</label><textarea id="description"></textarea></div>
+</div>
+</div>
+
+<div class="card">
+<h2>🧾 الفواتير والدفعات</h2>
+<div class="grid">
+<div><label>بادئة الفواتير</label><input id="invoicePrefix"></div>
+<div><label>العملة</label><input id="currency"></div>
+<div><label>نسبة الضريبة الافتراضية %</label><input id="tax" type="number" min="0" step=".01"></div>
+<div><label>قيمة النقطة بالجنيه</label><input id="pointValue" type="number" min="0" step=".01"></div>
+<div><label>حد النقاط لـ VIP</label><input id="vipPoints" type="number" min="0"></div>
+<div><label>أيام الضمان الافتراضية</label><input id="warrantyDays" type="number" min="0"></div>
+</div>
+<div class="info">هذه القيم ستكون المرجع المركزي عند ربط الوحدات. لذلك لا نحتاج لاحقًا إلى تعديل قيمة النقطة أو بادئة الفاتورة داخل ملفات منفردة.</div>
+</div>
+
+<div class="card">
+<h2>🔔 الإشعارات</h2>
+<div class="grid">
+<div><label>تفعيل إشعارات النظام</label><select id="notifications"><option value="on">مفعلة</option><option value="off">موقوفة</option></select></div>
+<div><label>تذكير قبل الزيارة</label><select id="visitReminder"><option value="24">24 ساعة</option><option value="12">12 ساعة</option><option value="6">6 ساعات</option><option value="2">ساعتان</option></select></div>
+<div><label>تنبيه المخزون المنخفض</label><select id="stockAlert"><option value="on">مفعل</option><option value="off">موقوف</option></select></div>
+<div><label>تنبيه الطلبات العاجلة</label><select id="urgentAlert"><option value="on">مفعل</option><option value="off">موقوف</option></select></div>
+</div>
+</div>
+
+<div class="card">
+<h2>🛡️ الضمان والخدمة</h2>
+<div class="grid">
+<div><label>هل الضمان يغطي قطع الورشة فقط؟</label><select id="partsOnly"><option value="yes">نعم</option><option value="no">لا</option></select></div>
+<div><label>إلغاء الضمان عند تدخل جهة أخرى</label><select id="voidOutside"><option value="yes">نعم</option><option value="no">لا</option></select></div>
+<div><label>رسوم الزيارة عند عدم الإصلاح</label><input id="visitFee" type="number" min="0" step=".01"></div>
+<div><label>رسوم الزيارة العاجلة</label><input id="urgentFee" type="number" min="0" step=".01"></div>
+<div class="full"><label>شروط الضمان</label><textarea id="warrantyTerms"></textarea></div>
+</div>
+</div>
+
+<div class="card">
+<h2>📦 المخزون</h2>
+<div class="grid">
+<div><label>المخزن الافتراضي</label><input id="defaultWarehouse"></div>
+<div><label>تنبيه عند الوصول للحد الأدنى</label><select id="stockThreshold"><option value="on">مفعل</option><option value="off">موقوف</option></select></div>
+<div><label>السماح بالمخزون السالب</label><select id="negativeStock"><option value="no">لا</option><option value="yes">نعم</option></select></div>
+<div><label>وحدة الكمية الافتراضية</label><input id="defaultUnit"></div>
+</div>
+</div>
+
+<div class="card">
+<h2>🔐 إعدادات الأمان والنظام</h2>
+<div class="grid">
+<div><label>اسم مدير النظام</label><input id="adminName"></div>
+<div><label>مدة الجلسة بالدقائق</label><input id="sessionMinutes" type="number" min="5"></div>
+<div><label>تفعيل سجل المراجعة</label><select id="audit"><option value="on">مفعل</option><option value="off">موقوف</option></select></div>
+<div><label>اللغة</label><select id="language"><option value="ar">العربية</option><option value="en">English</option></select></div>
+</div>
+</div>
+
+<div class="card">
+<h2>🧰 إدارة البيانات</h2>
+<div class="actions">
+<button class="primary" id="save">💾 حفظ الإعدادات</button>
+<button class="blue" id="export">📤 تصدير نسخة احتياطية</button>
+<button class="gray" id="importBtn">📥 استيراد نسخة احتياطية</button>
+<button class="danger" id="reset">⚠️ إعادة إعدادات النظام</button>
+</div>
+<input id="file" type="file" accept=".json" style="display:none">
+<div class="info">النسخة الاحتياطية تحفظ بيانات localStorage الخاصة بالنظام في ملف JSON. لا تحذف البيانات التشغيلية عند إعادة إعدادات النظام؛ يتم إعادة الإعدادات فقط.</div>
+</div>
+
+<div class="card">
+<h2>📌 حالة الإعدادات</h2>
+<div id="status"></div>
+</div>
+
+<a class="back" href="index.html">🏠 العودة إلى الرئيسية</a>
+</div>
+
+<script>
+const KEY="systemSettings";
+const defaults={
+workshopName:"الورشة الفنية لصيانة الأجهزة المنزلية والتكييف",shortName:"الورشة الفنية",phone:"",phone2:"",email:"",
+address:"",serviceCenter:"مطاي - المنيا",serviceAreas:"مطاي، بني مزار",description:"",
+invoicePrefix:"INV-",currency:"جنيه",tax:0,pointValue:1,vipPoints:1000,warrantyDays:30,
+notifications:"on",visitReminder:"24",stockAlert:"on",urgentAlert:"on",
+partsOnly:"yes",voidOutside:"yes",visitFee:0,urgentFee:0,warrantyTerms:"الضمان يغطي قطع الغيار التي تم استبدالها بواسطة الورشة وفق شروط الضمان المعتمدة.",
+defaultWarehouse:"المخزن الرئيسي",stockThreshold:"on",negativeStock:"no",defaultUnit:"قطعة",
+adminName:"مدير النظام",sessionMinutes:60,audit:"on",language:"ar"
+};
+const $=id=>document.getElementById(id);
+const esc=v=>String(v??"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&#039;");
+function get(){try{return {...defaults,...JSON.parse(localStorage.getItem(KEY)||"{}")}}catch(e){return {...defaults}}}
+function save(v){localStorage.setItem(KEY,JSON.stringify(v))}
+function notice(t,b=false){$("notice").textContent=t;$("notice").className="notice "+(b?"error":"good");$("notice").style.display="block";setTimeout(()=>$("notice").style.display="none",3000)}
+function fill(){
+ let s=get();Object.keys(defaults).forEach(k=>{if($(k))$(k).value=s[k]});
+ renderStatus()
+}
+function collect(){let s={};Object.keys(defaults).forEach(k=>{if($(k))s[k]=$(k).type==="number"?Number($(k).value||0):$(k).value});s.updatedAt=new Date().toISOString();return s}
+function saveSettings(){save(collect());notice("تم حفظ إعدادات النظام");renderStatus()}
+function renderStatus(){
+ let s=get();$("status").innerHTML='<div class="row"><b>اسم الورشة</b><span>'+esc(s.workshopName)+'</span></div><div class="row"><b>العملة</b><span>'+esc(s.currency)+'</span></div><div class="row"><b>قيمة النقطة</b><span>'+Number(s.pointValue).toFixed(2)+' '+esc(s.currency)+'</span></div><div class="row"><b>VIP</b><span>'+esc(s.vipPoints)+' نقطة</span></div><div class="row"><b>سجل المراجعة</b><span class="badge '+(s.audit==="on"?"on":"off")+'">'+(s.audit==="on"?"مفعل":"موقوف")+'</span></div><div class="row"><b>آخر تحديث</b><span>'+esc(s.updatedAt||"لم يتم الحفظ بعد")+'</span></div>'
+}
+function exportData(){
+ let data={exportedAt:new Date().toISOString(),version:"1.0",settings:get()};
+ Object.keys(localStorage).forEach(k=>{if(k!==KEY)data.data=data.data||{},data.data[k]=localStorage.getItem(k)});
+ let blob=new Blob([JSON.stringify(data,null,2)],{type:"application/json"}),url=URL.createObjectURL(blob),a=document.createElement("a");a.href=url;a.download="workshop-backup-"+new Date().toISOString().slice(0,10)+".json";a.click();URL.revokeObjectURL(url);notice("تم إنشاء النسخة الاحتياطية")
+}
+$("importBtn").onclick=()=>$("file").click();
+$("file").onchange=async e=>{
+ let f=e.target.files[0];if(!f)return;try{let d=JSON.parse(await f.text());if(d.settings)save({...defaults,...d.settings});if(d.data)Object.entries(d.data).forEach(([k,v])=>localStorage.setItem(k,v));fill();notice("تم استيراد النسخة الاحتياطية")}catch(err){notice("ملف النسخة الاحتياطية غير صالح",true)}e.target.value=""
+};
+$("reset").onclick=()=>{if(!confirm("إعادة إعدادات النظام للوضع الافتراضي؟"))return;save({...defaults,updatedAt:new Date().toISOString()});fill();notice("تمت إعادة الإعدادات الافتراضية")};
+$("save").onclick=saveSettings;fill();
+</script>
+</body></html>
