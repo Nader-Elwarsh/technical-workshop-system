@@ -146,8 +146,12 @@ hr{border:0;border-top:1px solid #e4e8ef;margin:16px 0}
 </div>
 
 <div id="customerDetail" class="card hidden"></div>
+<!-- CUSTOMER_UI_CONTRACT:
+searchAndList must remain outside customerManagementCards.
+customerManagementCards is selected-customer-only UI.
+-->
 
-<div id="customerManagementCards" style="display:none">
+<div id="customerManagementCards" class="hidden">
 <div class="card">
 <h2>📍 عناوين العميل</h2>
 <p class="small">يمكن حفظ أكثر من عنوان داخل ملف العميل، مع تحديد عنوان افتراضي يستخدم لاحقًا في أوامر الشغل.</p>
@@ -180,6 +184,8 @@ hr{border:0;border-top:1px solid #e4e8ef;margin:16px 0}
 <div id="contactList" class="relations"></div>
 </div>
 
+</div>
+
 <div id="searchAndList">
 <div class="card">
 <h2>🔎 البحث المركب</h2>
@@ -200,7 +206,6 @@ hr{border:0;border-top:1px solid #e4e8ef;margin:16px 0}
 </div>
 
 <a class="back" href="index.html">🏠 العودة إلى لوحة التحكم</a>
-</div>
 
 <div id="modal" class="modal">
 <div class="modal-box">
