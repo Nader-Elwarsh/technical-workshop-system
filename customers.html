@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="theme-color" content="#07152f">
-<title>إدارة العملاء V4 — الورشة الفنية</title>
+<title>إدارة العملاء V10.2 — الورشة الفنية</title>
 <style>
 *{box-sizing:border-box}
 body{margin:0;font-family:Arial,Tahoma,sans-serif;background:#f3f5f7;color:#172033}
@@ -250,7 +250,7 @@ function clearSaveFeedback(){
 function show(msg,error=false){$("notice").textContent=msg;$("notice").className="notice "+(error?"bad":"good");$("notice").style.display="block";clearTimeout(show.t);show.t=setTimeout(()=>$("notice").style.display="none",3500)}
 function requireCore(){
  if(!C||typeof C.saveCustomer!=="function")throw new Error("Core غير متاح.");
- if(String(C.VERSION)!=="3.7.9-customer-identity-merge")throw new Error("هذه الوحدة تعتمد Core V3.7.9 Customer Identity Merge؛ لا تُشغّلها على نسخة Core أقدم أو مختلفة.");
+ if(String(C.VERSION)!=="3.8.0-customer-identity-household")throw new Error("هذه الوحدة تعتمد Core V3.8.0 Customer Identity + Household؛ لا تُشغّلها على نسخة Core أقدم أو مختلفة.");
 }
 function customers(){
  try{
@@ -457,6 +457,35 @@ function requestOrApproveCustomerMerge(otherId){
 }
 window.requestOrApproveCustomerMerge=requestOrApproveCustomerMerge;
 
+function renderRelationshipSuggestionsForCustomer(id){
+ const box=document.getElementById("identityMatches"); if(!box||!id||typeof C.findCustomerRelationshipSuggestions!=="function")return;
+ try{
+  const rows=C.findCustomerRelationshipSuggestions(id).slice(0,5); if(!rows.length)return;
+  const html=rows.map(m=>{
+   const s=m.signals||{},labels=[];
+   if(s.sameName)labels.push("الاسم متطابق");
+   if(s.locationMatch)labels.push("نفس المحافظة والمركز");
+   if(s.addressScore>=3)labels.push("تشابه العنوان");
+   if(s.sharedDeviceSerialCount)labels.push("نفس الجهاز برقم مسلسل");else if(s.sharedDeviceModelCount)labels.push("نوع/موديل جهاز متشابه");
+   if(s.samePhone)labels.push("رقم مشترك");
+   if(s.sameEmail)labels.push("بريد مشترك");
+   const type=m.likelyIdentity?"احتمال نفس العميل":"احتمال علاقة أسرة/عنوان أو جهاز مشترك";
+   return `<div class="candidate"><b>${esc(m.name||"عميل مسجل")}</b> — <span class="badge bb">${esc(m.id)}</span><div class="signals">${esc(type)} — ${esc(labels.join(" • "))}</div><button type="button" class="gray" onclick="linkSuggestedCustomer('${esc(id)}','${esc(m.id)}')">🔗 تسجيل علاقة دون دمج</button>${m.likelyIdentity?`<button type="button" class="amber" onclick="confirmMergeCustomer('${esc(id)}','${esc(m.id)}')">🔐 مراجعة الدمج</button>`:""}</div>`;
+  }).join("");
+  box.innerHTML=`<h4>🔎 علاقات محتملة</h4><div class="merge-note">التشابه في العنوان أو الجهاز لا يعني أن الشخص واحد. يمكن ربط الحسابين كعلاقة مستقلة، أما الدمج فلا يتم إلا بعد تحقق المدير.</div>${html}`;
+  box.classList.remove("hidden");
+ }catch(e){}
+}
+function linkSuggestedCustomer(a,b){
+ try{
+  const rel=C.findCustomerRelationshipSuggestions(a).find(x=>String(x.id)===String(b));
+  const type=rel&&rel.likelyIdentity?"هوية محتملة — بانتظار مراجعة الدمج":"أسرة/عنوان أو جهاز مشترك";
+  const ev=[];if(rel&&rel.signals){if(rel.signals.sameName)ev.push("اسم");if(rel.signals.locationMatch)ev.push("المحافظة والمركز");if(rel.signals.addressScore>=3)ev.push("العنوان");if(rel.signals.sharedDeviceSerialCount)ev.push("نفس الجهاز برقم مسلسل");else if(rel.signals.sharedDeviceModelCount)ev.push("نوع/موديل جهاز متشابه");if(rel.signals.samePhone)ev.push("الهاتف");if(rel.signals.sameEmail)ev.push("البريد");}
+  C.linkCustomerRelationship(a,b,type,ev,ACTOR);show("تم تسجيل العلاقة بين الحسابين دون دمج بياناتهما، وتم تسجيل العملية في Audit.");
+ }catch(e){show(e.message||"تعذر تسجيل العلاقة.",true)}
+}
+window.linkSuggestedCustomer=linkSuggestedCustomer;
+
 function saveCustomer(){
  try{
   requireCore();
@@ -494,7 +523,7 @@ function saveCustomer(){
   $("customerId").value=C.idOf(saved);
   renderCustomerTier(saved);
   setSaveFeedback(oldId?"تم تعديل ملف العميل وتسجيل العملية في الـAudit.":"تم إنشاء ملف العميل وتسجيل العملية في الـAudit.",false);
-  render();renderAddressTools();renderContacts();openCustomerDetail(C.idOf(saved));
+  render();renderAddressTools();renderContacts();openCustomerDetail(C.idOf(saved));renderRelationshipSuggestionsForCustomer(C.idOf(saved));
  }catch(e){
   const msg=String(e&&e.message||"تعذر حفظ العميل.");
   if(/رقم الهاتف مسجل بالفعل/i.test(msg)){
@@ -535,6 +564,10 @@ function customerAudit(id){
  const logs=C.list(C.KEYS.audit);
  return logs.filter(x=>String(x.recordId||"")===String(id)||String(x.module||"")!=="العملاء"&&String(x.description||"").includes(String(id))).slice(0,12);
 }
+function renderDetailRelationshipSuggestions(id){
+ const box=$("relationshipSuggestions");if(!box||typeof C.findCustomerRelationshipSuggestions!=="function")return;
+ try{const rows=C.findCustomerRelationshipSuggestions(id).slice(0,6);if(!rows.length){box.innerHTML="";return;}box.innerHTML=rows.map(m=>{const s=m.signals||{},ev=[];if(s.sameName)ev.push("الاسم");if(s.locationMatch)ev.push("الموقع");if(s.addressScore>=3)ev.push("العنوان");if(s.sharedDeviceSerialCount)ev.push("نفس الجهاز برقم مسلسل");else if(s.sharedDeviceModelCount)ev.push("نوع/موديل جهاز متشابه");const type=m.likelyIdentity?"احتمال نفس العميل":"احتمال أسرة/عنوان أو جهاز مشترك";return `<div class="candidate" style="margin-top:6px;padding:8px;border:1px solid #555;border-radius:8px"><b>${esc(m.name||"عميل")}</b> — ${esc(m.id)}<div class="signals">${esc(type)} — ${esc(ev.join(" • "))}</div><button type="button" class="gray" onclick="linkSuggestedCustomer('${esc(id)}','${esc(m.id)}')">🔗 ربط كعلاقة دون دمج</button>${m.likelyIdentity?` <button type="button" class="amber" onclick="confirmMergeCustomer('${esc(id)}','${esc(m.id)}')">🔐 مراجعة الدمج</button>`:""}</div>`;}).join("");}catch(e){box.innerHTML="";}
+}
 function openCustomerDetail(id){
  try{
   requireCore();
@@ -557,7 +590,7 @@ function openCustomerDetail(id){
       <input id="mergeSearch" placeholder="ابحث باسم العميل أو رقمه القديم">
       <button class="amber" type="button" onclick="findMergeCandidates('${esc(id)}')">بحث</button>
     </div>
-    <div id="mergeCandidates" class="small" style="margin-top:8px"></div>
+    <div id="mergeCandidates" class="small" style="margin-top:8px"></div><div id="relationshipSuggestions" class="small" style="margin-top:8px"></div>
    </div>
 
     <div class="detail-actions">
@@ -587,7 +620,7 @@ function openCustomerDetail(id){
       <div class="rel-row"><span>🚗 آخر زيارة</span><b>${esc(lastVisit?(lastVisit.date||lastVisit.visitDate||"—"):"—")}</b></div>
       <div class="rel-row"><span>📍 العنوان الأساسي / الافتراضي</span><b>${esc(c.address||[c.governorate,c.center,c.village,c.street].filter(Boolean).join(" - ")||"—")}</b></div>
       <div class="rel-row"><span>📍 العناوين الإضافية</span><b>${Array.isArray(c.addresses)?c.addresses.length:0}</b></div>
-      <div class="rel-row"><span>📞 وسائل التواصل الإضافية</span><b>${Array.isArray(c.contacts)?c.contacts.length:0}</b></div>
+      <div class="rel-row"><span>📞 وسائل التواصل الإضافية</span><b>${Array.isArray(c.contacts)?c.contacts.length:0}</b></div><div class="rel-row"><span>🔗 علاقات حسابات مرتبطة</span><b>${typeof C.customerRelationships==="function"?C.customerRelationships(id).length:0}</b></div>
       <div class="rel-row"><span>📝 الملاحظات</span><b>${esc(c.notes||"—")}</b></div>
     </div>
    </section>
@@ -633,7 +666,7 @@ function openCustomerDetail(id){
     <div class="relations"><h3>🕘 سجل العميل</h3><div class="mini">هذا الجزء يعتمد على سجل المراجعة المركزي، ولا ينشئ مصدر بيانات منفصل.</div><div id="auditList"></div></div>
    </section>`;
   $("customerDetail").classList.remove("hidden");$("customerManagementCards").classList.add("hidden");$("searchAndList").classList.add("hidden");hideRegistration();
-  renderDetailDevices(dev);
+  renderDetailDevices(dev);renderDetailRelationshipSuggestions(id);
   const logs=customerAudit(id);
   $("auditList").innerHTML=logs.length?logs.map(x=>`<div class="rel-row"><span>${esc(x.action||"عملية")} — ${esc(x.description||"")}</span><span class="mini">${esc(x.date||"")}</span></div>`).join(""):'<div class="detail-empty">لا توجد عمليات مراجعة ظاهرة لهذا العميل.</div>';
   document.querySelectorAll(".detail-tab").forEach(btn=>btn.onclick=()=>{document.querySelectorAll(".detail-tab").forEach(x=>x.classList.remove("active"));document.querySelectorAll(".detail-panel").forEach(x=>x.classList.remove("active"));btn.classList.add("active");const p=document.querySelector(`[data-panel="${btn.dataset.tab}"]`);if(p)p.classList.add("active")});
@@ -788,7 +821,7 @@ function open360(id){
    <div class="rel-row"><span>📧 البريد</span><b>${esc(c.email||"—")}</b></div><div class="rel-row"><span>🏷️ التصنيف التلقائي</span><b>${esc(c.customerTier||c.category||"جديد")}</b></div><div class="rel-row"><span>📐 درجة التصنيف</span><b>${esc(c.classificationScore??0)}</b></div><div class="rel-row"><span>🧠 سبب التصنيف</span><b>${esc(c.classificationReason||"يحدده النظام بناءً على بيانات التعامل.")}</b></div>
    <div class="rel-row"><span>📍 العنوان الأساسي / الافتراضي</span><b>${esc(c.address||[c.governorate,c.center,c.village,c.street].filter(Boolean).join(" - ")||"—")}</b></div>
       <div class="rel-row"><span>📍 العناوين الإضافية</span><b>${Array.isArray(c.addresses)?c.addresses.length:0}</b></div>
-      <div class="rel-row"><span>📞 وسائل التواصل الإضافية</span><b>${Array.isArray(c.contacts)?c.contacts.length:0}</b></div>
+      <div class="rel-row"><span>📞 وسائل التواصل الإضافية</span><b>${Array.isArray(c.contacts)?c.contacts.length:0}</b></div><div class="rel-row"><span>🔗 علاقات حسابات مرتبطة</span><b>${typeof C.customerRelationships==="function"?C.customerRelationships(id).length:0}</b></div>
    <div class="rel-row"><span>💰 إجمالي الفواتير</span><b>${Number(d.financial&&d.financial.total||0).toFixed(2)} ${esc(C.settings().currency)}</b></div>
    <div class="rel-row"><span>💳 إجمالي المدفوعات</span><b>${Number(d.financial&&d.financial.paid||0).toFixed(2)} ${esc(C.settings().currency)}</b></div>
    <div class="rel-row"><span>🧮 الرصيد</span><b>${Number(d.financial&&d.financial.balance||0).toFixed(2)} ${esc(C.settings().currency)}</b></div>
