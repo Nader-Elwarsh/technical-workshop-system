@@ -81,6 +81,8 @@ hr{border:0;border-top:1px solid #e4e8ef;margin:16px 0}
 .hidden{display:none!important}
 
 .system-tier{min-height:42px;display:flex;align-items:center;padding:10px 12px;border:1px solid #3d4654;border-radius:10px;background:#20242a;font-weight:700;color:#dce6ff}
+
+.save-feedback .match{margin-top:10px}.save-feedback .match button{margin-top:4px}
 </style>
 </head>
 <body>
@@ -217,13 +219,12 @@ const ACTOR=window.TWMS_CURRENT_USER||window.currentUser||{id:"WEB-USER",name:"�
 
 function esc(v){return String(v??"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&#039;")}
 
-function setSaveFeedback(msg,error=true,match=null){
+function setSaveFeedback(msg,error=true,options={}){
  const el=$("saveFeedback"); if(!el)return;
  el.className="save-feedback "+(error?"":"good");
  let html=esc(msg);
- if(match){
-   const id=String(C.idOf(match)), name=C.customerName(match)||"عميل بدون اسم";
-   html+=`<div class="match">👤 <b>${esc(name)}</b><br>🆔 ${esc(id)}<br>📞 ${esc(match.phone||"—")}</div>`;
+ if(options&&options.showListAction){
+  html+=`<div class="match"><button type="button" class="blue" onclick="showCustomerListFromFeedback()">👥 فتح قائمة العملاء</button></div>`;
  }
  el.innerHTML=html; el.classList.remove("hidden");
 }
@@ -235,7 +236,7 @@ function clearSaveFeedback(){
 function show(msg,error=false){$("notice").textContent=msg;$("notice").className="notice "+(error?"bad":"good");$("notice").style.display="block";clearTimeout(show.t);show.t=setTimeout(()=>$("notice").style.display="none",3500)}
 function requireCore(){
  if(!C||typeof C.saveCustomer!=="function")throw new Error("Core غير متاح.");
- if(String(C.VERSION)!=="3.7.6-classification-regression")throw new Error("هذه الوحدة تعتمد Core V3.7.6 Classification Regression؛ لا تُشغّلها على نسخة Core أقدم أو مختلفة.");
+ if(String(C.VERSION)!=="3.7.7-customer-regression-hardening")throw new Error("هذه الوحدة تعتمد Core V3.7.7 Customer Regression Hardening؛ لا تُشغّلها على نسخة Core أقدم أو مختلفة.");
 }
 function customers(){return C.list(C.KEYS.customers)}
 function selectedId(){return $("customerId").value.trim()}
@@ -342,13 +343,6 @@ function renderCustomerTier(c){
  }catch(e){$("customerTier").textContent="جديد — يحدده النظام تلقائيًا";}
 }
 function normalizedPhone(v){return String(v||"").replace(/\D/g,"")}
-function duplicateCandidates(data,excludeId){
- const email=String(data.email||"").trim().toLowerCase(),name=String(data.name||"").trim().toLowerCase();
- return customers().filter(c=>String(C.idOf(c))!==String(excludeId||"")).filter(c=>{
-  const ce=String(c.email||"").trim().toLowerCase(),cn=String(C.customerName(c)).trim().toLowerCase();
-  return (email&&ce&&email===ce)||(name&&cn===name);
- });
-}
 function validateLocation(lat,lng){
  const a=String(lat||"").trim(),b=String(lng||"").trim();
  if(!a&&!b)return null;
@@ -390,7 +384,7 @@ function saveCustomer(){
    normalizedPhone(c.phone||c.mobile)===normalizedPhone(phone)
   ):null;
   if(samePhone){
-   setSaveFeedback("لم يتم الحفظ: رقم الهاتف مستخدم بالفعل في سجل عميل آخر. لم يتم عرض أي بيانات عن العميل الآخر حفاظًا على الخصوصية.",true);
+   setSaveFeedback("لم يتم الحفظ: رقم الهاتف مستخدم بالفعل في سجل عميل آخر. الاسم وحده لا يمنع التسجيل، لكن رقم الهاتف المكرر يحتاج مراجعة. لم يتم عرض أي بيانات عن العميل الآخر حفاظًا على الخصوصية.",true,{showListAction:true});
    return;
   }
 
@@ -402,14 +396,22 @@ function saveCustomer(){
  }catch(e){
   const msg=String(e&&e.message||"تعذر حفظ العميل.");
   if(/رقم الهاتف مسجل بالفعل/i.test(msg)){
-   const phone=$("phone").value.trim();
-   const found=phone?customers().find(c=>normalizedPhone(c.phone||c.mobile)===normalizedPhone(phone)):null;
-   setSaveFeedback("لم يتم الحفظ: رقم الهاتف مسجل بالفعل لعميل آخر.",true,found);
+   setSaveFeedback("لم يتم الحفظ: رقم الهاتف مسجل بالفعل لعميل آخر. راجع قائمة العملاء بدل كشف بيانات سجل آخر داخل نموذج التسجيل.",true,{showListAction:true});
   }else{
    setSaveFeedback("لم يتم الحفظ: "+msg,true);
   }
  }
 }
+
+function showCustomerListFromFeedback(){
+ clearSaveFeedback();
+ hideRegistration();
+ closeCustomerDetail();
+ $("search").focus();
+ render();
+ window.scrollTo({top:document.body.scrollHeight,behavior:"smooth"});
+}
+window.showCustomerListFromFeedback=showCustomerListFromFeedback;
 
 function hideRegistration(){
  $("registrationCard").classList.add("hidden");
@@ -655,7 +657,7 @@ function open360(id){
  }catch(e){show(e.message||"تعذر فتح ملف العميل.",true)}
 }
 function matchesCustomer(c,q){
- const id=C.idOf(c),basic=[id,C.customerName(c),c.phone,c.mobile,c.phone2,c.email,c.address,c.governorate,c.center,c.village,c.street,c.contactPreference,c.customerTier,c.category];
+ const id=C.idOf(c),displayName=c.name||c.fullName||c.customerName||"عميل بدون اسم",basic=[id,displayName,c.phone,c.mobile,c.phone2,c.email,c.address,c.governorate,c.center,c.village,c.street,c.contactPreference,c.customerTier,c.category];
  const deviceText=C.customerDevices(id).flatMap(d=>[d.id,d.type,d.brand,d.model,d.serialNumber]).join(" ");
  const requestText=C.customerRequests(id).flatMap(r=>[r.id,r.fault,r.description,r.status]).join(" ");
  const invoiceText=C.customerInvoices(id).flatMap(i=>[i.id,i.invoiceNumber]).join(" ");
@@ -673,8 +675,9 @@ function render(){
   const contacts=Array.isArray(c.contacts)?c.contacts.length:0,addresses=Array.isArray(c.addresses)?c.addresses.length:0;
   const linked=rq.length+dv.length+vi.length+iv.length;
   const canDelete=C.settings().allowDeleteCustomer==="yes"&&linked===0&&!c.archived;
+  const displayName=c.name||c.fullName||c.customerName||"عميل بدون اسم";
   return `<div class="customer">
-   <div class="customer-head"><div><h3>${esc(C.customerName(c)||"عميل بدون اسم")}</h3>
+   <div class="customer-head"><div><h3>${esc(displayName)}</h3>
     <div class="mini">🆔 ${esc(id)}<br>📞 ${esc(c.phone||"—")} ${c.phone2?" / "+esc(c.phone2):""}<br>📍 ${esc(c.address||[c.governorate,c.center,c.village,c.street].filter(Boolean).join(" - ")||"—")}</div>
     <div class="chips"><span class="badge bb">🏷️ ${esc(c.customerTier||c.category||"جديد")}</span>${c.archived?'<span class="badge red">مؤرشف</span>':""}<span class="badge">عناوين ${addresses}</span><span class="badge">تواصل ${contacts}</span></div>
    </div><div><span class="badge bb">طلبات ${rq.length}</span><span class="badge">أجهزة ${dv.length}</span><span class="badge">زيارات ${vi.length}</span><span class="badge">فواتير ${iv.length}</span></div></div>
