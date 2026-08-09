@@ -250,7 +250,7 @@ function clearSaveFeedback(){
 function show(msg,error=false){$("notice").textContent=msg;$("notice").className="notice "+(error?"bad":"good");$("notice").style.display="block";clearTimeout(show.t);show.t=setTimeout(()=>$("notice").style.display="none",3500)}
 function requireCore(){
  if(!C||typeof C.saveCustomer!=="function")throw new Error("Core غير متاح.");
- if(String(C.VERSION)!=="3.7.8-customer-identity-merge")throw new Error("هذه الوحدة تعتمد Core V3.7.8 Customer Identity Merge؛ لا تُشغّلها على نسخة Core أقدم أو مختلفة.");
+ if(String(C.VERSION)!=="3.7.9-customer-identity-merge")throw new Error("هذه الوحدة تعتمد Core V3.7.9 Customer Identity Merge؛ لا تُشغّلها على نسخة Core أقدم أو مختلفة.");
 }
 function customers(){
  try{
