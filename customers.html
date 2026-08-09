@@ -79,6 +79,8 @@ hr{border:0;border-top:1px solid #e4e8ef;margin:16px 0}
 .save-feedback .match{margin-top:8px;padding:9px;border-radius:8px;background:rgba(255,255,255,.06);font-weight:400}
 .save-feedback button{margin-top:8px}
 .hidden{display:none!important}
+
+.system-tier{min-height:42px;display:flex;align-items:center;padding:10px 12px;border:1px solid #3d4654;border-radius:10px;background:#20242a;font-weight:700;color:#dce6ff}
 </style>
 </head>
 <body>
@@ -107,7 +109,7 @@ hr{border:0;border-top:1px solid #e4e8ef;margin:16px 0}
 <div><label>رقم الهاتف الأساسي *</label><input id="phone" inputmode="tel" autocomplete="tel"></div>
 <div><label>رقم هاتف إضافي</label><input id="phone2" inputmode="tel"></div>
 <div><label>البريد الإلكتروني</label><input id="email" type="email" autocomplete="email"></div>
-<div><label>التصنيف</label><select id="category"></select></div>
+<div><label>🏷️ تصنيف العميل (يحدده النظام)</label><div id="customerTier" class="system-tier">جديد — يحدده النظام تلقائيًا</div></div>
 
 <div><label>طريقة التواصل المفضلة</label>
 <select id="contactPreference">
@@ -176,16 +178,6 @@ hr{border:0;border-top:1px solid #e4e8ef;margin:16px 0}
 <div id="contactList" class="relations"></div>
 </div>
 
-<div class="card">
-<h2>🏷️ تصنيفات العملاء</h2>
-<div class="row">
-<input id="newCategory" placeholder="تصنيف جديد مثل: عميل VIP" style="flex:1;min-width:220px">
-<button class="amber" id="addCategoryBtn">➕ إضافة تصنيف</button>
-</div>
-<div id="categoryList" class="chips"></div>
-</div>
-</div>
-
 <div id="searchAndList">
 <div class="card">
 <h2>🔎 البحث المركب</h2>
@@ -238,11 +230,6 @@ function setSaveFeedback(msg,error=true,match=null){
 function clearSaveFeedback(){
  const el=$("saveFeedback"); if(!el)return;
  el.className="save-feedback hidden";el.innerHTML="";
-}
-function findCustomerByName(name,excludeId){
- const n=String(name||"").trim().toLowerCase();
- if(!n)return null;
- return customers().find(c=>String(C.idOf(c))!==String(excludeId||"")&&String(C.customerName(c)||"").trim().toLowerCase()===n)||null;
 }
 
 function show(msg,error=false){$("notice").textContent=msg;$("notice").className="notice "+(error?"bad":"good");$("notice").style.display="block";clearTimeout(show.t);show.t=setTimeout(()=>$("notice").style.display="none",3500)}
@@ -318,20 +305,10 @@ function clearLocation(){
  $("lat").value="";$("lng").value="";updateLocationStatus();
 }
 
-function categories(){
- const s=C.settings(),base=["عميل جديد","عميل دائم","عميل مميز","عميل بعقد","عميل شركات","عميل موقوف"];
- const custom=Array.isArray(s.customerCategories)?s.customerCategories:[];
- return [...new Set(base.concat(custom.map(String)))];
-}
-function refreshCategories(){
- const list=categories();
- $("category").innerHTML=list.map(x=>`<option value="${esc(x)}">${esc(x)}</option>`).join("");
- $("categoryList").innerHTML=list.map(x=>`<span class="chip">${esc(x)}</span>`).join("");
-}
 function clearForm(){
  clearSaveFeedback();
  ["customerId","name","nickname","phone","phone2","email","center","village","street","workSchedule","address","notes","lat","lng","contactPreference","addrLabel","addrText","addrGov","addrCenter","addrVillage","addrStreet","addrLat","addrLng","contactValue"].forEach(id=>$(id).value="");
- refreshGovernorates("المنيا","");refreshCategories();$("category").value="عميل جديد";$("category").value="عميل جديد";$("saveBtn").textContent="💾 حفظ العميل";
+ refreshGovernorates("المنيا","");$("customerTier").textContent="جديد — يحدده النظام تلقائيًا";$("saveBtn").textContent="💾 حفظ العميل";
  renderAddressTools();window.scrollTo({top:0,behavior:"smooth"});
 }
 function fillCustomer(c){
@@ -342,7 +319,7 @@ function fillCustomer(c){
  $("phone").value=c.phone||c.mobile||"";
  $("phone2").value=c.phone2||c.secondaryPhone||"";
  $("email").value=c.email||"";
- $("category").value=c.category||"عميل جديد";
+ renderCustomerTier(c);
  refreshGovernorates(c.governorate||"المنيا",c.center||"");
  $("village").value=c.village||"";
  $("street").value=c.street||"";
@@ -357,6 +334,13 @@ function fillCustomer(c){
  window.scrollTo({top:0,behavior:"smooth"});
 }
 function editCustomer(id){const c=C.findCustomer(id);if(!c){show("العميل غير موجود.",true);return}closeCustomerDetail();fillCustomer(c);showRegistration("edit")}
+
+function renderCustomerTier(c){
+ try{
+  const cls=C.customerClassification(C.idOf(c));
+  $("customerTier").textContent=cls?`${cls.tier} — تصنيف تلقائي من النظام`:"جديد — يحدده النظام تلقائيًا";
+ }catch(e){$("customerTier").textContent="جديد — يحدده النظام تلقائيًا";}
+}
 function normalizedPhone(v){return String(v||"").replace(/\D/g,"")}
 function duplicateCandidates(data,excludeId){
  const email=String(data.email||"").trim().toLowerCase(),name=String(data.name||"").trim().toLowerCase();
@@ -398,7 +382,7 @@ function saveCustomer(){
    village:$("village").value.trim(),street:$("street").value.trim(),
    contactPreference:$("contactPreference").value,workSchedule:$("workSchedule").value.trim(),
    address:$("address").value.trim(),notes:$("notes").value.trim(),
-   category:$("category").value,location
+   location
   };
 
   const samePhone=phone?customers().find(c=>
@@ -406,27 +390,13 @@ function saveCustomer(){
    normalizedPhone(c.phone||c.mobile)===normalizedPhone(phone)
   ):null;
   if(samePhone){
-   setSaveFeedback("لم يتم الحفظ: رقم الهاتف مسجل بالفعل لعميل آخر. النظام يمنع إنشاء سجل عميل مكرر.",true,samePhone);
-   return;
-  }
-
-  const sameName=findCustomerByName(name,oldId);
-  if(sameName){
-   setSaveFeedback("لم يتم الحفظ: يوجد عميل مسجل بنفس الاسم. راجع السجل الموجود قبل إنشاء عميل جديد.",true,sameName);
-   return;
-  }
-
-  const sameEmail=email?customers().find(c=>
-   String(C.idOf(c))!==String(oldId||"") &&
-   String(c.email||"").trim().toLowerCase()===email.toLowerCase()
-  ):null;
-  if(sameEmail){
-   setSaveFeedback("لم يتم الحفظ: البريد الإلكتروني مسجل بالفعل لعميل آخر. راجع السجل الموجود.",true,sameEmail);
+   setSaveFeedback("لم يتم الحفظ: رقم الهاتف مستخدم بالفعل في سجل عميل آخر. لم يتم عرض أي بيانات عن العميل الآخر حفاظًا على الخصوصية.",true);
    return;
   }
 
   const saved=C.saveCustomer(Object.assign({},data,oldId?{id:oldId}:{}),ACTOR);
   $("customerId").value=C.idOf(saved);
+  renderCustomerTier(saved);
   setSaveFeedback(oldId?"تم تعديل ملف العميل وتسجيل العملية في الـAudit.":"تم إنشاء ملف العميل وتسجيل العملية في الـAudit.",false);
   render();renderAddressTools();renderContacts();openCustomerDetail(C.idOf(saved));
  }catch(e){
@@ -575,15 +545,6 @@ function saveDeviceForCustomer(customerId){
   setTimeout(()=>{const b=document.querySelector('[data-tab="devices"]');if(b)b.click()},0);
  }catch(e){show(e.message||"تعذر تسجيل الجهاز.",true)}
 }
-function addCategory(){
- try{
-  C.hasPermission("settings",ACTOR)||(()=>{throw new Error("ليس لديك صلاحية إدارة إعدادات التصنيفات.")})();
-  const v=$("newCategory").value.trim();if(!v)return;
-  const s=C.settings(),arr=Array.isArray(s.customerCategories)?s.customerCategories:[];
-  if(arr.map(x=>String(x).toLowerCase()).includes(v.toLowerCase())){show("التصنيف موجود بالفعل.",true);return}
-  C.saveSettings({customerCategories:arr.concat(v)},ACTOR);$("newCategory").value="";refreshCategories();show("تمت إضافة التصنيف.");
- }catch(e){show(e.message||"تعذر إضافة التصنيف.",true)}
-}
 
 function refreshAddressSelectors(){
  const govs=Object.keys(LOCATION_DATA);
@@ -679,7 +640,7 @@ function open360(id){
   <hr>
   <div class="relations">
    <div class="rel-row"><span>🆔 رقم العميل</span><b>${esc(C.idOf(c))}</b></div><div class="rel-row"><span>📞 الهاتف</span><b>${esc(c.phone||"—")}</b></div>
-   <div class="rel-row"><span>📧 البريد</span><b>${esc(c.email||"—")}</b></div><div class="rel-row"><span>🏷️ التصنيف</span><b>${esc(c.category||"—")}</b></div>
+   <div class="rel-row"><span>📧 البريد</span><b>${esc(c.email||"—")}</b></div><div class="rel-row"><span>🏷️ التصنيف التلقائي</span><b>${esc(c.customerTier||c.category||"جديد")}</b></div><div class="rel-row"><span>📐 درجة التصنيف</span><b>${esc(c.classificationScore??0)}</b></div><div class="rel-row"><span>🧠 سبب التصنيف</span><b>${esc(c.classificationReason||"يحدده النظام بناءً على بيانات التعامل.")}</b></div>
    <div class="rel-row"><span>📍 العنوان الأساسي / الافتراضي</span><b>${esc(c.address||[c.governorate,c.center,c.village,c.street].filter(Boolean).join(" - ")||"—")}</b></div>
       <div class="rel-row"><span>📍 العناوين الإضافية</span><b>${Array.isArray(c.addresses)?c.addresses.length:0}</b></div>
       <div class="rel-row"><span>📞 وسائل التواصل الإضافية</span><b>${Array.isArray(c.contacts)?c.contacts.length:0}</b></div>
@@ -694,7 +655,7 @@ function open360(id){
  }catch(e){show(e.message||"تعذر فتح ملف العميل.",true)}
 }
 function matchesCustomer(c,q){
- const id=C.idOf(c),basic=[id,C.customerName(c),c.phone,c.mobile,c.phone2,c.email,c.address,c.governorate,c.center,c.village,c.street,c.contactPreference,c.category];
+ const id=C.idOf(c),basic=[id,C.customerName(c),c.phone,c.mobile,c.phone2,c.email,c.address,c.governorate,c.center,c.village,c.street,c.contactPreference,c.customerTier,c.category];
  const deviceText=C.customerDevices(id).flatMap(d=>[d.id,d.type,d.brand,d.model,d.serialNumber]).join(" ");
  const requestText=C.customerRequests(id).flatMap(r=>[r.id,r.fault,r.description,r.status]).join(" ");
  const invoiceText=C.customerInvoices(id).flatMap(i=>[i.id,i.invoiceNumber]).join(" ");
@@ -715,7 +676,7 @@ function render(){
   return `<div class="customer">
    <div class="customer-head"><div><h3>${esc(C.customerName(c)||"عميل بدون اسم")}</h3>
     <div class="mini">🆔 ${esc(id)}<br>📞 ${esc(c.phone||"—")} ${c.phone2?" / "+esc(c.phone2):""}<br>📍 ${esc(c.address||[c.governorate,c.center,c.village,c.street].filter(Boolean).join(" - ")||"—")}</div>
-    <div class="chips"><span class="badge bb">${esc(c.category||"عميل جديد")}</span>${c.archived?'<span class="badge red">مؤرشف</span>':""}<span class="badge">عناوين ${addresses}</span><span class="badge">تواصل ${contacts}</span></div>
+    <div class="chips"><span class="badge bb">🏷️ ${esc(c.customerTier||c.category||"جديد")}</span>${c.archived?'<span class="badge red">مؤرشف</span>':""}<span class="badge">عناوين ${addresses}</span><span class="badge">تواصل ${contacts}</span></div>
    </div><div><span class="badge bb">طلبات ${rq.length}</span><span class="badge">أجهزة ${dv.length}</span><span class="badge">زيارات ${vi.length}</span><span class="badge">فواتير ${iv.length}</span></div></div>
    <div class="customer-actions"><button class="blue" onclick="open360('${esc(id)}')">👁️ ملف 360°</button><button class="gray" onclick="editCustomer('${esc(id)}')">✏️ تعديل</button>${c.archived?"":`<button class="amber" onclick="archiveCustomer('${esc(id)}')">📦 أرشفة</button>`}${canDelete?`<button class="danger" onclick="deleteCustomer('${esc(id)}')">🗑️ حذف</button>`:""}</div>
   </div>`;
@@ -733,11 +694,11 @@ $("integrityBtn").onclick=function(){
  }catch(e){show(e.message||"تعذر تنفيذ فحص السلامة.",true)}
 };
 $("search").addEventListener("input",render);$("showArchived").addEventListener("change",render);$("addAddressBtn").onclick=addAddress;$("defaultAddressBtn").onclick=setDefaultAddress;
-$("addContactBtn").onclick=addContact;$("addCategoryBtn").onclick=addCategory;$("closeModal").onclick=()=>$("modal").classList.remove("open");
+$("addContactBtn").onclick=addContact;$("closeModal").onclick=()=>$("modal").classList.remove("open");
 $("modal").addEventListener("click",e=>{if(e.target===$("modal"))$("modal").classList.remove("open")});
 window.editCustomer=editCustomer;window.archiveCustomer=archiveCustomer;window.deleteCustomer=deleteCustomer;window.open360=open360;window.setDefaultAddress=setDefaultAddress;
 
-try{requireCore();refreshGovernorates();refreshAddressSelectors();refreshCategories();render();renderAddressTools();renderContacts();C.syncRelations();hideRegistration();closeCustomerDetail()}catch(e){show(e.message||"تعذر تشغيل وحدة العملاء.",true);console.error(e)}
+try{requireCore();refreshGovernorates();refreshAddressSelectors();render();renderAddressTools();renderContacts();C.syncRelations();hideRegistration();closeCustomerDetail()}catch(e){show(e.message||"تعذر تشغيل وحدة العملاء.",true);console.error(e)}
 })();
 </script>
 </body>
