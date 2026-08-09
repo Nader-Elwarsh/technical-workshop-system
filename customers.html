@@ -83,6 +83,11 @@ hr{border:0;border-top:1px solid #e4e8ef;margin:16px 0}
 .system-tier{min-height:42px;display:flex;align-items:center;padding:10px 12px;border:1px solid #3d4654;border-radius:10px;background:#20242a;font-weight:700;color:#dce6ff}
 
 .save-feedback .match{margin-top:10px}.save-feedback .match button{margin-top:4px}
+
+.identity-match{margin-top:10px;padding:12px;border:1px solid #9b7b2c;border-radius:12px;background:#2b2615;color:#ffe9a8}
+.identity-match h4{margin:0 0 8px}.identity-match .candidate{padding:10px;margin-top:8px;border:1px solid #5d5232;border-radius:9px;background:rgba(255,255,255,.04)}
+.identity-match .candidate .signals{font-size:12px;opacity:.9;margin-top:5px}.identity-match button{margin-top:8px}
+.merge-note{font-size:12px;color:#d9e2ff;margin-top:6px}
 </style>
 </head>
 <body>
@@ -110,6 +115,7 @@ hr{border:0;border-top:1px solid #e4e8ef;margin:16px 0}
 <div><label>اسم الشهرة (اختياري)</label><input id="nickname"></div>
 <div><label>رقم الهاتف الأساسي *</label><input id="phone" inputmode="tel" autocomplete="tel"></div>
 <div><label>رقم هاتف إضافي</label><input id="phone2" inputmode="tel"></div>
+<div class="full"><div id="identityMatches" class="identity-match hidden" role="status" aria-live="polite"></div></div>
 <div><label>البريد الإلكتروني</label><input id="email" type="email" autocomplete="email"></div>
 <div><label>🏷️ تصنيف العميل (يحدده النظام)</label><div id="customerTier" class="system-tier">جديد — يحدده النظام تلقائيًا</div></div>
 
@@ -244,7 +250,7 @@ function clearSaveFeedback(){
 function show(msg,error=false){$("notice").textContent=msg;$("notice").className="notice "+(error?"bad":"good");$("notice").style.display="block";clearTimeout(show.t);show.t=setTimeout(()=>$("notice").style.display="none",3500)}
 function requireCore(){
  if(!C||typeof C.saveCustomer!=="function")throw new Error("Core غير متاح.");
- if(String(C.VERSION)!=="3.7.7-customer-regression-hardening")throw new Error("هذه الوحدة تعتمد Core V3.7.7 Customer Regression Hardening؛ لا تُشغّلها على نسخة Core أقدم أو مختلفة.");
+ if(String(C.VERSION)!=="3.7.8-customer-identity-merge")throw new Error("هذه الوحدة تعتمد Core V3.7.8 Customer Identity Merge؛ لا تُشغّلها على نسخة Core أقدم أو مختلفة.");
 }
 function customers(){
  try{
@@ -343,7 +349,7 @@ function clearForm(){
  clearSaveFeedback();
  ["customerId","name","nickname","phone","phone2","email","center","village","street","workSchedule","address","notes","lat","lng","contactPreference","addrLabel","addrText","addrGov","addrCenter","addrVillage","addrStreet","addrLat","addrLng","contactValue"].forEach(id=>$(id).value="");
  refreshGovernorates("المنيا","");$("customerTier").textContent="جديد — يحدده النظام تلقائيًا";$("saveBtn").textContent="💾 حفظ العميل";
- renderAddressTools();window.scrollTo({top:0,behavior:"smooth"});
+ renderAddressTools();renderIdentityMatches();window.scrollTo({top:0,behavior:"smooth"});
 }
 function fillCustomer(c){
  clearSaveFeedback();
@@ -364,7 +370,7 @@ function fillCustomer(c){
  $("lat").value=c.location&&c.location.lat!=null?c.location.lat:"";
  $("lng").value=c.location&&c.location.lng!=null?c.location.lng:"";
  $("saveBtn").textContent="✏️ حفظ تعديل العميل";
- renderAddressTools();renderContacts();
+ renderAddressTools();renderContacts();renderIdentityMatches();
  window.scrollTo({top:0,behavior:"smooth"});
 }
 function editCustomer(id){const c=C.findCustomer(id);if(!c){show("العميل غير موجود.",true);return}closeCustomerDetail();fillCustomer(c);showRegistration("edit")}
@@ -388,6 +394,69 @@ function validateEmail(v){
  if(x&&!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(x))throw new Error("البريد الإلكتروني غير صحيح.");
  return x;
 }
+
+function identityMatchSummary(m){
+ const s=m.signals||{};
+ const labels=[];
+ if(s.name)labels.push("الاسم متطابق");
+ if(s.email)labels.push("البريد متطابق");
+ if(s.phone)labels.push("الهاتف متطابق");
+ if(s.location)labels.push("المحافظة والمركز متطابقان");
+ if(s.address)labels.push("العنوان متقارب");
+ return labels.join(" • ");
+}
+function renderIdentityMatches(){
+ const box=$("identityMatches");if(!box)return;
+ const id=selectedId(),input={
+  name:$("name").value.trim(),phone:$("phone").value.trim(),phone2:$("phone2").value.trim(),
+  email:$("email").value.trim(),governorate:$("governorate").value,center:$("center").value,address:$("address").value.trim()
+ };
+ if(!input.name&&!input.phone&&!input.email){box.classList.add("hidden");box.innerHTML="";return;}
+ let matches=[];
+ try{matches=C.findPossibleCustomerMatches(input,id).slice(0,5);}catch(e){matches=[];}
+ if(!matches.length){box.classList.add("hidden");box.innerHTML="";return;}
+ box.innerHTML=`<h4>⚠️ احتمال وجود حساب سابق لنفس العميل</h4>
+ <div class="merge-note">النظام لا يدمج تلقائيًا ولا يمنع التسجيل بسبب الاسم. راجع الحساب قبل إنشاء سجل جديد.</div>`+
+ matches.map(m=>`<div class="candidate">
+  <b>${esc(m.name||"عميل مسجل")}</b> — <span class="badge bb">${esc(m.id)}</span>
+  <div class="signals">${esc(identityMatchSummary(m))} — درجة المطابقة ${esc(m.score)}</div>
+  <button type="button" class="amber" onclick="requestOrApproveCustomerMerge('${esc(m.id)}')">🔐 مراجعة الحساب السابق</button>
+ </div>`).join("");
+ box.classList.remove("hidden");
+}
+function requestOrApproveCustomerMerge(otherId){
+ try{
+  const current=selectedId();
+  if(current){show("افتح تسجيل عميل جديد أولًا لمراجعة حساب سابق.");return;}
+  const newPhone=$("phone").value.trim();
+  const currentName=$("name").value.trim();
+  const candidate=C.findCustomer(otherId);
+  if(!candidate){show("الحساب المقترح لم يعد موجودًا.",true);return;}
+  const ok=confirm(`يوجد حساب سابق يحتمل أنه لنفس العميل: ${C.customerName(candidate)} (${otherId}).\n\nإذا كان هذا هو نفس العميل، الأفضل استخدام الحساب القديم وإضافة الرقم الجديد إليه بدل إنشاء حساب مكرر.\n\nموافق = فتح الحساب القديم.`);
+  if(!ok)return;
+  fillCustomer(candidate);
+  if(newPhone){
+   const phones=[candidate.phone,candidate.phone2].concat(Array.isArray(candidate.alternatePhones)?candidate.alternatePhones:[]);
+   const normalized=normalizedPhone(newPhone);
+   if(normalized && !phones.map(normalizedPhone).includes(normalized)){
+    const add=confirm(`الرقم ${newPhone} غير موجود في الحساب القديم.\n\nهل تريد إضافته كرقم بديل للحساب ${otherId}؟`);
+    if(add){
+     const saved=C.addCustomerPhone(otherId,newPhone,ACTOR);
+     fillCustomer(saved);
+     show("تم ربط الرقم الجديد بالحساب القديم وتسجيل العملية في Audit.");
+    }else{
+     show("تم فتح الحساب القديم دون إضافة الرقم الجديد.");
+    }
+   }else{
+    show("تم فتح الحساب القديم؛ الرقم موجود بالفعل ضمن بياناته.");
+   }
+  }else{
+   show("تم فتح الحساب القديم. لم يتم إنشاء حساب مكرر.");
+  }
+ }catch(e){show(e.message||"تعذر مراجعة الحساب.",true)}
+}
+window.requestOrApproveCustomerMerge=requestOrApproveCustomerMerge;
+
 function saveCustomer(){
  try{
   requireCore();
@@ -481,6 +550,16 @@ function openCustomerDetail(id){
   $("customerDetail").innerHTML=`
    <div class="detail-hero">
     <div class="detail-title"><h2>👤 ${esc(C.customerName(c))}</h2><div class="mini">🆔 ${esc(C.idOf(c))} · 📞 ${esc(c.phone||"—")} · ${isArchivedCustomer(c)?"<span class='badge red'>مؤرشف</span>":"<span class='badge green'>نشط</span>"}</div></div>
+   <div class="card" style="margin-top:10px;border:1px solid #7c6423;background:#211d12">
+    <h3>🔗 ربط/دمج حسابات محتملة</h3>
+    <p class="small">إذا كان هذا العميل لديه حساب آخر برقم مختلف، ابحث بالاسم أو الهاتف من قائمة العملاء ثم اطلب الدمج. لا يتم الدمج تلقائيًا. ربط حسابين قائمين يحتاج صلاحية مدير وتأكيدًا صريحًا، مع الاحتفاظ بكل التاريخ والـIDs.</p>
+    <div class="search">
+      <input id="mergeSearch" placeholder="ابحث باسم العميل أو رقمه القديم">
+      <button class="amber" type="button" onclick="findMergeCandidates('${esc(id)}')">بحث</button>
+    </div>
+    <div id="mergeCandidates" class="small" style="margin-top:8px"></div>
+   </div>
+
     <div class="detail-actions">
       <button class="gray" id="detailEditBtn">✏️ تعديل البيانات</button>
       <button class="blue" id="detailBackBtn">← قائمة العملاء</button>
@@ -656,6 +735,37 @@ function deleteCustomer(id){
   C.deleteCustomer(id,ACTOR);show("تم حذف العميل.");clearForm();render();
  }catch(e){show(e.message||"تعذر حذف العميل.",true)}
 }
+
+function findMergeCandidates(primaryId){
+ try{
+  const q=$("mergeSearch").value.trim();
+  const rows=C.list(C.KEYS.customers).filter(c=>{
+   const id=C.idOf(c);if(String(id)===String(primaryId)||c.mergedIntoCustomerId)return false;
+   const name=String(c.name||c.fullName||"").toLowerCase(),phone=String(c.phone||c.mobile||"");
+   return !q||name.includes(q.toLowerCase())||normalizedPhone(phone).includes(normalizedPhone(q))||String(id).toLowerCase().includes(q.toLowerCase());
+  }).slice(0,8);
+  const box=$("mergeCandidates");
+  if(!rows.length){box.innerHTML="لا توجد حسابات مطابقة.";return;}
+  box.innerHTML=rows.map(c=>`<div class="candidate" style="margin-top:6px;padding:8px;border:1px solid #555;border-radius:8px">
+   <b>${esc(customerDisplayName(c))}</b> — ${esc(C.idOf(c))} — ${esc(c.phone||"—")}
+   <button type="button" class="amber" onclick="confirmMergeCustomer('${esc(primaryId)}','${esc(C.idOf(c))}')">🔗 مراجعة الحساب ودمجه عند الحاجة</button>
+  </div>`).join("");
+ }catch(e){$("mergeCandidates").textContent=e.message||"تعذر البحث."; }
+}
+function confirmMergeCustomer(primaryId,secondaryId){
+ try{
+  if(String(primaryId)===String(secondaryId)){show("لا يمكن دمج الحساب مع نفسه.",true);return;}
+  const p=C.findCustomer(primaryId),s=C.findCustomer(secondaryId);if(!p||!s)throw new Error("أحد الحسابين غير موجود.");
+  const ok=confirm(`تأكيد دمج الحساب ${secondaryId} داخل ${primaryId}؟\n\nسيبقى ${primaryId} هو الحساب الرئيسي، وسيتم نقل العلاقات التشغيلية والحفاظ على تاريخ الحساب الآخر، مع تسجيل العملية في Audit.\n\nهذا الإجراء لا يمكن عكسه تلقائيًا.`);
+  if(!ok)return;
+  const result=C.mergeCustomers(primaryId,secondaryId,ACTOR,{reason:"اعتماد مدير بعد مراجعة احتمال تطابق هوية العميل"});
+  show("تم دمج الحسابين بنجاح. تم الاحتفاظ بالسجل التاريخي وفحص سلامة العلاقات.");
+  open360(primaryId);render();
+ }catch(e){show(e.message||"تعذر دمج الحسابين.",true)}
+}
+window.findMergeCandidates=findMergeCandidates;
+window.confirmMergeCustomer=confirmMergeCustomer;
+
 function open360(id){
  try{
   const d=C.customer360(id);if(!d)throw new Error("العميل غير موجود.");
@@ -784,7 +894,11 @@ $("integrityBtn").onclick=function(){
   else show("تم اكتشاف "+r.count+" مشكلة. راجع سجل المراجعة.",true);
  }catch(e){show(e.message||"تعذر تنفيذ فحص السلامة.",true)}
 };
-$("search").addEventListener("input",render);$("showArchived").addEventListener("change",render);$("showAllBtn").onclick=showAllCustomerRecords;$("addAddressBtn").onclick=addAddress;$("defaultAddressBtn").onclick=setDefaultAddress;
+$("search").addEventListener("input",render);
+["name","phone","phone2","email","governorate","center","address"].forEach(id=>{
+ const el=$(id);if(el)el.addEventListener("input",renderIdentityMatches);
+ if(el&&el.tagName==="SELECT")el.addEventListener("change",renderIdentityMatches);
+});$("showArchived").addEventListener("change",render);$("showAllBtn").onclick=showAllCustomerRecords;$("addAddressBtn").onclick=addAddress;$("defaultAddressBtn").onclick=setDefaultAddress;
 $("addContactBtn").onclick=addContact;$("closeModal").onclick=()=>$("modal").classList.remove("open");
 $("modal").addEventListener("click",e=>{if(e.target===$("modal"))$("modal").classList.remove("open")});
 window.editCustomer=editCustomer;window.archiveCustomer=archiveCustomer;window.deleteCustomer=deleteCustomer;window.open360=open360;window.setDefaultAddress=setDefaultAddress;
