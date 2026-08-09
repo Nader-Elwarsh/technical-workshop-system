@@ -1,296 +1,102 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="ar" dir="rtl">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<meta name="theme-color" content="#07152f">
-<title>الأجهزة - الورشة الفنية</title>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>إدارة الأجهزة - الورشة الفنية</title>
 <style>
-*{box-sizing:border-box}
-body{margin:0;font-family:Arial,Tahoma,sans-serif;background:#f4f6f8;color:#172033}
-header{background:#07152f;color:#fff;padding:22px 16px}
-.wrap{max-width:1100px;margin:auto;padding:16px}
-header .wrap{padding:0}
-h1{margin:0 0 7px} header p{margin:0;color:#dbe5ff}
-.card{background:#fff;border-radius:16px;padding:18px;margin-bottom:16px;box-shadow:0 2px 9px rgba(0,0,0,.06)}
-h2{margin:0 0 14px;color:#07152f}
-.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
-.full{grid-column:1/-1}
-label{display:block;font-weight:bold;margin:5px 0}
-input,select,textarea{width:100%;padding:12px;border:1px solid #ccd4de;border-radius:10px;font:inherit;background:#fff}
-textarea{min-height:85px;resize:vertical}
-button{border:0;border-radius:10px;padding:11px 15px;font:inherit;cursor:pointer}
-.primary{background:#16803c;color:#fff}.blue{background:#1769aa;color:#fff}.gray{background:#596273;color:#fff}.danger{background:#d60000;color:#fff}
-.actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}.actions button{flex:1;min-width:130px}
-.notice{display:none;padding:11px;border-radius:10px;margin-bottom:12px}
-.good{background:#e2f5e8;color:#146c2e}.bad{background:#ffe2e2;color:#a00000}
-.search{display:grid;grid-template-columns:1fr auto;gap:8px}
-.list{display:grid;gap:10px}
-.item{border:1px solid #e0e5eb;border-radius:13px;padding:14px}
-.item-head{display:flex;justify-content:space-between;gap:10px;align-items:flex-start}
-.item h3{margin:0 0 7px;color:#07152f}
-.badge{display:inline-block;padding:5px 9px;border-radius:20px;background:#eef1f5;margin:2px;font-size:12px}
-.green{background:#e3f7e9;color:#146c2e}.orange{background:#fff0d6;color:#8b5b00}.red{background:#ffe2e2;color:#a00000}.bb{background:#e4f0ff;color:#1769aa}
-.mini{font-size:13px;color:#667085;line-height:1.8}
-.item-actions{display:flex;gap:7px;margin-top:10px;flex-wrap:wrap}
-.item-actions button{padding:8px 11px}
-.details{margin-top:12px;background:#f8fafc;border-radius:10px;padding:10px}
-.rel-row{display:flex;justify-content:space-between;border-bottom:1px solid #e4e8ed;padding:8px 0;gap:10px}
-.rel-row:last-child{border:0}
-.empty{text-align:center;color:#777;padding:20px}
-.back{display:block;text-align:center;background:#333;color:#fff;text-decoration:none;border-radius:10px;padding:13px}
-@media(max-width:650px){.grid{grid-template-columns:1fr}.full{grid-column:auto}.search{grid-template-columns:1fr}.item-head{display:block}}
+*{box-sizing:border-box}body{margin:0;background:#f4f6f8;color:#172033;font-family:Arial,Tahoma,sans-serif}
+header{background:#07152f;color:#fff;padding:20px;text-align:center}.container{max-width:1100px;margin:auto;padding:16px}
+.card,.device,.panel{background:#fff;border-radius:14px;padding:18px;margin-bottom:16px;box-shadow:0 2px 10px #0001}
+h2{margin-top:0;color:#07152f}label{font-weight:bold;display:block;margin:10px 0 5px}
+input,select,textarea{width:100%;padding:11px;border:1px solid #ccd3dd;border-radius:9px;font:inherit}textarea{min-height:90px}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}.full{grid-column:1/-1}
+button,.back{border:0;border-radius:9px;padding:12px 14px;font:inherit;cursor:pointer}.back{display:block;background:#07152f;color:#fff;text-align:center;text-decoration:none;margin-bottom:16px}
+.primary{background:#1769aa;color:#fff}.success{background:#16803c;color:#fff}.gray{background:#59616d;color:#fff}.amber{background:#9b6b00;color:#fff}.danger{background:#b42318;color:#fff}
+.actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}.actions button{flex:1}.hidden{display:none!important}
+.summary{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}.stat{background:#eef3f8;padding:12px;border-radius:10px;text-align:center}
+.device{border-right:4px solid #1769aa}.badge{display:inline-block;background:#e8edf3;padding:5px 9px;border-radius:20px;margin:3px;font-size:13px}
+.info{background:#eef6ff;border:1px solid #cfe2ff;border-radius:10px;padding:12px;line-height:1.8;margin-top:10px}
+.warning{background:#fff6df;border:1px solid #e3c467;border-radius:10px;padding:12px;margin-top:10px}
+.timeline{border-right:3px solid #cbd5e1;padding-right:14px}.stage{padding:8px 0}.done{font-weight:bold}.muted{color:#7b8492}.small{font-size:12px;color:#687386}
+.search-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+table{width:100%;border-collapse:collapse}th,td{border-bottom:1px solid #e7e9ed;padding:9px;text-align:right}
+@media(max-width:700px){.grid,.summary,.search-grid{grid-template-columns:1fr}.actions{flex-direction:column}}
 </style>
 </head>
 <body>
-<header><div class="wrap">
-<h1>📱 أجهزة العملاء</h1>
-<p>تسجيل أجهزة العملاء وربطها مباشرة بملفات العملاء وطلبات الصيانة</p>
-</div></header>
+<header><h1>📱 إدارة الأجهزة</h1><div>الورشة الفنية لصيانة الأجهزة المنزلية والتكييف</div></header>
+<div class="container">
+<a class="back" href="index.html">🏠 الرئيسية</a>
 
-<div class="wrap">
-<div id="notice" class="notice"></div>
+<div id="summaryPanel" class="card">
+<h2>📊 ملخص الأجهزة</h2>
+<div class="summary">
+<div class="stat"><b id="total">0</b><br><span class="small">إجمالي الأجهزة</span></div>
+<div class="stat"><b id="active">0</b><br><span class="small">نشطة</span></div>
+<div class="stat"><b id="archived">0</b><br><span class="small">مؤرشفة</span></div>
+<div class="stat"><b id="types">0</b><br><span class="small">أنواع الأجهزة</span></div>
+</div>
+</div>
 
-<div class="card">
-<h2>➕ تسجيل / تعديل جهاز</h2>
-<input type="hidden" id="deviceId">
+<div class="card"><button id="openRegister" class="primary" style="width:100%;font-size:17px">➕ تسجيل جهاز جديد</button></div>
+
+<div id="registerPanel" class="card hidden">
+<h2 id="formTitle">➕ تسجيل جهاز جديد</h2>
 <div class="grid">
-<div class="full">
-<label>العميل *</label>
-<select id="customerId"><option value="">اختر العميل</option></select>
-</div>
-<div>
-<label>نوع الجهاز *</label>
-<select id="type">
-<option value="">اختر نوع الجهاز</option>
-<option>ثلاجة</option><option>ديب فريزر</option>
-<option>غسالة أوتوماتيك</option><option>غسالة فوق أوتوماتيك</option>
-<option>غسالة نصف أوتوماتيك</option><option>تكييف سبليت</option>
-<option>تكييف شباك</option><option>سخان مياه</option>
-<option>سخان غاز</option><option>كولدير</option>
-<option>بوتاجاز</option><option>أخرى</option>
-</select>
-</div>
-<div><label>الماركة *</label><input id="brand" placeholder="مثال: شارب"></div>
+<div class="full"><label>العميل المالك *</label><select id="customer"></select><div id="customerInfo" class="info hidden"></div></div>
+<div><label>نوع الجهاز *</label><select id="type"></select></div>
+<div><label>الشركة المصنعة *</label><input id="brand"></div>
 <div><label>الموديل</label><input id="model"></div>
 <div><label>الرقم المسلسل</label><input id="serial"></div>
-<div><label>القدرة / السعة</label><input id="capacity" placeholder="مثال: 1.5 حصان / 14 قدم"></div>
-<div><label>نوع الغاز / الفريون</label><input id="refrigerant" placeholder="مثال: R22 / R410 / R290"></div>
-<div><label>سنة الشراء</label><input id="purchaseYear" type="number" min="1900" max="2100"></div>
-<div><label>حالة الجهاز</label>
-<select id="condition"><option value="يعمل">يعمل</option><option value="يعمل بعطل">يعمل بعطل</option><option value="متوقف">متوقف</option><option value="غير معروف">غير معروف</option></select>
+<div><label>سنة الصنع</label><input id="year" type="number"></div>
+<div><label>اللون</label><input id="color"></div>
+<div><label>مكان الاستخدام</label><input id="usage"></div>
+<div><label>الحالة الحالية</label><select id="condition"><option>يعمل</option><option>يحتاج صيانة</option><option>خارج الخدمة</option><option>غير مستخدم</option><option>مؤرشف</option></select></div>
+<div><label>نوع الفريون</label><input id="refrigerant"></div>
+<div><label>القدرة / السعة</label><input id="capacity"></div>
+<div><label>Inverter</label><select id="inverter"><option>غير محدد</option><option>نعم</option><option>لا</option></select></div>
+<div class="full"><label>ملاحظات عامة</label><textarea id="notes"></textarea></div>
 </div>
-<div><label>مكان الجهاز</label><input id="location" placeholder="مثال: المطبخ"></div>
-<div class="full"><label>ملاحظات فنية</label><textarea id="notes" placeholder="أي معلومات مهمة عن الجهاز أو تاريخه"></textarea></div>
+<div id="serialWarning" class="warning hidden"></div>
+<div class="actions"><button id="save" class="success">💾 حفظ الجهاز</button><button id="cancel" class="gray">إلغاء</button></div>
 </div>
-<div class="actions">
-<button class="primary" id="saveBtn">💾 حفظ الجهاز</button>
-<button class="gray" id="clearBtn">↩️ تفريغ النموذج</button>
+
+<div id="searchPanel" class="card">
+<h2>🔎 البحث عن الأجهزة</h2>
+<div class="search-grid">
+<input id="qDevice" placeholder="رقم الجهاز"><input id="qCustomer" placeholder="اسم العميل">
+<input id="qType" placeholder="نوع الجهاز"><input id="qBrand" placeholder="الشركة المصنعة">
+<input id="qModel" placeholder="الموديل"><input id="qSerial" placeholder="الرقم المسلسل">
+<input id="qOrder" placeholder="رقم أمر الشغل"><input id="qInvoice" placeholder="رقم الفاتورة">
 </div>
 </div>
 
-<div class="card">
-<h2>🔎 البحث في الأجهزة</h2>
-<div class="search">
-<input id="search" placeholder="ابحث بالعميل أو الماركة أو الموديل أو الرقم المسلسل أو نوع الجهاز">
-<button class="blue" id="searchBtn">بحث</button>
-</div>
-</div>
-
-<div class="card">
-<h2>📋 الأجهزة المسجلة <span id="count" class="badge bb"></span></h2>
-<div id="list" class="list"></div>
-</div>
-
-<a class="back" href="index.html">🏠 العودة إلى لوحة التحكم</a>
+<div id="listPanel" class="card"><h2>📋 الأجهزة المسجلة <span id="count" class="badge"></span></h2><div id="list"></div></div>
+<div id="detailPanel" class="card hidden"></div>
 </div>
 
 <script src="app-core.js"></script>
 <script>
-(function(){
 "use strict";
-const C=window.WorkshopCore;
-const $=id=>document.getElementById(id);
-
-function esc(v){return String(v??"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&#039;")}
-function show(msg,error=false){$("notice").textContent=msg;$("notice").className="notice "+(error?"bad":"good");$("notice").style.display="block";setTimeout(()=>$("notice").style.display="none",2800)}
-function devices(){return C.list(C.KEYS.devices)}
-function idOf(d){return C.idOf(d)}
-function makeId(){return C.nextId("DEV-",C.KEYS.devices,5)}
-function customerName(id){const c=C.findCustomer(id);return c?C.customerName(c):"عميل غير معروف"}
-
-function loadCustomers(){
- const select=$("customerId");
- const current=select.value;
- let arr=C.list(C.KEYS.customers);
-
- if(!Array.isArray(arr)) arr=[];
-
- select.innerHTML='<option value="">اختر العميل</option>';
-
- arr.forEach(c=>{
-  const cid=idOf(c);
-  if(!cid)return;
-
-  const opt=document.createElement("option");
-  opt.value=cid;
-  opt.textContent=(C.customerName(c)||"بدون اسم")+" — "+(c.phone||c.mobile||cid);
-  select.appendChild(opt);
- });
-
- if(current)select.value=current;
-
- if(!arr.length){
-  select.innerHTML='<option value="">لا يوجد عملاء مسجلون</option>';
- }
-}
-
-function clearForm(){
- ["deviceId","brand","model","serial","capacity","refrigerant","purchaseYear","location","notes"].forEach(id=>$(id).value="");
- $("customerId").value="";$("type").value="";$("condition").value="يعمل";
- $("saveBtn").textContent="💾 حفظ الجهاز";
- window.scrollTo({top:0,behavior:"smooth"});
-}
-
-function editDevice(id){
- const d=C.findDevice(id);if(!d)return;
- $("deviceId").value=id;$("customerId").value=d.customerId||d.clientId||"";
- $("type").value=d.type||d.deviceType||"";$("brand").value=d.brand||"";
- $("model").value=d.model||"";$("serial").value=d.serial||d.serialNumber||"";
- $("capacity").value=d.capacity||"";$("refrigerant").value=d.refrigerant||d.gas||"";
- $("purchaseYear").value=d.purchaseYear||"";$("condition").value=d.condition||"غير معروف";
- $("location").value=d.location||"";$("notes").value=d.notes||"";
- $("saveBtn").textContent="✏️ حفظ التعديل";
- window.scrollTo({top:0,behavior:"smooth"});
-}
-
-function saveDevice(){
- const customerId=$("customerId").value,type=$("type").value,brand=$("brand").value.trim(),oldId=$("deviceId").value.trim();
- if(!customerId){show("اختر العميل أولًا.",true);return}
- if(!type||!brand){show("نوع الجهاز والماركة مطلوبان.",true);return}
-
- const data={
-  customerId,customerName:customerName(customerId),type,deviceType:type,brand,
-  model:$("model").value.trim(),serial:$("serial").value.trim(),
-  serialNumber:$("serial").value.trim(),capacity:$("capacity").value.trim(),
-  refrigerant:$("refrigerant").value.trim(),purchaseYear:$("purchaseYear").value.trim(),
-  condition:$("condition").value,location:$("location").value.trim(),
-  notes:$("notes").value.trim(),updatedAt:C.now()
- };
- let arr=devices();
-
- if(oldId){
-  const i=arr.findIndex(d=>String(idOf(d))===String(oldId));
-  if(i<0){show("الجهاز غير موجود.",true);return}
-  arr[i]=Object.assign({},arr[i],data,{id:oldId});
-  C.write(C.KEYS.devices,arr);C.log("تعديل","الأجهزة",oldId,"تم تعديل بيانات الجهاز");
-  show("تم تعديل بيانات الجهاز بنجاح.");
- }else{
-  const id=makeId();
-  arr.push(Object.assign({id,createdAt:C.now()},data));
-  C.write(C.KEYS.devices,arr);
-  C.log("إضافة","الأجهزة",id,"تم تسجيل جهاز جديد للعميل "+customerName(customerId));
-  show("تم تسجيل الجهاز وربطه بالعميل بنجاح.");
- }
- clearForm();render();
-}
-
-function deleteDevice(id){
- const d=C.findDevice(id);if(!d)return;
- const cid=d.customerId||d.clientId||"";
- const linked=C.customerRequests(cid).filter(r=>String(r.deviceId||r.applianceId||"")===String(id)).length;
- let msg="هل تريد حذف الجهاز "+(d.type||"الجهاز")+" — "+(d.brand||"")+"؟";
- if(linked)msg+="\n\nتنبيه: الجهاز مرتبط بـ "+linked+" طلب صيانة. سيتم حذف سجل الجهاز فقط ولن نحذف طلبات الصيانة.";
- if(!confirm(msg))return;
- C.write(C.KEYS.devices,devices().filter(x=>String(idOf(x))!==String(id)));
- C.log("حذف","الأجهزة",id,"تم حذف سجل الجهاز");show("تم حذف الجهاز.");render();
-}
-
-function viewDevice(id){
- const d=C.findDevice(id);if(!d)return;
- const cid=d.customerId||d.clientId||"";
- const requests=C.customerRequests(cid).filter(r=>String(r.deviceId||r.applianceId||"")===String(id));
- const visits=requests.flatMap(r=>C.requestVisits(idOf(r)));
- const old=document.getElementById("device-details-"+id);
- if(old){old.remove();return}
-
- const box=document.createElement("div");
- box.id="device-details-"+id;box.className="details";
- box.innerHTML=`
- <div class="rel-row"><span>👤 العميل</span><b>${esc(customerName(cid))}</b></div>
- <div class="rel-row"><span>🔧 طلبات الصيانة</span><b>${requests.length}</b></div>
- <div class="rel-row"><span>📅 الزيارات المرتبطة</span><b>${visits.length}</b></div>
- <div class="rel-row"><span>📋 الطلبات</span><span>
- ${requests.length?requests.slice(-5).reverse().map(r=>`<span class="badge bb">${esc(idOf(r))} — ${esc(r.status||"جديد")}</span>`).join(""):'<span class="mini">لا توجد طلبات مرتبطة.</span>'}
- </span></div>`;
- const item=document.querySelector('[data-device-id="'+CSS.escape(id)+'"]');
- if(item)item.appendChild(box);
-}
-
-function render(){
- const q=$("search").value.trim().toLowerCase();
- let arr=devices();
- if(q)arr=arr.filter(d=>[
-  idOf(d),d.customerName,customerName(d.customerId||d.clientId),d.type,d.deviceType,d.brand,
-  d.model,d.serial,d.serialNumber,d.capacity,d.refrigerant,d.location
- ].join(" ").toLowerCase().includes(q));
-
- $("count").textContent=arr.length+" جهاز";
- if(!arr.length){$("list").innerHTML='<div class="empty">لا توجد أجهزة مطابقة.</div>';return}
-
- $("list").innerHTML=arr.map(d=>{
-  const id=idOf(d),cid=d.customerId||d.clientId||"";
-  const rq=C.customerRequests(cid).filter(r=>String(r.deviceId||r.applianceId||"")===String(id));
-  return `
-  <div class="item" data-device-id="${esc(id)}">
-   <div class="item-head">
-    <div>
-     <h3>📱 ${esc(d.type||d.deviceType||"جهاز")} — ${esc(d.brand||"")}</h3>
-     <div class="mini">
-      🆔 ${esc(id)}<br>
-      👤 ${esc(customerName(cid))}<br>
-      📞 ${esc((C.findCustomer(cid)||{}).phone||"—")}<br>
-      ${d.model?"🔢 الموديل: "+esc(d.model)+"<br>":""}
-      ${d.serial?"🔖 المسلسل: "+esc(d.serial)+"<br>":""}
-      ${d.capacity?"⚡ القدرة/السعة: "+esc(d.capacity)+"<br>":""}
-      ${d.refrigerant?"❄️ الغاز/الفريون: "+esc(d.refrigerant)+"<br>":""}
-      ${d.location?"📍 المكان: "+esc(d.location):""}
-     </div>
-    </div>
-    <div>
-     <span class="badge bb">طلبات ${rq.length}</span>
-     <span class="badge ${d.condition==="يعمل"?"green":d.condition==="متوقف"?"red":"orange"}">${esc(d.condition||"غير معروف")}</span>
-    </div>
-   </div>
-   <div class="item-actions">
-    <button class="blue" onclick="viewDeviceGlobal('${esc(id)}')">👁️ التفاصيل</button>
-    <button class="gray" onclick="editDeviceGlobal('${esc(id)}')">✏️ تعديل</button>
-    <button class="danger" onclick="deleteDeviceGlobal('${esc(id)}')">🗑️ حذف</button>
-   </div>
-  </div>`;
- }).join("");
-}
-
-window.editDeviceGlobal=editDevice;
-window.deleteDeviceGlobal=deleteDevice;
-window.viewDeviceGlobal=viewDevice;
-
-$("saveBtn").onclick=saveDevice;$("clearBtn").onclick=clearForm;$("searchBtn").onclick=render;
-$("search").addEventListener("input",render);
-
-try{
- C.syncRelations();
- loadCustomers();
- render();
-
- if(C.list(C.KEYS.customers).length===0){
-   show("لم يتم العثور على عملاء في بيانات النظام.",true);
- }
-}catch(e){
- show("حدث خطأ أثناء تحميل بيانات الأجهزة: "+(e.message||e),true);
- console.error(e);
-}
-})();
+const C=window.WorkshopCore, ACTOR={id:"current-user",role:"manager",name:"مدير الاختبار"};
+const $=id=>document.getElementById(id), esc=x=>String(x??"").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[m]));
+let editingId=null;
+function check(){if(!C)throw Error("لم يتم تحميل Core.");if(String(C.VERSION)!=="3.9.1-unified-customer-device")throw Error("إصدار Core غير متوافق مع وحدة الأجهزة.");}
+function customers(){return C.list(C.KEYS.customers).filter(c=>!c.archived&&!c.mergedIntoCustomerId)}
+function loadTypes(){const s=$("type");s.innerHTML='<option value="">اختر النوع</option>';C.deviceTypeList().forEach(t=>{const o=document.createElement("option");o.value=t.id;o.textContent=t.name;s.appendChild(o)});if(!s.options.length||s.options.length===1){["ثلاجة","ديب فريزر","غسالة أوتوماتيك","غسالة فوق أوتوماتيك","غسالة عادية","تكييف","سخان","مبرد مياه","بوتاجاز","فرن"].forEach(n=>{const o=document.createElement("option");o.value=n;o.textContent=n;s.appendChild(o)})}}
+function loadCustomers(){const s=$("customer");s.innerHTML='<option value="">اختر العميل</option>';customers().forEach(c=>{const o=document.createElement("option");o.value=C.idOf(c);o.textContent=C.customerName(c)+" — "+(c.phone||"");s.appendChild(o)})}
+function showCustomer(){const c=C.findCustomer($("customer").value),b=$("customerInfo");if(!c){b.classList.add("hidden");return}b.innerHTML="👤 <b>"+esc(C.customerName(c))+"</b> — "+esc(C.idOf(c))+"<br>📱 عدد الأجهزة الحالية: "+C.customerDevices(c.id).length;b.classList.remove("hidden")}
+function reset(){editingId=null;$("formTitle").textContent="➕ تسجيل جهاز جديد";$("save").textContent="💾 حفظ الجهاز";["customer","type","brand","model","serial","year","color","usage","condition","refrigerant","capacity","inverter","notes"].forEach(i=>$(i).value="");$("condition").value="يعمل";$("inverter").value="غير محدد";$("serialWarning").classList.add("hidden")}
+function openRegister(){reset();$("registerPanel").classList.remove("hidden");$("summaryPanel").classList.add("hidden");$("searchPanel").classList.add("hidden");$("listPanel").classList.add("hidden");$("detailPanel").classList.add("hidden")}
+function closeRegister(){ $("registerPanel").classList.add("hidden");$("summaryPanel").classList.remove("hidden");$("searchPanel").classList.remove("hidden");$("listPanel").classList.remove("hidden");render() }
+function serialCheck(){const s=$("serial").value.trim().toLowerCase(),cid=$("customer").value,b=$("serialWarning");if(!s||!cid){b.classList.add("hidden");return}const hit=C.list(C.KEYS.devices).find(d=>String(d.id)!==String(editingId)&&String(d.serialNumber||d.serial||"").trim().toLowerCase()===s);if(!hit){b.classList.add("hidden");return}const same=String(hit.customerId||"")===String(cid);b.innerHTML=same?"⚠️ الرقم التسلسلي مسجل بالفعل لهذا العميل.":"⚠️ الرقم التسلسلي موجود على جهاز مرتبط بعميل آخر. هذا لا يعني أن العميلين نفس الشخص؛ سيبقى الأمر للمراجعة.";b.classList.remove("hidden")}
+function save(){try{check();const d=C.saveDevice({id:editingId||undefined,customerId:$("customer").value,type:$("type").value,brand:$("brand").value.trim(),model:$("model").value.trim(),serialNumber:$("serial").value.trim(),manufactureYear:$("year").value,color:$("color").value.trim(),usageLocation:$("usage").value.trim(),condition:$("condition").value,refrigerant:$("refrigerant").value.trim(),capacity:$("capacity").value.trim(),inverter:$("inverter").value,notes:$("notes").value.trim(),generalNotes:$("notes").value.trim()},ACTOR);closeRegister();openDetail(d.id)}catch(e){alert(e.message||"تعذر الحفظ.")}}
+function render(){const all=C.list(C.KEYS.devices),f=C.deviceSearch({deviceId:$("qDevice").value,customerName:$("qCustomer").value,type:$("qType").value,manufacturer:$("qBrand").value,model:$("qModel").value,serial:$("qSerial").value,workOrder:$("qOrder").value,invoice:$("qInvoice").value});$("total").textContent=all.length;$("active").textContent=all.filter(d=>!d.archived).length;$("archived").textContent=all.filter(d=>d.archived).length;$("types").textContent=C.deviceTypeList().length;$("count").textContent=f.length+" نتيجة";$("list").innerHTML=f.length?f.map(d=>{const c=C.findCustomer(d.customerId);return `<div class="device"><h3>📱 ${esc(d.brand||"جهاز")} — ${esc(d.type||"")}</h3><span class="badge">🆔 ${esc(d.id)}</span><span class="badge">👤 ${esc(c?C.customerName(c):"غير مرتبط")}</span><span class="badge">${esc(d.model||"—")}</span><div class="actions"><button class="primary" onclick="openDetail('${esc(d.id)}')">👁️ ملف الجهاز</button><button class="gray" onclick="edit('${esc(d.id)}')">✏️ تعديل</button></div></div>`}).join(""):'<div style="padding:25px;text-align:center;color:#777">لا توجد أجهزة مطابقة.</div>'}
+function edit(id){const d=C.findDevice(id);if(!d)return;editingId=id;openRegister();$("formTitle").textContent="✏️ تعديل الجهاز";$("save").textContent="💾 حفظ التعديل";[["customer",d.customerId],["type",d.type],["brand",d.brand],["model",d.model],["serial",d.serialNumber||d.serial],["year",d.manufactureYear],["color",d.color],["usage",d.usageLocation],["condition",d.condition||"يعمل"],["refrigerant",d.refrigerant],["capacity",d.capacity],["inverter",d.inverter||"غير محدد"],["notes",d.generalNotes||d.notes]].forEach(([i,v])=>$(i).value=v||"");showCustomer();serialCheck()}
+function openDetail(id){try{const x=C.device360(id),d=x.device,c=x.customer;$("summaryPanel").classList.add("hidden");$("searchPanel").classList.add("hidden");$("listPanel").classList.add("hidden");$("registerPanel").classList.add("hidden");$("detailPanel").classList.remove("hidden");$("detailPanel").innerHTML=`<h2>📱 الملف الفني للجهاز ${esc(d.id)}</h2><div class="info">👤 العميل: <b>${esc(c?C.customerName(c):"—")}</b> — ${esc(d.customerId||"—")}<br>📱 ${esc(d.type||"—")} / ${esc(d.brand||"—")} / ${esc(d.model||"—")}<br>🏷️ Serial: ${esc(d.serialNumber||"—")}<br>📌 الحالة: ${esc(d.condition||"—")}<br>📍 الاستخدام: ${esc(d.usageLocation||"—")}</div><h3>🔄 دورة الحياة</h3><div class="timeline">${x.lifecycle.map(s=>`<div class="stage ${s.status==="completed"?"done":"muted"}">${s.status==="completed"?"✅":"○"} المرحلة ${s.stage}: ${esc(s.name)}</div>`).join("")}</div><h3>📚 السجل الفني</h3><table><tr><th>العنصر</th><th>العدد</th></tr><tr><td>أوامر الشغل</td><td>${x.workOrders.length}</td></tr><tr><td>الزيارات</td><td>${x.visits.length}</td></tr><tr><td>الفواتير</td><td>${x.invoices.length}</td></tr><tr><td>الضمانات</td><td>${x.warranties.length}</td></tr><tr><td>العقود</td><td>${x.contracts.length}</td></tr><tr><td>المرفقات</td><td>${x.attachments.length}</td></tr></table><p>QR: <b>${x.qr?.enabled?"مفعل":"غير مفعل"}</b> — مركز المعرفة: <b>${x.knowledge.length}</b> سجل.</p><div class="actions"><button class="primary" onclick="location.href='customers.html#customer=${encodeURIComponent(d.customerId)}'">👤 فتح ملف العميل</button><button class="gray" onclick="edit('${esc(d.id)}')">✏️ تعديل</button><button class="gray" onclick="back()">📋 قائمة الأجهزة</button></div>`}catch(e){alert(e.message||"تعذر فتح الملف.")}}
+function back(){$("detailPanel").classList.add("hidden");$("summaryPanel").classList.remove("hidden");$("searchPanel").classList.remove("hidden");$("listPanel").classList.remove("hidden");render()}
+window.openDetail=openDetail;window.edit=edit;window.back=back;
+try{check();loadTypes();loadCustomers();render();$("openRegister").onclick=openRegister;$("cancel").onclick=closeRegister;$("save").onclick=save;$("customer").onchange=()=>{showCustomer();serialCheck()};$("serial").oninput=serialCheck;["qDevice","qCustomer","qType","qBrand","qModel","qSerial","qOrder","qInvoice"].forEach(i=>$(i).oninput=render)}catch(e){alert(e.message||"تعذر تشغيل وحدة الأجهزة.");console.error(e)}
 </script>
 </body>
 </html>
