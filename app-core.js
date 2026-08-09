@@ -7,7 +7,7 @@
 (function(window){
 "use strict";
 
-const CORE_VERSION="3.7.9-customer-identity-merge";
+const CORE_VERSION="3.8.0-customer-identity-household";
 
 const KEYS={
  settings:"systemSettings", audit:"auditLog", customers:"customers", devices:"devices",
@@ -399,9 +399,8 @@ function recalculateCustomerClassification(cid,actor){
 }
 
 function customerPhoneExists(phone,excludeId){
- const p=String(phone||"").replace(/\D/g,"");
- if(!p)return false;
- return list(KEYS.customers).some(c=>String(idOf(c))!==String(excludeId||"")&&String(c.phone||c.mobile||"").replace(/\D/g,"")===p);
+ const p=normalizePhone(phone);if(!p)return false;
+ return list(KEYS.customers).some(c=>String(idOf(c))!==String(excludeId||"")&&customerContactPhones(c).includes(p));
 }
 
 function saveCustomer(input,actor){
@@ -411,9 +410,10 @@ function saveCustomer(input,actor){
  d.name=clean(d.name||d.fullName,200); d.phone=clean(d.phone||d.mobile,50);
  delete d.category; delete d.customerTier; delete d.classificationScore; delete d.classificationReason; delete d.classificationMetrics;
  const a=list(KEYS.customers);
- const duplicate=a.find(x=>String(idOf(x))!==String(oldId)&&
-   d.phone&&String(x.phone||x.mobile||"").replace(/\D/g,"")===d.phone.replace(/\D/g,""));
- assert(!duplicate,"رقم الهاتف مسجل بالفعل لعميل آخر.");
+ const inputPhones=customerContactPhones(d);
+ const duplicatePhone=a.find(x=>String(idOf(x))!==String(oldId)&&inputPhones.some(p=>customerContactPhones(x).includes(p)));
+ assert(!duplicatePhone,"رقم الهاتف مستخدم بالفعل في حساب عميل آخر.");
+ // البريد الإلكتروني وسيلة تواصل وليست معرفًا فريدًا إلزاميًا؛ يمكن لأفراد الأسرة مشاركته، ويظهر التشابه كمؤشر فقط.
  if(oldId){
   const i=a.findIndex(x=>String(idOf(x))===oldId);assert(i>=0,"العميل غير موجود.");
   a[i]=Object.assign({},a[i],d,{id:oldId,updatedAt:now()});coreWrite(KEYS.customers,a);
@@ -423,47 +423,123 @@ function saveCustomer(input,actor){
  a.push(item);coreWrite(KEYS.customers,a);audit("إضافة","العملاء",id,"تم إنشاء عميل",actor);return recalculateCustomerClassification(id,actor);
 }
 
-function normalizePhone(v){return String(v||"").replace(/\D/g,"");}
-function customerIdentitySignals(c){
- const phones=[c&&c.phone,c&&c.mobile,c&&c.phone2,c&&c.secondaryPhone]
+function normalizePhone(v){
+ let p=String(v||"").replace(/\D/g,"");
+ if(p.startsWith("0020"))p=p.slice(4);
+ if(p.startsWith("20")&&p.length===12)p="0"+p.slice(2);
+ return p;
+}
+function normalizeText(v){return String(v||"").trim().toLowerCase().replace(/\s+/g," ");}
+function customerContactPhones(c){
+ const contacts=Array.isArray(c&&c.contacts)?c.contacts:[];
+ return [c&&c.phone,c&&c.mobile,c&&c.phone2,c&&c.secondaryPhone]
   .concat(Array.isArray(c&&c.alternatePhones)?c.alternatePhones:[])
+  .concat(contacts.filter(x=>String(x&&x.type||"").toLowerCase().includes("phone")||String(x&&x.type||"").toLowerCase().includes("هاتف")).map(x=>x&&x.value))
   .filter(Boolean).map(normalizePhone).filter(Boolean);
- const emails=[c&&c.email].concat(Array.isArray(c&&c.alternateEmails)?c.alternateEmails:[])
-  .filter(Boolean).map(x=>String(x).trim().toLowerCase()).filter(Boolean);
- const name=String((c&&c.name)||c&&c.fullName||c&&c.customerName||"").trim().toLowerCase();
- const address=String((c&&c.address)||"").trim().toLowerCase();
- const gov=String(c&&c.governorate||"").trim().toLowerCase();
- const center=String(c&&c.center||"").trim().toLowerCase();
- return {phones:[...new Set(phones)],emails:[...new Set(emails)],name,address,governorate:gov,center};
+}
+function customerContactEmails(c){
+ const contacts=Array.isArray(c&&c.contacts)?c.contacts:[];
+ return [c&&c.email]
+  .concat(Array.isArray(c&&c.alternateEmails)?c.alternateEmails:[])
+  .concat(contacts.filter(x=>String(x&&x.type||"").toLowerCase().includes("email")||String(x&&x.type||"").toLowerCase().includes("mail")||String(x&&x.type||"").toLowerCase().includes("بريد")).map(x=>x&&x.value))
+  .filter(Boolean).map(x=>normalizeText(x)).filter(Boolean);
+}
+function customerAddresses(c){
+ const out=[];
+ if(c){
+  out.push({governorate:c.governorate,center:c.center,village:c.village,street:c.street,address:c.address,location:c.location});
+  if(Array.isArray(c.addresses))c.addresses.forEach(a=>out.push(a));
+ }
+ return out.filter(Boolean);
+}
+function customerAddressSignals(c){
+ return customerAddresses(c).map(a=>({
+  governorate:normalizeText(a.governorate),center:normalizeText(a.center),village:normalizeText(a.village),street:normalizeText(a.street),address:normalizeText(a.address||a.text),
+  location:a.location&&a.location.lat!=null&&a.location.lng!=null?{lat:Number(a.location.lat),lng:Number(a.location.lng)}:null
+ }));
+}
+function customerDeviceFingerprints(cid){
+ return customerDevices(cid).map(d=>({
+  id:idOf(d),serial:normalizeText(d.serialNumber||d.serial),type:normalizeText(d.type||d.deviceType),brand:normalizeText(d.brand||d.manufacturer),model:normalizeText(d.model)
+ })).map(d=>({
+  serialKey:d.serial?"serial:"+d.serial:"",
+  modelKey:[d.type,d.brand,d.model].filter(Boolean).join("|")?"model:"+[d.type,d.brand,d.model].filter(Boolean).join("|"):"",
+  data:d
+ }));
+}
+function customerIdentitySignals(c){
+ const phones=[...new Set(customerContactPhones(c))];
+ const emails=[...new Set(customerContactEmails(c))];
+ const name=normalizeText((c&&c.name)||c&&c.fullName||c&&c.customerName||"");
+ const addresses=customerAddressSignals(c);
+ const gov=normalizeText(c&&c.governorate),center=normalizeText(c&&c.center),village=normalizeText(c&&c.village),street=normalizeText(c&&c.street);
+ const address=normalizeText((c&&c.address)||"");
+ return {phones,emails,name,address,governorate:gov,center,village,street,addresses,deviceFingerprints:customerDeviceFingerprints(idOf(c))};
+}
+function addressSimilarity(a,b){
+ let score=0;
+ if(a.governorate&&a.governorate===b.governorate)score+=1;
+ if(a.center&&a.center===b.center)score+=1;
+ if(a.village&&a.village===b.village)score+=1;
+ if(a.street&&b.street&&a.street===b.street)score+=1;
+ if(a.address&&b.address&&(a.address===b.address||a.address.includes(b.address)||b.address.includes(a.address)))score+=2;
+ return score;
+}
+function deviceSimilarity(a,b){
+ const aa=a.deviceFingerprints||[],bb=b.deviceFingerprints||[];
+ const serialA=new Set(aa.map(x=>x.serialKey).filter(Boolean)),serialB=new Set(bb.map(x=>x.serialKey).filter(Boolean));
+ let serialCount=0;serialA.forEach(k=>{if(serialB.has(k))serialCount++;});
+ const modelA=new Set(aa.map(x=>x.modelKey).filter(Boolean)),modelB=new Set(bb.map(x=>x.modelKey).filter(Boolean));
+ let modelCount=0;modelA.forEach(k=>{if(modelB.has(k))modelCount++;});
+ return {serialCount,modelCount};
 }
 function findPossibleCustomerMatches(input,excludeId){
  const x=customerIdentitySignals(input||{});
- const rows=list(KEYS.customers).filter(c=>{
-  const id=String(idOf(c)||"");
-  if(!id||String(id)===String(excludeId||""))return false;
-  if(c.mergedIntoCustomerId)return false;
+ return list(KEYS.customers).filter(c=>{
+  const id=String(idOf(c)||"");return id&&id!==String(excludeId||"")&&!c.mergedIntoCustomerId;
+ }).map(c=>{
   const y=customerIdentitySignals(c);
   const nameMatch=!!x.name&&!!y.name&&x.name===y.name;
   const emailMatch=x.emails.some(e=>y.emails.includes(e));
   const phoneMatch=x.phones.some(p=>y.phones.includes(p));
-  const locationMatch=!!x.governorate&&x.governorate===y.governorate&&
-    !!x.center&&x.center===y.center;
-  const addressMatch=!!x.address&&!!y.address&&(
-    x.address===y.address || x.address.includes(y.address) || y.address.includes(x.address)
-  );
-  const score=(nameMatch?4:0)+(emailMatch?8:0)+(phoneMatch?10:0)+(locationMatch?2:0)+(addressMatch?2:0);
-  return score>=4;
- }).map(c=>{
-  const y=customerIdentitySignals(c),nameMatch=!!x.name&&x.name===y.name,
-    emailMatch=x.emails.some(e=>y.emails.includes(e)),
-    phoneMatch=x.phones.some(p=>y.phones.includes(p)),
-    locationMatch=!!x.governorate&&x.governorate===y.governorate&&!!x.center&&x.center===y.center,
-    addressMatch=!!x.address&&!!y.address&&(x.address===y.address||x.address.includes(y.address)||y.address.includes(x.address));
-  const score=(nameMatch?4:0)+(emailMatch?8:0)+(phoneMatch?10:0)+(locationMatch?2:0)+(addressMatch?2:0);
-  return {id:idOf(c),name:customerName(c),score,
-    signals:{name:nameMatch,email:emailMatch,phone:phoneMatch,location:locationMatch,address:addressMatch}};
- }).sort((a,b)=>b.score-a.score);
- return rows;
+  const locationMatch=!!x.governorate&&x.governorate===y.governorate&&!!x.center&&x.center===y.center;
+  const addressScore=Math.max(0,...(x.addresses||[]).map(a=>Math.max(...(y.addresses||[]).map(b=>addressSimilarity(a,b)),0)));
+  const addressMatch=addressScore>=4;
+  const deviceMatch=deviceSimilarity(x,y);
+  let score=(nameMatch?4:0)+(emailMatch?10:0)+(phoneMatch?12:0)+(locationMatch?2:0)+Math.min(4,addressScore)+Math.min(16,deviceMatch.serialCount*16)+Math.min(2,deviceMatch.modelCount);
+  const sameIdentity=phoneMatch||emailMatch||(nameMatch&&locationMatch)||(nameMatch&&addressMatch);
+  const household=!sameIdentity&&(addressScore>=3||deviceMatch.serialCount>0||deviceMatch.modelCount>0||locationMatch);
+  return {id:idOf(c),name:customerName(c),score,sameIdentity,household,signals:{name:nameMatch,email:emailMatch,phone:phoneMatch,location:locationMatch,address:addressMatch,addressScore,sharedDeviceSerialCount:deviceMatch.serialCount,sharedDeviceModelCount:deviceMatch.modelCount}};
+ }).filter(r=>r.score>=4).sort((a,b)=>b.score-a.score);
+}
+function findCustomerRelationshipSuggestions(cid){
+ const c=findCustomer(cid);if(!c)return [];
+ const x=customerIdentitySignals(c);
+ return list(KEYS.customers).filter(o=>String(idOf(o))!==String(cid)&&!o.mergedIntoCustomerId&&!o.archived).map(o=>{
+  const y=customerIdentitySignals(o),addressScore=Math.max(...(x.addresses||[]).map(a=>Math.max(...(y.addresses||[]).map(b=>addressSimilarity(a,b)),0)),0),deviceMatch=deviceSimilarity(x,y);
+  const samePhone=x.phones.some(p=>y.phones.includes(p)),sameEmail=x.emails.some(e=>y.emails.includes(e));
+  const locationMatch=!!x.governorate&&x.governorate===y.governorate&&!!x.center&&x.center===y.center;
+  const sameName=!!x.name&&x.name===y.name;
+  let score=(samePhone?12:0)+(sameEmail?10:0)+(sameName?4:0)+(locationMatch?2:0)+Math.min(4,addressScore)+Math.min(16,deviceMatch.serialCount*16)+Math.min(2,deviceMatch.modelCount);
+  const likelyIdentity=samePhone||sameEmail||(sameName&&addressScore>=4);
+  const household=!likelyIdentity&&(addressScore>=3||deviceMatch.serialCount>0||deviceMatch.modelCount>0||locationMatch);
+  return {id:idOf(o),name:customerName(o),score,likelyIdentity,household,signals:{samePhone,sameEmail,sameName,locationMatch,addressScore,sharedDeviceSerialCount:deviceMatch.serialCount,sharedDeviceModelCount:deviceMatch.modelCount}};
+ }).filter(x=>x.household||x.likelyIdentity).sort((a,b)=>b.score-a.score).slice(0,10);
+}
+function linkCustomerRelationship(customerAId,customerBId,type,evidence,actor){
+ requirePermission("customerMerge",actor);
+ assert(String(customerAId)!==String(customerBId),"لا يمكن ربط العميل بنفسه.");
+ assert(exists(KEYS.customers,customerAId)&&exists(KEYS.customers,customerBId),"أحد العملاء غير موجود.");
+ const arr=list(KEYS.customerRelationships);
+ const existsLink=arr.find(r=>(String(r.customerAId)===String(customerAId)&&String(r.customerBId)===String(customerBId))||(String(r.customerAId)===String(customerBId)&&String(r.customerBId)===String(customerAId)));
+ if(existsLink)return existsLink;
+ const item={id:nextId("CRL-",KEYS.customerRelationships,6),customerAId:String(customerAId),customerBId:String(customerBId),relationshipType:type||"نفس الأسرة/العنوان",evidence:Array.isArray(evidence)?evidence:[],status:"active",createdAt:now(),createdBy:actorInfo(actor)};
+ arr.unshift(item);coreWrite(KEYS.customerRelationships,arr);
+ audit("ربط عملاء","العملاء",item.id,"إنشاء علاقة بين حسابين مستقلين دون دمج البيانات",actor,{after:item,changedFields:["customerAId","customerBId","relationshipType","evidence"]});
+ return item;
+}
+function customerRelationships(cid){
+ return list(KEYS.customerRelationships).filter(r=>r.status!=="inactive"&&(String(r.customerAId)===String(cid)||String(r.customerBId)===String(cid)));
 }
 
 function addCustomerPhone(cid,phone,actor){
@@ -507,110 +583,38 @@ function requestCustomerMerge(primaryId,secondaryId,actor,reason){
 function mergeCustomers(primaryId,secondaryId,actor,options){
  requirePermission("customerMerge",actor);
  assert(String(primaryId)!==String(secondaryId),"لا يمكن دمج العميل مع نفسه.");
- const customersArr=list(KEYS.customers);
- const pi=customersArr.findIndex(c=>String(idOf(c))===String(primaryId));
- const si=customersArr.findIndex(c=>String(idOf(c))===String(secondaryId));
- assert(pi>=0&&si>=0,"أحد حسابات العملاء غير موجود.");
- const primary=clone(customersArr[pi]),secondary=clone(customersArr[si]);
- assert(!primary.mergedIntoCustomerId,"الحساب الرئيسي نفسه مدمج في حساب آخر.");
- assert(!secondary.mergedIntoCustomerId,"الحساب الثاني مدمج بالفعل في حساب آخر.");
-
- const mergeId=nextId("MER-",[],8);
- const before={primary:clone(primary),secondary:clone(secondary)};
- const pPhones=customerIdentitySignals(primary).phones;
- const sPhones=customerIdentitySignals(secondary).phones;
- const pEmails=customerIdentitySignals(primary).emails;
- const sEmails=customerIdentitySignals(secondary).emails;
-
- // Never overwrite verified/current primary fields. Preserve alternate identity data.
- const mergedPhones=[...new Set(pPhones.concat(sPhones))];
- const mergedEmails=[...new Set(pEmails.concat(sEmails))];
- const mergedPrimary=Object.assign({},primary,{
-  phone:primary.phone||secondary.phone||"",
-  phone2:primary.phone2||secondary.phone2||"",
-  alternatePhones:mergedPhones.filter(x=>x!==normalizePhone(primary.phone||"")),
-  email:primary.email||secondary.email||"",
-  alternateEmails:mergedEmails.filter(x=>x!==String(primary.email||"").trim().toLowerCase()),
-  mergedCustomerIds:[...new Set((Array.isArray(primary.mergedCustomerIds)?primary.mergedCustomerIds:[]).concat([String(secondaryId)]))],
-  updatedAt:now()
- });
-
- // Move every canonical customer relation to the surviving customer ID.
- const relationKeys=[
-  KEYS.devices,KEYS.requests,KEYS.visits,KEYS.invoices,KEYS.payments,
-  KEYS.warranties,KEYS.contracts,KEYS.notifications,KEYS.loyaltyTransactions,
-  KEYS.complaints,KEYS.ratings
- ];
- const changed=[];
- relationKeys.forEach(key=>{
-  const arr=list(key);let n=0;
-  const next=arr.map(row=>{
-   if(!row||typeof row!=="object")return row;
-   const cid=row.customerId||row.clientId||"";
-   if(String(cid)!==String(secondaryId))return row;
-   n++;
-   const z=Object.assign({},row,{customerId:String(primaryId),updatedAt:now()});
-   if(Object.prototype.hasOwnProperty.call(z,"clientId"))z.clientId=String(primaryId);
-   return z;
-  });
-  if(n){coreWrite(key,next);changed.push({key,count:n});}
- });
-
- // Loyalty: preserve one account for the surviving customer and move all history.
- const loyalty=list(KEYS.loyaltyAccounts);
- const pLi=loyalty.findIndex(x=>String(x.customerId)===String(primaryId));
- const sLi=loyalty.findIndex(x=>String(x.customerId)===String(secondaryId));
- if(sLi>=0){
-  const sp=Number(loyalty[sLi].points||0);
-  if(pLi>=0){
-   loyalty[pLi]=Object.assign({},loyalty[pLi],{
-    points:Number(loyalty[pLi].points||0)+sp,
-    updatedAt:now(),
-    customerName:customerName(mergedPrimary)
-   });
-   loyalty.splice(sLi,1);
-  }else{
-   loyalty[sLi]=Object.assign({},loyalty[sLi],{
-    customerId:String(primaryId),customerName:customerName(mergedPrimary),updatedAt:now()
-   });
-  }
-  coreWrite(KEYS.loyaltyAccounts,loyalty);
-  changed.push({key:KEYS.loyaltyAccounts,count:1});
- }
-
- // Retain the old customer ID as a non-active merge stub; do not delete history.
- customersArr[pi]=mergedPrimary;
- customersArr[si]=Object.assign({},secondary,{
-  archived:true,mergeStatus:"merged",mergedIntoCustomerId:String(primaryId),
-  mergedAt:now(),mergedBy:actorInfo(actor),mergeOperationId:mergeId,
-  updatedAt:now()
- });
- coreWrite(KEYS.customers,customersArr);
-
- // Mark any pending merge request involving these two records as approved.
- const mr=list(KEYS.customerMergeRequests),mrChanged=[];
- mr.forEach((r,i)=>{
-  const same=(String(r.primaryCustomerId)===String(primaryId)&&String(r.secondaryCustomerId)===String(secondaryId)) ||
-             (String(r.primaryCustomerId)===String(secondaryId)&&String(r.secondaryCustomerId)===String(primaryId));
-  if(same&&r.status==="pending"){
-   mr[i]=Object.assign({},r,{status:"approved",approvedAt:now(),approvedBy:actorInfo(actor),mergeOperationId:mergeId});
-   mrChanged.push(r.id);
-  }
- });
- if(mrChanged.length)coreWrite(KEYS.customerMergeRequests,mr);
-
- const after={primary:clone(mergedPrimary),secondary:clone(customersArr[si]),changedRelations:changed};
- audit("دمج عملاء","العملاء",String(primaryId),
-  `دمج ${secondaryId} داخل الحساب الرئيسي ${primaryId} مع الاحتفاظ بالسجل التاريخي`,
-  actor,{operationId:mergeId,correlationId:mergeId,before,after,
-   changedFields:["customerId","clientId","mergedCustomerIds","mergedIntoCustomerId","mergeStatus"]});
- syncRelations();
- recalculateCustomerClassification(String(primaryId),actor);
- const integrity=validateIntegrity();
- assert(integrity.ok,"تم الدمج لكن فحص سلامة العلاقات كشف مشكلة: "+integrity.problems.join(" | "));
- audit("فحص بعد الدمج","النظام",String(primaryId),"نجح فحص سلامة العلاقات بعد دمج العميل",actor,
-  {operationId:mergeId,result:"success"});
- return {operationId:mergeId,primary:findCustomer(primaryId),mergedCustomerId:String(secondaryId),changedRelations:changed};
+ const snapshotKeys=[KEYS.customers,KEYS.devices,KEYS.requests,KEYS.visits,KEYS.invoices,KEYS.payments,KEYS.warranties,KEYS.contracts,KEYS.notifications,KEYS.loyaltyAccounts,KEYS.loyaltyTransactions,KEYS.complaints,KEYS.ratings,KEYS.customerRelationships,KEYS.customerMergeRequests,KEYS.audit];
+ const snapshot={};snapshotKeys.forEach(k=>snapshot[k]=clone(read(k,[])));
+ try{
+  const customersArr=list(KEYS.customers),pi=customersArr.findIndex(c=>String(idOf(c))===String(primaryId)),si=customersArr.findIndex(c=>String(idOf(c))===String(secondaryId));
+  assert(pi>=0&&si>=0,"أحد حسابات العملاء غير موجود.");
+  const primary=clone(customersArr[pi]),secondary=clone(customersArr[si]);
+  assert(!primary.mergedIntoCustomerId,"الحساب الرئيسي نفسه مدمج في حساب آخر.");
+  assert(!secondary.mergedIntoCustomerId,"الحساب الثاني مدمج بالفعل في حساب آخر.");
+  const mergeId=nextId("MER-",[],8),before={primary:clone(primary),secondary:clone(secondary)};
+  const mergedPhones=[...new Set(customerContactPhones(primary).concat(customerContactPhones(secondary)))];
+  const mergedEmails=[...new Set(customerContactEmails(primary).concat(customerContactEmails(secondary)))];
+  const addresses=[...(Array.isArray(primary.addresses)?primary.addresses:[])];
+  (Array.isArray(secondary.addresses)?secondary.addresses:[]).forEach(a=>{if(!addresses.some(x=>normalizeText(x.text||x.address)===normalizeText(a.text||a.address)&&normalizeText(x.label)===normalizeText(a.label)))addresses.push(a);});
+  const contacts=[...(Array.isArray(primary.contacts)?primary.contacts:[])];
+  (Array.isArray(secondary.contacts)?secondary.contacts:[]).forEach(x=>{if(!contacts.some(y=>normalizeText(y.type)===normalizeText(x.type)&&normalizeText(y.value)===normalizeText(x.value)))contacts.push(x);});
+  const mergedPrimary=Object.assign({},primary,{phone:primary.phone||secondary.phone||"",phone2:primary.phone2||secondary.phone2||"",alternatePhones:mergedPhones.filter(x=>x!==normalizePhone(primary.phone||"")),email:primary.email||secondary.email||"",alternateEmails:mergedEmails.filter(x=>x!==normalizeText(primary.email||"")),addresses,contacts,mergedCustomerIds:[...new Set((Array.isArray(primary.mergedCustomerIds)?primary.mergedCustomerIds:[]).concat([String(secondaryId)]))],updatedAt:now()});
+  const relationKeys=[KEYS.devices,KEYS.requests,KEYS.visits,KEYS.invoices,KEYS.payments,KEYS.warranties,KEYS.contracts,KEYS.notifications,KEYS.loyaltyTransactions,KEYS.complaints,KEYS.ratings];
+  const changed=[];
+  relationKeys.forEach(key=>{const arr=list(key);let n=0;const next=arr.map(row=>{if(!row||typeof row!=="object")return row;const cid=row.customerId||row.clientId||"";if(String(cid)!==String(secondaryId))return row;n++;const z=Object.assign({},row,{customerId:String(primaryId),updatedAt:now()});if(Object.prototype.hasOwnProperty.call(z,"clientId"))z.clientId=String(primaryId);return z;});if(n){coreWrite(key,next);changed.push({key,count:n});}});
+  const loyalty=list(KEYS.loyaltyAccounts),pLi=loyalty.findIndex(x=>String(x.customerId)===String(primaryId)),sLi=loyalty.findIndex(x=>String(x.customerId)===String(secondaryId));
+  if(sLi>=0){const sp=Number(loyalty[sLi].points||0);if(pLi>=0){loyalty[pLi]=Object.assign({},loyalty[pLi],{points:Number(loyalty[pLi].points||0)+sp,updatedAt:now(),customerName:customerName(mergedPrimary)});loyalty.splice(sLi,1);}else{loyalty[sLi]=Object.assign({},loyalty[sLi],{customerId:String(primaryId),customerName:customerName(mergedPrimary),updatedAt:now()});}coreWrite(KEYS.loyaltyAccounts,loyalty);changed.push({key:KEYS.loyaltyAccounts,count:1});}
+  // Re-point relationship records; self-links are removed.
+  const rels=list(KEYS.customerRelationships),nextR=[];
+  rels.forEach(r=>{let a=String(r.customerAId),b=String(r.customerBId);if(a===String(secondaryId))a=String(primaryId);if(b===String(secondaryId))b=String(primaryId);if(a===b)return;const dup=nextR.some(x=>(String(x.customerAId)===a&&String(x.customerBId)===b)||(String(x.customerAId)===b&&String(x.customerBId)===a));if(!dup)nextR.push(Object.assign({},r,{customerAId:a,customerBId:b,updatedAt:now()}));});coreWrite(KEYS.customerRelationships,nextR);
+  customersArr[pi]=mergedPrimary;customersArr[si]=Object.assign({},secondary,{archived:true,mergeStatus:"merged",mergedIntoCustomerId:String(primaryId),mergedAt:now(),mergedBy:actorInfo(actor),mergeOperationId:mergeId,updatedAt:now()});coreWrite(KEYS.customers,customersArr);
+  const mr=list(KEYS.customerMergeRequests);mr.forEach((r,i)=>{const same=(String(r.primaryCustomerId)===String(primaryId)&&String(r.secondaryCustomerId)===String(secondaryId))||(String(r.primaryCustomerId)===String(secondaryId)&&String(r.secondaryCustomerId)===String(primaryId));if(same&&r.status==="pending")mr[i]=Object.assign({},r,{status:"approved",approvedAt:now(),approvedBy:actorInfo(actor),mergeOperationId:mergeId});});coreWrite(KEYS.customerMergeRequests,mr);
+  audit("دمج عملاء","العملاء",String(primaryId),`دمج ${secondaryId} داخل الحساب الرئيسي ${primaryId} مع الاحتفاظ بالسجل التاريخي`,actor,{operationId:mergeId,correlationId:mergeId,before,after:{primary:clone(mergedPrimary),secondary:clone(customersArr[si]),changedRelations:changed},changedFields:["customerId","clientId","mergedCustomerIds","mergedIntoCustomerId","mergeStatus","addresses","contacts"]});
+  syncRelations();recalculateCustomerClassification(String(primaryId),actor);
+  const integrity=validateIntegrity();assert(integrity.ok,"فشل فحص سلامة العلاقات بعد الدمج: "+integrity.problems.join(" | "));
+  audit("فحص بعد الدمج","النظام",String(primaryId),"نجح فحص سلامة العلاقات بعد دمج العميل",actor,{operationId:mergeId,result:"success"});
+  return {operationId:mergeId,primary:findCustomer(primaryId),mergedCustomerId:String(secondaryId),changedRelations:changed};
+ }catch(e){snapshotKeys.forEach(k=>{try{coreWrite(k,snapshot[k]);}catch(_){}});throw e;}
 }
 function resolveCustomerId(cid){
  const c=findCustomer(cid);if(!c)return null;
@@ -933,6 +937,9 @@ function validateIntegrity(){
  });
  list(KEYS.complaints).forEach(x=>{if(!customers.has(String(x.customerId||x.clientId||"")))problems.push("شكوى بدون عميل: "+idOf(x));if(x.requestId&&!requests.has(String(x.requestId)))problems.push("شكوى بأمر شغل غير موجود: "+idOf(x));});
  list(KEYS.ratings).forEach(x=>{if(!customers.has(String(x.customerId||x.clientId||"")))problems.push("تقييم بدون عميل: "+idOf(x));if(x.requestId&&!requests.has(String(x.requestId)))problems.push("تقييم بأمر شغل غير موجود: "+idOf(x));else if(x.requestId){const r=findRequest(x.requestId);if(r&&r.status!=="مغلق"&&x.archived!==true)problems.push("تقييم قبل إغلاق أمر الشغل: "+idOf(x));}});
+ const relationshipIds=new Set();
+ list(KEYS.customerRelationships).forEach(r=>{if(!idOf(r))problems.push("علاقة عملاء بدون ID: "+String(r));else if(relationshipIds.has(idOf(r)))problems.push("ID مكرر في علاقات العملاء: "+idOf(r));else relationshipIds.add(idOf(r));if(!customers.has(String(r.customerAId||""))||!customers.has(String(r.customerBId||"")))problems.push("علاقة عملاء تشير إلى عميل غير موجود: "+idOf(r));if(String(r.customerAId)===String(r.customerBId))problems.push("علاقة عميل مع نفسه: "+idOf(r));});
+ list(KEYS.customerMergeRequests).forEach(r=>{if(!customers.has(String(r.primaryCustomerId||""))||!customers.has(String(r.secondaryCustomerId||"")))problems.push("طلب دمج يشير إلى عميل غير موجود: "+idOf(r));if(String(r.primaryCustomerId)===String(r.secondaryCustomerId))problems.push("طلب دمج مع نفس العميل: "+idOf(r));});
  return {ok:problems.length===0,problems,count:problems.length};
 }
 
@@ -1262,7 +1269,7 @@ function migrateWorkOrdersToCanonical(){
 function moduleContract(){
  return {
   entities:Object.assign({},KEYS),
-  identity:{customer:"customerId",device:"deviceId",request:"requestId",technician:"technicianId",invoice:"invoiceId",payment:"paymentId",warranty:"warrantyId",inventoryItem:"itemId"},
+  identity:{customer:"customerId",device:"deviceId",request:"requestId",technician:"technicianId",invoice:"invoiceId",payment:"paymentId",warranty:"warrantyId",inventoryItem:"itemId",customerRelationship:"customerRelationshipId"},
   mutationRule:"لا توجد كتابة مباشرة؛ استخدم API الخاص بالـCore",
   auditRule:"كل عملية تغيير مهمة تمر عبر audit",
   relationRule:"validateIntegrity و validators قبل الحفظ",
@@ -1298,6 +1305,8 @@ function regressionSelfTest(){
  if(!hasPermission("integrity",admin))fail("permission integrity","admin denied");
  if(!hasPermission("visitManage",admin))fail("permission visitManage","admin denied");
  if(hasPermission("visitManage",tech))fail("permission visitManage","technician bypass");
+ if(!hasPermission("customerMerge",admin))fail("permission customerMerge","admin denied");
+ if(hasPermission("customerMerge",tech))fail("permission customerMerge","technician bypass");
  expectReject("public write",()=>publicWriteBlocked(),"الكتابة المباشرة");
  const result=validateIntegrity();
  if(!result.ok)fail("integrity",result.problems.join(" | "));
@@ -1319,7 +1328,7 @@ window.WorkshopCore={
  auditImmutable,deleteAudit,updateAudit,
  read,list,write:publicWriteBlocked,now,today,clean,idOf,nextId,settings,saveSettings,find,findCustomer,findDevice,findRequest,
  findTechnician,findVisit,findInvoice,findPayment,customerName,technicianName,requestCustomerId,requestDeviceId,
-findPossibleCustomerMatches,addCustomerPhone,requestCustomerMerge,mergeCustomers,resolveCustomerId,findCustomerByPhone,
+findPossibleCustomerMatches,findCustomerRelationshipSuggestions,customerRelationships,linkCustomerRelationship,addCustomerPhone,requestCustomerMerge,mergeCustomers,resolveCustomerId,findCustomerByPhone,
  customerDevices,customerRequests,customerVisits,customerInvoices,customerPayments,customerClassification,recalculateCustomerClassification,customerPhoneExists,requestVisits,requestInvoices,
  requestPayments,requestWarranties,technicianVisits,invoiceTotal,paymentsForInvoice,invoicePaid,invoiceRefunded,
  invoiceBalance,inventoryItem,inventoryQuantity,addInventoryTransaction,consumeInventory,getOrCreateLoyalty,
