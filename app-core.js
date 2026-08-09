@@ -7,7 +7,7 @@
 (function(window){
 "use strict";
 
-const CORE_VERSION="3.7.5-foundation-baseline";
+const CORE_VERSION="3.7.6-classification-regression";
 
 const KEYS={
  settings:"systemSettings", audit:"auditLog", customers:"customers", devices:"devices",
@@ -109,7 +109,7 @@ function auditImmutable(action,module,recordId,description,user,meta){
   correlationId:m.correlationId||"",
   user:a.name||settings().adminName||"النظام",userId:a.id||"",role:a.role||"",
   module:module||"النظام",action:action||"أخرى",recordId:recordId||"",
-  description:clean(description,2000),date:now(),source:"core-v3.7.5",
+  description:clean(description,2000),date:now(),source:"core-v3.7.6",
   result:m.result||"success",before:m.before===undefined?null:m.before,
   after:m.after===undefined?null:m.after,
   changedFields:Array.isArray(m.changedFields)?m.changedFields:[],
@@ -322,11 +322,86 @@ function deviceHasOperationalData(did){
   list(KEYS.warranties).some(x=>String(x.deviceId||x.applianceId)===String(did))||
   list(KEYS.contracts).some(x=>Array.isArray(x.deviceIds)&&x.deviceIds.map(String).includes(String(did)));
 }
+
+function customerClassification(cid){
+ const c=findCustomer(cid); if(!c)return null;
+ const req=customerRequests(cid),visits=customerVisits(cid),inv=customerInvoices(cid);
+ const ratings=list(KEYS.ratings).filter(x=>String(x.customerId||x.clientId||"")===String(cid)&&x.archived!==true);
+ const complaints=list(KEYS.complaints).filter(x=>String(x.customerId||x.clientId||"")===String(cid)&&x.archived!==true);
+ const loyalty=loyaltyPoints(cid);
+ const closed=req.filter(r=>["مكتمل","مغلق"].includes(String(r.status||""))).length;
+ const cancelled=req.filter(r=>String(r.status||"")==="ملغي").length;
+ const avgRating=ratings.length?ratings.reduce((s,r)=>s+Number(r.rating||0),0)/ratings.length:0;
+ const totalInvoices=inv.reduce((s,i)=>s+invoiceTotal(i),0);
+ const dates=[];
+ [req,visits,inv,ratings,complaints].forEach(arr=>arr.forEach(x=>{
+   const d=x.updatedAt||x.closedAt||x.completedAt||x.date||x.createdAt;
+   if(d)dates.push(new Date(d).getTime());
+ }));
+ const lastActivity=dates.length?new Date(Math.max.apply(null,dates)).toISOString():"";
+ const daysSince=lastActivity?Math.max(0,Math.floor((Date.now()-new Date(lastActivity).getTime())/86400000)):null;
+
+ // No TWMS work order yet = new to the system, even if known to the workshop.
+ if(req.length===0){
+  return {tier:"جديد",score:0,reason:"لا يوجد أمر شغل مسجل للعميل داخل النظام حتى الآن.",metrics:{
+   requests:0,closedRequests:0,visits:visits.length,ratings:ratings.length,avgRating:0,
+   complaints:complaints.length,totalInvoices,loyaltyPoints:loyalty,lastActivity,daysSince
+  }};
+ }
+
+ let score=Math.min(20,closed*2)+Math.min(10,visits.length);
+ if(avgRating>0)score+=Math.min(10,Math.round(avgRating*2));
+ if(totalInvoices>=30000)score+=10;
+ else if(totalInvoices>=15000)score+=8;
+ else if(totalInvoices>=7000)score+=6;
+ else if(totalInvoices>=3000)score+=4;
+ else if(totalInvoices>=1000)score+=2;
+ score+=Math.min(10,Math.floor(Math.max(0,loyalty)/100));
+ score-=Math.min(9,complaints.length*3);
+ score-=Math.min(6,cancelled*2);
+ if(daysSince!==null){
+  if(daysSince<=90)score+=3;
+  else if(daysSince<=180)score+=1;
+  else if(daysSince>365)score-=3;
+ }
+ score=Math.max(0,score);
+
+ let tier="عادي";
+ if(score>=25)tier="VIP";
+ else if(score>=15)tier="مميز";
+ else if(score>=6)tier="نشط";
+
+ return {tier,score,
+  reason:`أوامر الشغل: ${req.length} • المكتمل/المغلق: ${closed} • الزيارات: ${visits.length} • التقييمات: ${ratings.length}${ratings.length?` بمتوسط ${avgRating.toFixed(1)}/5`:""} • الفواتير: ${totalInvoices.toFixed(2)} ${settings().currency} • نقاط الولاء: ${loyalty} • الشكاوى: ${complaints.length} • الإلغاءات: ${cancelled}`,
+  metrics:{requests:req.length,closedRequests:closed,visits:visits.length,ratings:ratings.length,
+   avgRating:Number(avgRating.toFixed(2)),complaints:complaints.length,totalInvoices,
+   loyaltyPoints:loyalty,lastActivity,daysSince}
+ };
+}
+function recalculateCustomerClassification(cid,actor){
+ const c=findCustomer(cid);assert(c,"العميل غير موجود.");
+ const result=customerClassification(cid);assert(result,"تعذر حساب تصنيف العميل.");
+ const oldTier=String(c.customerTier||c.category||"");
+ if(oldTier===result.tier && Number(c.classificationScore||0)===Number(result.score))return c;
+ const a=list(KEYS.customers),i=a.findIndex(x=>String(idOf(x))===String(cid));assert(i>=0,"العميل غير موجود.");
+ const before=clone(a[i]);
+ a[i]=Object.assign({},a[i],{
+  customerTier:result.tier,category:result.tier,
+  classificationScore:result.score,classificationReason:result.reason,
+  classificationMetrics:result.metrics,classificationUpdatedAt:now(),updatedAt:now()
+ });
+ coreWrite(KEYS.customers,a);
+ audit("تصنيف تلقائي","العملاء",cid,"تحديث تصنيف العميل تلقائيًا بواسطة محرك التصنيف",actor,
+  {before,after:a[i],changedFields:["customerTier","category","classificationScore","classificationReason","classificationMetrics"]});
+ return a[i];
+}
+
 function saveCustomer(input,actor){
  requirePermission(input.id||input.customerId?"customerUpdate":"create",actor);
  const d=Object.assign({},input), oldId=clean(d.id||d.customerId,80);
  assert(clean(d.name||d.fullName,200),"اسم العميل مطلوب.");
  d.name=clean(d.name||d.fullName,200); d.phone=clean(d.phone||d.mobile,50);
+ delete d.category; delete d.customerTier; delete d.classificationScore; delete d.classificationReason; delete d.classificationMetrics;
  const a=list(KEYS.customers);
  const duplicate=a.find(x=>String(idOf(x))!==String(oldId)&&
    d.phone&&String(x.phone||x.mobile||"").replace(/\D/g,"")===d.phone.replace(/\D/g,""));
@@ -334,10 +409,10 @@ function saveCustomer(input,actor){
  if(oldId){
   const i=a.findIndex(x=>String(idOf(x))===oldId);assert(i>=0,"العميل غير موجود.");
   a[i]=Object.assign({},a[i],d,{id:oldId,updatedAt:now()});coreWrite(KEYS.customers,a);
-  audit("تعديل","العملاء",oldId,"تم تعديل بيانات العميل",actor);syncRelations();return a[i];
+  audit("تعديل","العملاء",oldId,"تم تعديل بيانات العميل",actor);syncRelations();return recalculateCustomerClassification(oldId,actor);
  }
  const id=nextId("CUS-",KEYS.customers,5),item=Object.assign({id,createdAt:now(),archived:false},d);
- a.push(item);coreWrite(KEYS.customers,a);audit("إضافة","العملاء",id,"تم إنشاء عميل",actor);return item;
+ a.push(item);coreWrite(KEYS.customers,a);audit("إضافة","العملاء",id,"تم إنشاء عميل",actor);return recalculateCustomerClassification(id,actor);
 }
 function archiveCustomer(cid,actor){
  requirePermission("archive",actor);const c=findCustomer(cid);assert(c,"العميل غير موجود.");
@@ -418,12 +493,12 @@ function saveRequest(input,actor){
    recordStatusChange(oldId,old.status,data.status,actor);
   }
   arr[i]=Object.assign({},old,data,{id:oldId,updatedAt:now()});
-  coreWrite(KEYS.requests,arr);syncRelations();audit("تعديل","أوامر الشغل",oldId,"تم تعديل أمر الشغل",actor);return arr[i];
+  coreWrite(KEYS.requests,arr);syncRelations();audit("تعديل","أوامر الشغل",oldId,"تم تعديل أمر الشغل",actor);recalculateCustomerClassification(data.customerId,actor);return findRequest(oldId);
  }
  const id=nextId("WO-",KEYS.requests,6);
  const item=Object.assign({id,createdAt:now(),approved:false},data);
  arr.push(item);coreWrite(KEYS.requests,arr);
- recordStatusChange(id,"",item.status,actor);audit("إضافة","أوامر الشغل",id,"تم إنشاء أمر شغل",actor);syncRelations();return item;
+ recordStatusChange(id,"",item.status,actor);audit("إضافة","أوامر الشغل",id,"تم إنشاء أمر شغل",actor);syncRelations();recalculateCustomerClassification(item.customerId,actor);return findRequest(id);
 }
 function requestClosureReadiness(r){
  assert(r,"أمر الشغل غير موجود.");
@@ -450,7 +525,7 @@ function updateRequestStatus(id,status,actor){
  if(old.status==="مغلق"&&status!=="مغلق")assert(settings().allowReopen==="yes","إعادة فتح أمر الشغل غير مسموحة.");
  if(status==="مغلق"&&old.status!=="مغلق")requestClosureReadiness(old);
  arr[i]=Object.assign({},old,{status,updatedAt:now()});coreWrite(KEYS.requests,arr);
- recordStatusChange(id,old.status,status,actor);audit("تغيير حالة","أوامر الشغل",id,old.status+" ← "+status,actor);return arr[i];
+ recordStatusChange(id,old.status,status,actor);audit("تغيير حالة","أوامر الشغل",id,old.status+" ← "+status,actor);recalculateCustomerClassification(requestCustomerId(arr[i]),actor);return findRequest(id);
 }
 function recordStatusChange(id,from,to,actor){
  const a=list(KEYS.statusHistory);a.unshift({id:nextId("ST-",KEYS.statusHistory,7),requestId:id,fromStatus:from||"",toStatus:to||"",user:actorInfo(actor).name||"النظام",userId:actorInfo(actor).id||"",role:actorInfo(actor).role||"",date:now()});coreWrite(KEYS.statusHistory,a);
@@ -792,7 +867,7 @@ function saveInvoice(data,actor){
   assert(costApproved(r),"لا تصدر الفاتورة النهائية قبل اعتماد التكلفة.");
  }
  const i=a.findIndex(x=>String(idOf(x))===String(id));if(i>=0)a[i]=item;else a.push(item);
- coreWrite(KEYS.invoices,a);audit(i>=0?"تعديل":"إضافة","الفواتير",id,"حفظ فاتورة",actor);syncRelations();return item;
+ coreWrite(KEYS.invoices,a);audit(i>=0?"تعديل":"إضافة","الفواتير",id,"حفظ فاتورة",actor);syncRelations();const invReq=findRequest(item.requestId||item.workOrderId),invCid=item.customerId||item.clientId||(invReq&&requestCustomerId(invReq));if(invCid)recalculateCustomerClassification(invCid,actor);return item;
 }
 function savePayment(data,actor){
  requirePermission("finance",actor);
@@ -808,7 +883,7 @@ function savePayment(data,actor){
  }
  const item=Object.assign({},existing||{},data,{id:clean(data.id,80)||nextId("PAY-",KEYS.payments,6),amount,updatedAt:now(),createdAt:(existing&&existing.createdAt)||data.createdAt||now()});
  const i=a.findIndex(x=>String(idOf(x))===String(item.id));if(i>=0)a[i]=item;else a.push(item);
- coreWrite(KEYS.payments,a);audit(i>=0?"تعديل":"إضافة","المدفوعات",item.id,"حفظ دفعة",actor);syncRelations();return item;
+ coreWrite(KEYS.payments,a);audit(i>=0?"تعديل":"إضافة","المدفوعات",item.id,"حفظ دفعة",actor);syncRelations();const payInv=findInvoice(item.invoiceId),payCid=payInv&&(payInv.customerId||payInv.clientId);if(payCid)recalculateCustomerClassification(payCid,actor);return item;
 }
 function refundPayment(data,actor){
  requirePermission("finance",actor);assert(data&&data.invoiceId,"الفاتورة مطلوبة للاسترداد.");
@@ -920,7 +995,7 @@ function saveComplaint(data,actor){
  const a=list(KEYS.complaints),id=clean(data.id,80)||nextId("CMP-",KEYS.complaints,6);
  const item=Object.assign({},data,{id,updatedAt:now(),createdAt:data.createdAt||now()});
  const i=a.findIndex(x=>String(idOf(x))===id);if(i>=0)a[i]=Object.assign({},a[i],item);else a.push(item);
- coreWrite(KEYS.complaints,a);audit(i>=0?"تعديل":"إضافة","الشكاوى",id,"شكوى عميل",actor);return item;
+ coreWrite(KEYS.complaints,a);audit(i>=0?"تعديل":"إضافة","الشكاوى",id,"شكوى عميل",actor);recalculateCustomerClassification(item.customerId,actor);return item;
 }
 function saveRating(data,actor){
  requirePermission("rating",actor);
@@ -934,7 +1009,7 @@ function saveRating(data,actor){
  assert(!existing||existing.archived!==true,"لا يمكن تعديل تقييم مؤرشف.");
  const item=Object.assign({},existing||{},data,{id,rating,archived:false,updatedAt:now(),createdAt:(existing&&existing.createdAt)||data.createdAt||now()});
  const i=a.findIndex(x=>String(idOf(x))===String(id));if(i>=0)a[i]=item;else a.push(item);
- coreWrite(KEYS.ratings,a);audit(i>=0?"تعديل":"إضافة","التقييمات",id,"تقييم عميل",actor);return item;
+ coreWrite(KEYS.ratings,a);audit(i>=0?"تعديل":"إضافة","التقييمات",id,"تقييم عميل",actor);recalculateCustomerClassification(item.customerId,actor);return item;
 }
 function archiveRating(id,actor){
  requirePermission("archive",actor);const a=list(KEYS.ratings),i=a.findIndex(x=>String(idOf(x))===String(id));assert(i>=0,"التقييم غير موجود.");
@@ -1033,7 +1108,7 @@ window.WorkshopCore={
  auditImmutable,deleteAudit,updateAudit,
  read,list,write:publicWriteBlocked,now,today,clean,idOf,nextId,settings,saveSettings,find,findCustomer,findDevice,findRequest,
  findTechnician,findVisit,findInvoice,findPayment,customerName,technicianName,requestCustomerId,requestDeviceId,
- customerDevices,customerRequests,customerVisits,customerInvoices,customerPayments,requestVisits,requestInvoices,
+ customerDevices,customerRequests,customerVisits,customerInvoices,customerPayments,customerClassification,recalculateCustomerClassification,requestVisits,requestInvoices,
  requestPayments,requestWarranties,technicianVisits,invoiceTotal,paymentsForInvoice,invoicePaid,invoiceRefunded,
  invoiceBalance,inventoryItem,inventoryQuantity,addInventoryTransaction,consumeInventory,getOrCreateLoyalty,
  loyaltyPoints,changeLoyalty,audit,syncRelations,validateIntegrity,validateCustomerDevice,validateRequestRefs,
