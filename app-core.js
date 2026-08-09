@@ -1,0 +1,1049 @@
+/* =========================================================
+   الورشة الفنية - TWMS Core V3.7.3 Regression Gated
+   المرجع الموحد للبيانات والعلاقات وقواعد العمل - Core V3.7.
+   ملاحظة أمنية: localStorage مناسب للنسخة المحلية/التجريبية فقط.
+   الصلاحيات والأمان الحقيقيان يحتاجان Backend عند الإنتاج.
+   ========================================================= */
+(function(window){
+"use strict";
+
+const CORE_VERSION="3.7.5-foundation-baseline";
+
+const KEYS={
+ settings:"systemSettings", audit:"auditLog", customers:"customers", devices:"devices",
+ requests:"maintenanceRequests", workOrders:"maintenanceRequests", technicians:"technicians",
+ visits:"visits", routes:"routes", inventory:"inventory", inventoryTransactions:"inventory_transactions",
+ suppliers:"suppliers", purchaseOrders:"purchaseOrders", purchaseReceipts:"purchaseReceipts", purchaseReturns:"purchaseReturns", invoices:"invoices", payments:"payments",
+ warranties:"warranties", contracts:"contracts", notifications:"notifications",
+ loyaltyAccounts:"loyaltyAccounts", loyaltyTransactions:"loyaltyTransactions",
+ technicalLibrary:"technicalLibrary", users:"users", approvals:"workOrderApprovals",
+ diagnoses:"workOrderDiagnoses", assignments:"workOrderAssignments", statusHistory:"workOrderStatusHistory",
+ complaints:"complaints", ratings:"customerRatings"
+};
+
+const WORK_ORDER_TYPES=[
+ "صيانة منزلية","صيانة داخل الورشة","تركيب جهاز","فك ونقل جهاز",
+ "زيارة فحص فقط","زيارة ضمان","زيارة دورية","معاينة قبل الإصلاح"
+];
+const PRIORITIES=["عاجلة جدًا","عاجلة","عادية","منخفضة"];
+const STATUSES=[
+ "جديد","بانتظار الإسناد","تم الإسناد","في الطريق","جاري الفحص",
+ "بانتظار موافقة العميل","بانتظار قطعة غيار","جاري الإصلاح",
+ "مكتمل","مغلق","ملغي","مؤرشف"
+];
+
+const DEFAULT_SETTINGS={
+ workshopName:"الورشة الفنية لصيانة الأجهزة المنزلية والتكييف",
+ shortName:"الورشة الفنية",currency:"جنيه",invoicePrefix:"INV-",
+ pointValue:1,vipPoints:1000,warrantyDays:30,notifications:"on",
+ defaultWarehouse:"المخزن الرئيسي",negativeStock:"no",
+ autoTechnicianAssignment:"off",requireCustomerApproval:"off",
+ allowReopen:"yes",allowDeleteApproved:"no",
+allowDeleteCustomer:"no",allowDeleteDevice:"no",
+ audit:"on",inventoryDeductionMode:"completion",warrantyCreationMode:"close"
+};
+
+function clone(v){return v===undefined?undefined:JSON.parse(JSON.stringify(v));}
+function read(key,fallback){
+ try{const raw=localStorage.getItem(key);if(raw===null)return clone(fallback);
+ const v=JSON.parse(raw);return v===null?clone(fallback):v;}
+ catch(e){console.error("TWMS read error",e);return clone(fallback);}
+}
+function coreWrite(key,value){
+ try{localStorage.setItem(key,JSON.stringify(value));return value;}
+ catch(e){console.error("TWMS write error",e);throw new Error("تعذر حفظ البيانات. تأكد من مساحة التخزين.");}
+}
+function list(key){const v=read(key,[]);return Array.isArray(v)?v:[];}
+function now(){return new Date().toISOString();}
+function today(){return now().slice(0,10);}
+function clean(v,max){return String(v??"").trim().slice(0,max||10000);}
+function idOf(o){
+ if(!o)return "";
+ return String(o.id??"");
+}
+function escReg(s){return String(s).replace(/[.*+?^${}()|[\]\\]/g,"\\$&");}
+function numberPart(prefix,id){const m=String(id||"").match(new RegExp("^"+escReg(prefix)+"(\\d+)$"));return m?Number(m[1]):0;}
+function nextId(prefix,key,width){
+ let max=0;list(key).forEach(x=>{max=Math.max(max,numberPart(prefix,idOf(x)));});
+ return prefix+String(max+1).padStart(width||5,"0");
+}
+function settings(){return Object.assign({},DEFAULT_SETTINGS,read(KEYS.settings,{}));}
+function saveSettings(patch,actor){
+ requirePermission("settings",actor);
+ const s=Object.assign({},settings(),patch||{},{updatedAt:now()});
+ coreWrite(KEYS.settings,s);audit("تعديل","الإعدادات","", "تعديل إعدادات النظام",actor);return s;
+}
+function find(key,id){return list(key).find(x=>String(idOf(x))===String(id))||null;}
+const findCustomer=id=>find(KEYS.customers,id),findDevice=id=>find(KEYS.devices,id),
+findRequest=id=>find(KEYS.requests,id),findTechnician=id=>find(KEYS.technicians,id),
+findVisit=id=>find(KEYS.visits,id),findInvoice=id=>find(KEYS.invoices,id),
+findPayment=id=>find(KEYS.payments,id);
+
+function customerName(c){return c?(c.name||c.fullName||c.customerName||""):"";}
+function technicianName(t){return t?(t.name||t.fullName||t.technicianName||""):"";}
+function requestCustomerId(r){return r?(r.customerId||r.clientId||""):"";}
+function requestDeviceId(r){return r?(r.deviceId||r.applianceId||""):"";}
+function customerDevices(cid){return list(KEYS.devices).filter(d=>String(d.customerId||d.clientId||"")===String(cid));}
+function customerRequests(cid){return list(KEYS.requests).filter(r=>String(requestCustomerId(r))===String(cid));}
+function customerVisits(cid){return list(KEYS.visits).filter(v=>String(v.customerId||v.clientId||"")===String(cid));}
+function customerInvoices(cid){return list(KEYS.invoices).filter(i=>String(i.customerId||i.clientId||"")===String(cid));}
+function customerPayments(cid){return list(KEYS.payments).filter(p=>String(p.customerId||p.clientId||"")===String(cid));}
+function requestVisits(rid){return list(KEYS.visits).filter(v=>String(v.requestId||v.workOrderId||"")===String(rid));}
+function requestInvoices(rid){return list(KEYS.invoices).filter(i=>String(i.requestId||i.workOrderId||"")===String(rid));}
+function requestPayments(rid){return list(KEYS.payments).filter(p=>String(p.requestId||p.workOrderId||"")===String(rid));}
+function requestWarranties(rid){return list(KEYS.warranties).filter(w=>String(w.requestId||w.workOrderId||"")===String(rid));}
+function technicianVisits(tid,date){return list(KEYS.visits).filter(v=>String(v.technicianId||"")===String(tid)&&(!date||String(v.date||"")===String(date)));}
+
+// Public module boundary: modules may read through the Core, but may not write
+// arbitrary records directly. All mutations must use a validated Core API.
+function publicWriteBlocked(){
+ throw new Error("الكتابة المباشرة لبيانات النظام ممنوعة. استخدم واجهات WorkshopCore المعتمدة.");
+}
+
+
+function auditImmutable(action,module,recordId,description,user,meta){
+ const logs=list(KEYS.audit),a=actorInfo(user),m=meta&&typeof meta==="object"?meta:{};
+ const entry={
+  id:nextId("AUD-",KEYS.audit,6),
+  operationId:m.operationId||nextId("OP-",[],8),
+  correlationId:m.correlationId||"",
+  user:a.name||settings().adminName||"النظام",userId:a.id||"",role:a.role||"",
+  module:module||"النظام",action:action||"أخرى",recordId:recordId||"",
+  description:clean(description,2000),date:now(),source:"core-v3.7.5",
+  result:m.result||"success",before:m.before===undefined?null:m.before,
+  after:m.after===undefined?null:m.after,
+  changedFields:Array.isArray(m.changedFields)?m.changedFields:[],
+  ip:m.ip||"",immutable:true
+ };
+ logs.unshift(entry);coreWrite(KEYS.audit,logs);return entry;
+}
+function audit(action,module,recordId,description,user,meta){
+ return auditImmutable(action,module,recordId,description,user,meta);
+}
+function deleteAudit(){
+ throw new Error("لا يجوز حذف سجل المراجعة.");
+}
+function updateAudit(){
+ throw new Error("لا يجوز تعديل سجل المراجعة.");
+}
+
+function assert(condition,message){if(!condition)throw new Error(message);}
+function exists(key,id){return !!find(key,id);}
+
+function actorInfo(actor){
+ if(actor && typeof actor==="object") return {
+  id:actor.id||actor.userId||"",
+  name:actor.name||actor.fullName||actor.username||"المستخدم",
+  role:actor.role||actor.userRole||""
+ };
+ if(actor==="النظام") return {id:"SYSTEM",name:"النظام",role:"system"};
+ if(actor) return {id:"",name:String(actor),role:""};
+ return {id:"",name:"",role:""};
+}
+
+function getPermissionRegistry(){
+ const s=settings(),configured=s.permissionRegistry;
+ if(configured&&typeof configured==="object")return clone(configured);
+ return {
+  create:["manager","technician","موظف","فني","admin","owner"],
+  update:["manager","technician","موظف","فني","admin","owner"],
+  delete:["manager","admin","owner"],
+  archive:["manager","admin","owner"],
+  approve:["manager","admin","owner"],
+  assign:["manager","admin","owner"],
+  stock:["manager","storekeeper","مخزن","admin","owner"],
+  finance:["manager","accountant","محاسب","admin","owner"],
+  settings:["manager","admin","owner"],
+  integrity:["manager","admin","owner"],
+  customerUpdate:["manager","موظف","admin","owner"],
+  deviceUpdate:["manager","موظف","فني","admin","owner"],
+  workOrderUpdate:["manager","موظف","فني","admin","owner"],
+  diagnosis:["manager","technician","فني","admin","owner"],
+  complaint:["manager","موظف","admin","owner"],
+  rating:["manager","موظف","admin","owner"],
+  library:["manager","technician","موظف","فني","admin","owner"],
+  route:["manager","موظف","admin","owner"],
+  supplierManage:["manager","storekeeper","مخزن","admin","owner"],
+  purchaseManage:["manager","storekeeper","مخزن","admin","owner"],
+  technicianManage:["manager","admin","owner"],
+  visitManage:["manager","admin","owner"],
+  warranty:["manager","admin","owner"],
+  contract:["manager","admin","owner"],
+  invoiceEdit:["manager","accountant","محاسب","admin","owner"],
+  invoiceClosedEdit:["admin","owner"],
+  userManagement:["manager","admin","owner"],
+  securityManage:["admin","owner"],
+  workflowManage:["manager","admin","owner"]
+ };
+}
+function setPermissionRegistry(registry,actor){
+ requirePermission("securityManage",actor);
+ assert(registry&&typeof registry==="object","سجل الصلاحيات غير صحيح.");
+ const cleaned={};
+ Object.keys(registry).forEach(k=>{cleaned[String(k)]=Array.isArray(registry[k])?registry[k].map(x=>String(x)):[];});
+ coreWrite(KEYS.settings,Object.assign({},settings(),{permissionRegistry:cleaned,updatedAt:now()}));
+ audit("تعديل الصلاحيات","الأمان","PERMISSION_REGISTRY","تحديث سجل الصلاحيات",actor);
+ return cleaned;
+}
+function hasPermission(action,actor){
+ const a=actorInfo(actor),role=String(a.role||"").toLowerCase();
+ if(role==="system"&&a.id==="SYSTEM")return true;
+ if(!a.id||!a.role)return false;
+ const adminRoles=["admin","administrator","owner","مالك","مدير النظام"];
+ if(adminRoles.includes(role))return true;
+ const matrix=getPermissionRegistry();
+ const allowed=matrix[String(action||"")]||[];
+ return Array.isArray(allowed)&&allowed.map(x=>String(x).toLowerCase()).includes(role);
+}
+function requirePermission(action,actor){
+ assert(hasPermission(action,actor),"ليس لديك صلاحية تنفيذ هذه العملية.");
+}
+function requireAnyPermission(actions,actor){
+ const aa=Array.isArray(actions)?actions:[actions];
+ assert(aa.some(a=>hasPermission(a,actor)),"ليس لديك صلاحية تنفيذ هذه العملية.");
+}
+function log(action,module,recordId,description,actor){return audit(action,module,recordId,description,actor);}
+
+
+function validateCustomerDevice(cid,did){
+ assert(exists(KEYS.customers,cid),"العميل غير موجود.");
+ assert(exists(KEYS.devices,did),"الجهاز غير موجود.");
+ const d=findDevice(did);
+ assert(String(d.customerId||d.clientId||"")===String(cid),"الجهاز لا ينتمي إلى العميل المختار.");
+ return d;
+}
+
+
+function getWorkflowPolicy(){
+ const s=settings();
+ return (s.workflowPolicy&&typeof s.workflowPolicy==="object")?clone(s.workflowPolicy):{};
+}
+function allowedWorkflowTransition(from,to,actor){
+ const p=getWorkflowPolicy(),fromKey=String(from||"__none__"),toKey=String(to||"");
+ const transitions=p.transitions&&p.transitions[fromKey];
+ if(Array.isArray(transitions)&&!transitions.includes(toKey))return false;
+ const required=p.permissions&&p.permissions[toKey];
+ if(required&&typeof required==="string")return hasPermission(required,actor);
+ return true;
+}
+function assertWorkflowTransition(from,to,actor){
+ assert(allowedWorkflowTransition(from,to,actor),"انتقال حالة أمر الشغل غير مسموح.");
+}
+function setWorkflowPolicy(policy,actor){
+ requirePermission("workflowManage",actor);
+ assert(policy&&typeof policy==="object","سياسة دورة الحالات غير صحيحة.");
+ const normalized=clone(policy);
+ coreWrite(KEYS.settings,Object.assign({},settings(),{workflowPolicy:normalized,updatedAt:now()}));
+ audit("تعديل دورة الحالات","أوامر الشغل","WORKFLOW_POLICY","تحديث سياسة دورة الحالات",actor);
+ return normalized;
+}
+function validateRequestChain(r){
+ assert(r&&r.customerId&&r.deviceId,"أمر الشغل يحتاج عميلًا وجهازًا.");
+ validateCustomerDevice(r.customerId,r.deviceId);
+ if(r.technicianId)assert(exists(KEYS.technicians,r.technicianId),"الفني المحدد غير موجود.");
+ return r;
+}
+function validateInvoiceChain(i){
+ if(i.requestId||i.workOrderId){
+  const rid=i.requestId||i.workOrderId,r=findRequest(rid);assert(r,"أمر الشغل المرتبط بالفاتورة غير موجود.");
+  if(i.customerId||i.clientId)assert(String(i.customerId||i.clientId)===String(requestCustomerId(r)),"الفاتورة لا تخص عميل أمر الشغل.");
+  if(i.deviceId||i.applianceId)assert(String(i.deviceId||i.applianceId)===String(requestDeviceId(r)),"الفاتورة لا تخص جهاز أمر الشغل.");
+ }
+ if(i.customerId||i.clientId)assert(exists(KEYS.customers,i.customerId||i.clientId),"عميل الفاتورة غير موجود.");
+ if(i.deviceId||i.applianceId){
+  const d=findDevice(i.deviceId||i.applianceId);assert(d,"جهاز الفاتورة غير موجود.");
+  if(i.customerId||i.clientId)assert(String(d.customerId||d.clientId||"")===String(i.customerId||i.clientId),"جهاز الفاتورة لا ينتمي إلى عميل الفاتورة.");
+ }
+ return i;
+}
+function validateWarrantyChain(w){
+ assert(w&&typeof w==="object","بيانات الضمان غير صحيحة.");
+ const rid=w.requestId||w.workOrderId||"";
+ const r=rid?findRequest(rid):null;
+ const iid=w.invoiceId||"";
+ const i=iid?findInvoice(iid):null;
+ const conid=w.contractId||"";
+ const contract=conid?find(KEYS.contracts,conid):null;
+ const did=w.deviceId||w.applianceId||"";
+ const d=did?findDevice(did):null;
+ if(rid)assert(r,"أمر شغل الضمان غير موجود.");
+ if(iid)assert(i,"فاتورة الضمان غير موجودة.");
+ if(conid)assert(contract,"عقد الضمان غير موجود.");
+ assert(d,"جهاز الضمان مطلوب ويجب أن يكون موجودًا.");
+ assert(exists(KEYS.customers,d.customerId||d.clientId),"عميل جهاز الضمان غير موجود.");
+ const cid=w.customerId||w.clientId||(r&&requestCustomerId(r))||(i&&(i.customerId||i.clientId))||(contract&&contract.customerId)||(d.customerId||d.clientId)||"";
+ assert(cid&&exists(KEYS.customers,cid),"عميل الضمان مطلوب وغير موجود.");
+ assert(String(d.customerId||d.clientId||"")===String(cid),"جهاز الضمان لا ينتمي إلى عميل الضمان.");
+ assert(r||i||contract,"الضمان يجب أن يرتبط بأمر شغل أو فاتورة أو عقد.");
+ if(r){assert(String(requestDeviceId(r))===String(d.id),"جهاز الضمان لا يطابق جهاز أمر الشغل.");assert(String(requestCustomerId(r))===String(cid),"عميل الضمان لا يطابق أمر الشغل.");}
+ if(i){assert(String(i.customerId||i.clientId||"")===String(cid),"عميل الضمان لا يطابق الفاتورة.");if(i.deviceId||i.applianceId)assert(String(i.deviceId||i.applianceId)===String(d.id),"جهاز الضمان لا يطابق الفاتورة.");}
+ if(contract){assert(String(contract.customerId)===String(cid),"عميل الضمان لا يطابق العقد.");assert(Array.isArray(contract.deviceIds)&&contract.deviceIds.map(String).includes(String(d.id)),"جهاز الضمان غير مدرج في العقد.");}
+ return w;
+}
+function validateContractChain(c){
+ assert(c&&c.customerId&&exists(KEYS.customers,c.customerId),"العميل غير موجود.");
+ (Array.isArray(c.deviceIds)?c.deviceIds:[]).forEach(did=>{
+  const d=findDevice(did);assert(d,"أحد أجهزة العقد غير موجود.");
+  assert(String(d.customerId||d.clientId||"")===String(c.customerId),"أحد أجهزة العقد لا يتبع العميل.");
+ });
+ return c;
+}
+function validatePaymentChain(p){
+ if(p.invoiceId){
+  const i=findInvoice(p.invoiceId);assert(i,"فاتورة الدفعة غير موجودة.");
+  if(p.customerId||p.clientId)assert(String(p.customerId||p.clientId)===String(i.customerId||i.clientId||""),"الدفعة لا تخص عميل الفاتورة.");
+  if(p.requestId)assert(String(p.requestId)===String(i.requestId||i.workOrderId||""),"الدفعة لا تخص أمر شغل الفاتورة.");
+ }
+ if(p.requestId)assert(exists(KEYS.requests,p.requestId),"أمر شغل الدفعة غير موجود.");
+ return p;
+}
+function validateRequestRefs(r){
+ validateCustomerDevice(requestCustomerId(r),requestDeviceId(r));
+ if(r.technicianId)assert(exists(KEYS.technicians,r.technicianId),"الفني المحدد غير موجود.");
+}
+function isApproved(r){return !!(r&&((r.approved===true)||r.approvedAt||r.status==="مغلق"||r.status==="مؤرشف"));}
+function canDeleteRequest(r){
+ return !isApproved(r)||settings().allowDeleteApproved==="yes";
+}
+function statusAllowed(s){return STATUSES.includes(s);}
+function priorityAllowed(p){return PRIORITIES.includes(p);}
+function typeAllowed(t){return WORK_ORDER_TYPES.includes(t);}
+
+
+function customerHasOperationalData(cid){
+ return customerDevices(cid).length||customerRequests(cid).length||
+  customerInvoices(cid).length||customerVisits(cid).length||
+  list(KEYS.contracts).some(x=>String(x.customerId)===String(cid))||
+  list(KEYS.warranties).some(x=>String(x.customerId)===String(cid));
+}
+function deviceHasOperationalData(did){
+ return list(KEYS.requests).some(x=>String(requestDeviceId(x))===String(did))||
+  list(KEYS.invoices).some(x=>String(x.deviceId||x.applianceId)===String(did))||
+  list(KEYS.warranties).some(x=>String(x.deviceId||x.applianceId)===String(did))||
+  list(KEYS.contracts).some(x=>Array.isArray(x.deviceIds)&&x.deviceIds.map(String).includes(String(did)));
+}
+function saveCustomer(input,actor){
+ requirePermission(input.id||input.customerId?"customerUpdate":"create",actor);
+ const d=Object.assign({},input), oldId=clean(d.id||d.customerId,80);
+ assert(clean(d.name||d.fullName,200),"اسم العميل مطلوب.");
+ d.name=clean(d.name||d.fullName,200); d.phone=clean(d.phone||d.mobile,50);
+ const a=list(KEYS.customers);
+ const duplicate=a.find(x=>String(idOf(x))!==String(oldId)&&
+   d.phone&&String(x.phone||x.mobile||"").replace(/\D/g,"")===d.phone.replace(/\D/g,""));
+ assert(!duplicate,"رقم الهاتف مسجل بالفعل لعميل آخر.");
+ if(oldId){
+  const i=a.findIndex(x=>String(idOf(x))===oldId);assert(i>=0,"العميل غير موجود.");
+  a[i]=Object.assign({},a[i],d,{id:oldId,updatedAt:now()});coreWrite(KEYS.customers,a);
+  audit("تعديل","العملاء",oldId,"تم تعديل بيانات العميل",actor);syncRelations();return a[i];
+ }
+ const id=nextId("CUS-",KEYS.customers,5),item=Object.assign({id,createdAt:now(),archived:false},d);
+ a.push(item);coreWrite(KEYS.customers,a);audit("إضافة","العملاء",id,"تم إنشاء عميل",actor);return item;
+}
+function archiveCustomer(cid,actor){
+ requirePermission("archive",actor);const c=findCustomer(cid);assert(c,"العميل غير موجود.");
+ const a=list(KEYS.customers),i=a.findIndex(x=>String(idOf(x))===String(cid));
+ a[i]=Object.assign({},a[i],{archived:true,archivedAt:now(),updatedAt:now()});coreWrite(KEYS.customers,a);
+ audit("أرشفة","العملاء",cid,"تم أرشفة العميل",actor);return a[i];
+}
+function deleteCustomer(cid,actor){
+ requirePermission("delete",actor);const c=findCustomer(cid);assert(c,"العميل غير موجود.");
+ assert(!customerHasOperationalData(cid),"لا يمكن حذف عميل لديه بيانات تشغيلية؛ استخدم الأرشفة.");
+ if(settings().allowDeleteCustomer!=="yes")throw new Error("حذف العملاء معطل من الإعدادات؛ استخدم الأرشفة.");
+ coreWrite(KEYS.customers,list(KEYS.customers).filter(x=>String(idOf(x))!==String(cid)));
+ audit("حذف","العملاء",cid,"تم حذف عميل بلا بيانات تشغيلية",actor);return true;
+}
+function saveDevice(input,actor){
+ requirePermission(input.id||input.deviceId?"deviceUpdate":"create",actor);
+ const existing=input.id?list(KEYS.devices).find(x=>String(idOf(x))===String(input.id)):null;
+ if(existing && input.customerId!==undefined && String(existing.customerId||existing.clientId||"")!==String(input.customerId)){
+  const operational=list(KEYS.requests).some(r=>String(requestDeviceId(r))===String(input.id)) ||
+    list(KEYS.invoices).some(i=>String(i.deviceId||i.applianceId||"")===String(input.id)) ||
+    list(KEYS.warranties).some(w=>String(w.deviceId||"")===String(input.id));
+  assert(!operational,"لا يمكن تغيير مالك الجهاز بعد وجود سجل تشغيلي؛ استخدم إجراء نقل ملكية موثق.");
+ }
+
+ const d=Object.assign({},input),oldId=clean(d.id||d.deviceId,80);
+ d.customerId=clean(d.customerId||d.clientId,80);assert(d.customerId,"العميل مطلوب.");
+ assert(exists(KEYS.customers,d.customerId),"العميل غير موجود.");
+ d.type=clean(d.type||d.deviceType,100);assert(d.type,"نوع الجهاز مطلوب.");
+ d.brand=clean(d.brand||d.manufacturer,100);d.model=clean(d.model,100);
+ d.serialNumber=clean(d.serialNumber||d.serial,150);
+ const a=list(KEYS.devices);
+ const duplicate=a.find(x=>String(idOf(x))!==String(oldId)&&String(x.customerId||x.clientId)===String(d.customerId)&&
+  d.serialNumber&&String(x.serialNumber||x.serial||"").trim().toLowerCase()===d.serialNumber.trim().toLowerCase());
+ assert(!duplicate,"الرقم المسلسل مسجل بالفعل لهذا العميل.");
+ if(oldId){
+  const i=a.findIndex(x=>String(idOf(x))===oldId);assert(i>=0,"الجهاز غير موجود.");
+  a[i]=Object.assign({},a[i],d,{id:oldId,updatedAt:now()});coreWrite(KEYS.devices,a);
+  audit("تعديل","الأجهزة",oldId,"تم تعديل بيانات الجهاز",actor);syncRelations();return a[i];
+ }
+ const id=nextId("DEV-",KEYS.devices,5),item=Object.assign({id,createdAt:now(),archived:false},d);
+ a.push(item);coreWrite(KEYS.devices,a);audit("إضافة","الأجهزة",id,"تم إنشاء جهاز للعميل",actor);syncRelations();return item;
+}
+function archiveDevice(did,actor){
+ requirePermission("archive",actor);const d=findDevice(did);assert(d,"الجهاز غير موجود.");
+ const a=list(KEYS.devices),i=a.findIndex(x=>String(idOf(x))===String(did));
+ a[i]=Object.assign({},a[i],{archived:true,archivedAt:now(),updatedAt:now()});coreWrite(KEYS.devices,a);
+ audit("أرشفة","الأجهزة",did,"تم أرشفة الجهاز",actor);return a[i];
+}
+function deleteDevice(did,actor){
+ requirePermission("delete",actor);const d=findDevice(did);assert(d,"الجهاز غير موجود.");
+ assert(!deviceHasOperationalData(did),"لا يمكن حذف جهاز مرتبط ببيانات تشغيلية؛ استخدم الأرشفة.");
+ if(settings().allowDeleteDevice!=="yes")throw new Error("حذف الأجهزة معطل من الإعدادات؛ استخدم الأرشفة.");
+ coreWrite(KEYS.devices,list(KEYS.devices).filter(x=>String(idOf(x))!==String(did)));
+ audit("حذف","الأجهزة",did,"تم حذف جهاز بلا بيانات تشغيلية",actor);return true;
+}
+
+function saveRequest(input,actor){
+ requirePermission(input.id||input.requestId?"workOrderUpdate":"create",actor);
+ const data=Object.assign({},input);
+ const oldId=clean(data.id||data.requestId,80);
+ data.customerId=clean(data.customerId||data.clientId,80);
+ data.deviceId=clean(data.deviceId||data.applianceId,80);
+ data.type=data.type||data.requestType||"صيانة منزلية";
+ data.requestType=data.type;
+ data.priority=data.priority||"عادية";
+ data.status=data.status||"جديد";
+ data.source=clean(data.source||data.channel||"داخلي",100);
+ assert(data.customerId,"العميل مطلوب.");assert(data.deviceId,"الجهاز مطلوب.");
+ assert(typeAllowed(data.type)||settings().allowCustomWorkOrderTypes==="yes","نوع أمر الشغل غير معتمد.");
+ assert(priorityAllowed(data.priority),"الأولوية غير معتمدة.");assert(statusAllowed(data.status),"حالة أمر الشغل غير معتمدة.");
+ validateRequestChain(data);
+ const arr=list(KEYS.requests);
+ if(oldId){
+  const i=arr.findIndex(x=>String(idOf(x))===oldId);assert(i>=0,"أمر الشغل غير موجود.");
+  const old=arr[i];
+  if(old.status!==data.status){
+   assertWorkflowTransition(old.status,data.status,actor);
+   recordStatusChange(oldId,old.status,data.status,actor);
+  }
+  arr[i]=Object.assign({},old,data,{id:oldId,updatedAt:now()});
+  coreWrite(KEYS.requests,arr);syncRelations();audit("تعديل","أوامر الشغل",oldId,"تم تعديل أمر الشغل",actor);return arr[i];
+ }
+ const id=nextId("WO-",KEYS.requests,6);
+ const item=Object.assign({id,createdAt:now(),approved:false},data);
+ arr.push(item);coreWrite(KEYS.requests,arr);
+ recordStatusChange(id,"",item.status,actor);audit("إضافة","أوامر الشغل",id,"تم إنشاء أمر شغل",actor);syncRelations();return item;
+}
+function requestClosureReadiness(r){
+ assert(r,"أمر الشغل غير موجود.");
+ const report=Boolean(r.technicianReport||r.technicianReportText||r.report||r.reportText||r.serviceReport);
+ const parts=Boolean(r.partsRecorded===true||r.usedPartsRecorded===true||r.partsUsedRecorded===true||list(KEYS.inventoryTransactions).some(t=>String(t.requestId||t.workOrderId||"")===String(r.id)&&["صرف","تركيب"].includes(String(t.type||""))));
+ const cost=Boolean(r.costApproved===true||r.costApprovedAt);
+ const tested=Boolean(r.deviceTested===true||r.tested===true||r.testResult||r.testResultText||r.testStatus);
+ assert(report,"لا يمكن إغلاق أمر الشغل قبل تسجيل تقرير الفني.");
+ assert(parts,"لا يمكن إغلاق أمر الشغل قبل تسجيل القطع المستخدمة أو تأكيد عدم استخدامها.");
+ assert(cost,"لا يمكن إغلاق أمر الشغل قبل تسجيل/اعتماد التكلفة.");
+ assert(tested,"لا يمكن إغلاق أمر الشغل قبل اختبار الجهاز وتسجيل النتيجة.");
+ return true;
+}
+function isWorkCompleted(r){return !!r&&["مكتمل","مغلق"].includes(String(r.status||""));}
+function costApproved(r){return !!r&&(r.costApproved===true||r.costApprovedAt);}
+function isFinalInvoice(i){return !i.status||["نهائية","نهائي","معتمدة","مؤكدة","مغلقة"].includes(String(i.status));}
+
+function updateRequestStatus(id,status,actor){
+ requirePermission("workOrderUpdate",actor);
+ assert(statusAllowed(status),"حالة أمر الشغل غير معتمدة.");
+ const arr=list(KEYS.requests),i=arr.findIndex(x=>String(idOf(x))===String(id));
+ assert(i>=0,"أمر الشغل غير موجود.");const old=arr[i];
+ if(old.status==="مؤرشف")assert(status==="مؤرشف","أمر الشغل المؤرشف لا يمكن تغييره.");
+ if(old.status==="مغلق"&&status!=="مغلق")assert(settings().allowReopen==="yes","إعادة فتح أمر الشغل غير مسموحة.");
+ if(status==="مغلق"&&old.status!=="مغلق")requestClosureReadiness(old);
+ arr[i]=Object.assign({},old,{status,updatedAt:now()});coreWrite(KEYS.requests,arr);
+ recordStatusChange(id,old.status,status,actor);audit("تغيير حالة","أوامر الشغل",id,old.status+" ← "+status,actor);return arr[i];
+}
+function recordStatusChange(id,from,to,actor){
+ const a=list(KEYS.statusHistory);a.unshift({id:nextId("ST-",KEYS.statusHistory,7),requestId:id,fromStatus:from||"",toStatus:to||"",user:actorInfo(actor).name||"النظام",userId:actorInfo(actor).id||"",role:actorInfo(actor).role||"",date:now()});coreWrite(KEYS.statusHistory,a);
+}
+function deleteRequest(id,actor){
+ requirePermission("delete",actor);
+ const r=findRequest(id);assert(r,"أمر الشغل غير موجود.");assert(canDeleteRequest(r),"لا يجوز حذف أمر شغل معتمد.");
+ const related=[...requestVisits(id),...requestInvoices(id),...requestWarranties(id)];
+ assert(related.length===0,"لا يمكن حذف أمر الشغل لوجود بيانات مرتبطة به.");
+ coreWrite(KEYS.requests,list(KEYS.requests).filter(x=>String(idOf(x))!==String(id)));
+ audit("حذف","أوامر الشغل",id,"تم حذف أمر الشغل",actor);return true;
+}
+
+
+function validateVisitAssignment(data,actor){
+ const req=findRequest(data.requestId||data.workOrderId);
+ assert(req,"أمر الشغل غير موجود.");
+ const technicianId=data.technicianId||req.technicianId;
+ assert(technicianId&&exists(KEYS.technicians,technicianId),"الفني غير موجود.");
+ const tech=findTechnician(technicianId);
+ assert(technicianIsActive(tech),"لا يمكن إنشاء/تعديل زيارة لفني غير فعال أو موقوف.");
+ validateRequestChain(req);
+ const date=String(data.date||data.visitDate||data.scheduledDate||"").slice(0,10);
+ const vr=visitTimeRange(data);
+ if(date&&vr.start&&vr.end){
+  assert(!technicianScheduleConflict(technicianId,Object.assign({},data,{requestId:req.id,date,startTime:vr.start,endTime:vr.end})),"الفني لديه تعارض في الموعد المحدد.");
+ }
+ return {req,tech,technicianId};
+}
+function addVisit(data,actor){
+ requirePermission("visitManage",actor);
+ const visitCheck=validateVisitAssignment(data,actor);
+ assert(exists(KEYS.requests,data.requestId),"أمر الشغل غير موجود.");
+ assert(exists(KEYS.technicians,data.technicianId),"الفني غير موجود.");
+ const r=findRequest(data.requestId);validateRequestChain(r);
+ const v=Object.assign({},data,{id:nextId("VIS-",KEYS.visits,6),customerId:requestCustomerId(r),deviceId:requestDeviceId(r),createdAt:now()});
+ const a=list(KEYS.visits);a.push(v);coreWrite(KEYS.visits,a);audit("إضافة","الزيارات",v.id,"إضافة زيارة لأمر الشغل "+data.requestId,actor);syncRelations();return v;
+}
+function requestWorkOrder(id){return findRequest(id);}
+
+function inventoryItem(id){return find(KEYS.inventory,id);}
+function inventoryQuantity(id){const x=inventoryItem(id);return x?Number(x.quantity||0):0;}
+function addInventoryTransactionInternal(id,qty,type,reference,notes,actor){
+ requirePermission("stock",actor);
+ const transactionType=String(type||"إضافة");
+ const consumptionTypes=["صرف","استخدام","تركيب","صرف مخزون"];
+ if(consumptionTypes.includes(transactionType)){
+  assert(reference&&exists(KEYS.requests,reference),"حركة الصرف/الاستخدام يجب أن ترتبط بأمر شغل صحيح.");
+  const req=findRequest(reference);assert(req.status!=="مؤرشف"&&req.status!=="ملغي","لا يمكن تسجيل حركة صرف لأمر شغل مؤرشف أو ملغي.");
+ }
+ const n=Number(qty);assert(Number.isFinite(n)&&n>0,"الكمية غير صحيحة.");const items=list(KEYS.inventory);
+ const i=items.findIndex(x=>String(idOf(x))===String(id));assert(i>=0,"الصنف غير موجود.");
+ const before=Number(items[i].quantity||0),after=before+n;items[i]=Object.assign({},items[i],{quantity:after,updatedAt:now()});coreWrite(KEYS.inventory,items);
+ const tr=list(KEYS.inventoryTransactions);const t={id:nextId("TR-",KEYS.inventoryTransactions,7),itemId:id,itemName:items[i].name||"",type:type||"إضافة",qty:n,before,after,reference:reference||"",notes:notes||"",userId:actorInfo(actor).id||"",user:actorInfo(actor).name||"النظام",date:now()};tr.unshift(t);coreWrite(KEYS.inventoryTransactions,tr);audit("حركة مخزون","المخزون",id,type||"إضافة",actor);return items[i];
+}
+function addInventoryTransaction(){
+ throw new Error("لا تستخدم حركة مخزون عامة مباشرة؛ استخدم عملية المخزون المعتمدة.");
+}
+function reserveInventory(id,qty,requestId,notes,actor){
+ requirePermission("stock",actor);
+ assert(requestId&&exists(KEYS.requests,requestId),"حجز القطعة يجب أن يرتبط بأمر شغل صحيح.");
+ const req=findRequest(requestId);assert(req.status!=="مؤرشف"&&req.status!=="ملغي","لا يمكن الحجز لأمر شغل مؤرشف أو ملغي.");
+ const n=Number(qty);assert(Number.isFinite(n)&&n>0,"الكمية غير صحيحة.");
+ const a=list(KEYS.inventory),i=a.findIndex(x=>String(idOf(x))===String(id));assert(i>=0,"الصنف غير موجود.");
+ const reserved=Number(a[i].reservedQuantity||0),available=Number(a[i].quantity||0)-reserved;
+ assert(n<=available,"الكمية المطلوبة أكبر من الكمية المتاحة للحجز.");
+ a[i]=Object.assign({},a[i],{reservedQuantity:reserved+n,updatedAt:now()});coreWrite(KEYS.inventory,a);
+ const tr=list(KEYS.inventoryTransactions);tr.unshift({id:nextId("TR-",KEYS.inventoryTransactions,7),itemId:id,itemName:a[i].name||"",requestId,type:"حجز",qty:0,before:available,after:available-n,reference:requestId,notes:notes||"",userId:actorInfo(actor).id||"",user:actorInfo(actor).name||"النظام",date:now()});coreWrite(KEYS.inventoryTransactions,tr);
+ audit("حجز مخزون","المخزون",id,"حجز كمية لأمر الشغل "+requestId,actor);return a[i];
+}
+function releaseInventoryReservation(id,qty,requestId,notes,actor){
+ requirePermission("stock",actor);
+ const reqId=String(requestId||"").trim();
+ assert(reqId&&exists(KEYS.requests,reqId),"أمر الشغل مطلوب لفك الحجز.");
+ const req=findRequest(reqId);assert(req.status!=="مؤرشف"&&req.status!=="ملغي","لا يمكن فك حجز لأمر شغل مؤرشف أو ملغي.");
+ const n=Number(qty);assert(Number.isFinite(n)&&n>0,"الكمية غير صحيحة.");
+ const a=list(KEYS.inventory),i=a.findIndex(x=>String(idOf(x))===String(id));assert(i>=0,"الصنف غير موجود.");
+ const reserved=Number(a[i].reservedQuantity||0);assert(n<=reserved,"كمية فك الحجز أكبر من المحجوز.");
+ a[i]=Object.assign({},a[i],{reservedQuantity:reserved-n,updatedAt:now()});coreWrite(KEYS.inventory,a);
+ const tr=list(KEYS.inventoryTransactions);tr.unshift({id:nextId("TR-",KEYS.inventoryTransactions,7),itemId:id,itemName:a[i].name||"",requestId:requestId||"",type:"فك حجز",qty:0,before:reserved,after:reserved-n,reference:requestId||"",notes:notes||"",userId:actorInfo(actor).id||"",user:actorInfo(actor).name||"النظام",date:now()});coreWrite(KEYS.inventoryTransactions,tr);
+ audit("فك حجز مخزون","المخزون",id,"فك حجز قطعة",actor);return a[i];
+}
+function consumeInventory(id,qty,type,reference,notes,actor){
+ requirePermission("stock",actor);
+ const n=Number(qty);assert(Number.isFinite(n)&&n>0,"الكمية غير صحيحة.");
+ const requestId=String(reference||"").trim();
+ assert(requestId&&exists(KEYS.requests,requestId),"صرف/استخدام القطعة يجب أن يرتبط بأمر شغل صحيح.");
+ const req=findRequest(requestId);assert(req.status!=="مؤرشف"&&req.status!=="ملغي","لا يمكن الصرف لأمر شغل مؤرشف أو ملغي.");
+ const item=inventoryItem(id);assert(item,"الصنف غير موجود.");
+ const i=list(KEYS.inventory).findIndex(x=>String(idOf(x))===String(id));
+ const before=Number(item.quantity||0);
+ const allowNegative=String(settings().negativeStock||"no").toLowerCase()==="yes";
+ assert(allowNegative||n<=before,"الكمية المطلوبة أكبر من الرصيد المتاح.");
+ const reserved=Number(item.reservedQuantity||0);
+ const after=before-n;
+ const remainingReserved=Math.max(0,reserved-n);
+ const items=list(KEYS.inventory);
+ items[i]=Object.assign({},items[i],{quantity:after,reservedQuantity:remainingReserved,updatedAt:now()});
+ coreWrite(KEYS.inventory,items);
+ const tr=list(KEYS.inventoryTransactions);
+ tr.unshift({
+  id:nextId("TR-",KEYS.inventoryTransactions,7),itemId:id,itemName:items[i].name||"",
+  requestId,type:type||"صرف",qty:-n,before,after,reference:requestId,notes:notes||"",
+  userId:actorInfo(actor).id||"",user:actorInfo(actor).name||"النظام",date:now()
+ });
+ coreWrite(KEYS.inventoryTransactions,tr);
+ audit("صرف مخزون","المخزون",id,"صرف مرتبط بأمر الشغل "+requestId,actor);
+ return items[i];
+}
+
+function invoiceTotal(i){return Number(i&&(i.grandTotal??i.total??i.finalTotal??i.amount) || 0)||0;}
+function paymentsForInvoice(id,includeCancelled){return list(KEYS.payments).filter(p=>String(p.invoiceId||"")===String(id)&&(includeCancelled||p.status!=="ملغاة"));}
+function invoicePaid(id){return paymentsForInvoice(id).filter(p=>p.status==="مؤكدة"&&p.type!=="استرداد").reduce((s,p)=>s+Number(p.amount||0),0);}
+function invoiceRefunded(id){return paymentsForInvoice(id).filter(p=>p.status==="مؤكدة"&&p.type==="استرداد").reduce((s,p)=>s+Number(p.amount||0),0);}
+function invoiceBalance(id){const i=findInvoice(id);return i?Math.max(0,invoiceTotal(i)-invoicePaid(id)+invoiceRefunded(id)):0;}
+
+function getOrCreateLoyalty(cid,actor){
+ const a=list(KEYS.loyaltyAccounts);let x=a.find(v=>String(v.customerId)===String(cid));if(x)return x;
+ requirePermission("create",actor);assert(exists(KEYS.customers,cid),"العميل غير موجود.");
+ x={id:nextId("LOY-",KEYS.loyaltyAccounts,5),customerId:cid,customerName:customerName(findCustomer(cid)),points:0,createdAt:now()};
+ a.push(x);coreWrite(KEYS.loyaltyAccounts,a);audit("إضافة","الولاء",x.id,"إنشاء حساب ولاء للعميل",actor);return x;
+}
+function loyaltyPoints(cid){
+ const x=list(KEYS.loyaltyAccounts).find(v=>String(v.customerId)===String(cid));return Number(x&&x.points||0);
+}
+function changeLoyalty(cid,points,type,reference,notes,actor){
+ requirePermission("customerUpdate",actor);assert(exists(KEYS.customers,cid),"العميل غير موجود.");
+ const n=Number(points);assert(Number.isFinite(n)&&n!==0,"عدد النقاط غير صحيح.");const a=list(KEYS.loyaltyAccounts);let i=a.findIndex(x=>String(x.customerId)===String(cid));
+ if(i<0){getOrCreateLoyalty(cid,actor);return changeLoyalty(cid,n,type,reference,notes,actor);}
+ const before=Number(a[i].points||0),delta=type==="earn"?Math.abs(n):-Math.abs(n),after=before+delta;assert(after>=0,"رصيد النقاط غير كافٍ.");
+ a[i]=Object.assign({},a[i],{points:after,updatedAt:now()});coreWrite(KEYS.loyaltyAccounts,a);const t=list(KEYS.loyaltyTransactions);
+ t.unshift({id:nextId("LP-",KEYS.loyaltyTransactions,6),customerId:cid,customerName:a[i].customerName||"",type:type||"earn",points:Math.abs(delta),before,after,reference:reference||"",notes:notes||"",userId:actorInfo(actor).id||"",user:actorInfo(actor).name||"النظام",date:now()});coreWrite(KEYS.loyaltyTransactions,t);audit("نقاط ولاء","الولاء",cid,"تعديل رصيد النقاط",actor);return a[i];
+}
+
+function syncRelations(){
+ const customers=list(KEYS.customers),cm={};customers.forEach(c=>cm[idOf(c)]={name:customerName(c),phone:c.phone||c.mobile||"",address:c.address||""});
+ const devices=list(KEYS.devices).map(d=>{const cid=d.customerId||d.clientId||"",c=cm[cid];return Object.assign({},d,{customerId:cid,customerName:(c&&c.name)||""});});coreWrite(KEYS.devices,devices);
+ const requests=list(KEYS.requests).map(r=>{const cid=requestCustomerId(r),did=requestDeviceId(r),c=cm[cid],d=devices.find(x=>String(idOf(x))===String(did)),t=findTechnician(r.technicianId);return Object.assign({},r,{customerId:cid,deviceId:did,customerName:(c&&c.name)||"",deviceName:(d&&(d.name||d.deviceName||d.type))||"",technicianName:technicianName(t)});});coreWrite(KEYS.requests,requests);
+ const visits=list(KEYS.visits).map(v=>{const r=findRequest(v.requestId||v.workOrderId),cid=(r&&requestCustomerId(r))||v.customerId||v.clientId||"",did=(r&&requestDeviceId(r))||v.deviceId||v.applianceId||"",c=cm[cid],d=devices.find(x=>String(idOf(x))===String(did)),t=findTechnician(v.technicianId);return Object.assign({},v,{customerId:cid,deviceId:did,requestId:v.requestId||v.workOrderId||"",customerName:(c&&c.name)||"",deviceName:(d&&(d.name||d.deviceName||d.type))||"",technicianName:technicianName(t)});});coreWrite(KEYS.visits,visits);
+ const invoices=list(KEYS.invoices).map(i=>{const r=findRequest(i.requestId||i.workOrderId),cid=(r&&requestCustomerId(r))||i.customerId||i.clientId||"",did=(r&&requestDeviceId(r))||i.deviceId||i.applianceId||"",c=cm[cid],d=devices.find(x=>String(idOf(x))===String(did));return Object.assign({},i,{customerId:cid,deviceId:did,requestId:i.requestId||i.workOrderId||"",customerName:(c&&c.name)||"",deviceName:(d&&(d.name||d.deviceName||d.type))||""});});coreWrite(KEYS.invoices,invoices);
+ const payments=list(KEYS.payments).map(p=>{const i=findInvoice(p.invoiceId),cid=(i&&(i.customerId||i.clientId))||p.customerId||p.clientId||"",rid=(i&&(i.requestId||i.workOrderId))||p.requestId||p.workOrderId||"",c=cm[cid];return Object.assign({},p,{customerId:cid,requestId:rid,customerName:(c&&c.name)||""});});coreWrite(KEYS.payments,payments);
+ return systemSummary();
+}
+
+function validateIntegrity(){
+ const problems=[];
+ const keys=[KEYS.customers,KEYS.devices,KEYS.requests,KEYS.technicians,KEYS.visits,KEYS.routes,KEYS.inventory,KEYS.suppliers,
+  KEYS.purchaseOrders,KEYS.purchaseReceipts,KEYS.purchaseReturns,KEYS.invoices,KEYS.payments,KEYS.warranties,KEYS.contracts,
+  KEYS.notifications,KEYS.loyaltyAccounts,KEYS.loyaltyTransactions,KEYS.technicalLibrary,KEYS.users,KEYS.approvals,
+  KEYS.diagnoses,KEYS.assignments,KEYS.statusHistory,KEYS.complaints,KEYS.ratings];
+ keys.forEach(key=>{const seen=new Set();list(key).forEach((row,idx)=>{const id=idOf(row);if(!id)problems.push("سجل بدون ID في "+key+" عند الموضع "+idx);else if(seen.has(id))problems.push("ID مكرر في "+key+": "+id);else seen.add(id);});});
+ const ids=key=>new Set(list(key).map(idOf).filter(Boolean));
+ const customers=ids(KEYS.customers),devices=ids(KEYS.devices),requests=ids(KEYS.requests),techs=ids(KEYS.technicians),inventory=ids(KEYS.inventory),suppliers=ids(KEYS.suppliers),purchaseOrders=ids(KEYS.purchaseOrders);
+ list(KEYS.devices).forEach(d=>{if(!customers.has(String(d.customerId||d.clientId||"")))problems.push("جهاز بدون عميل: "+idOf(d));});
+ list(KEYS.requests).forEach(r=>{try{validateRequestChain(r);}catch(e){problems.push("أمر شغل "+idOf(r)+": "+e.message);}});
+ list(KEYS.visits).forEach(v=>{if(!requests.has(String(v.requestId||v.workOrderId||"")))problems.push("زيارة بدون أمر شغل: "+idOf(v));if(v.technicianId&&!techs.has(String(v.technicianId)))problems.push("زيارة بفني غير موجود: "+idOf(v));if(v.deviceId&&!devices.has(String(v.deviceId)))problems.push("زيارة بجهاز غير موجود: "+idOf(v));});
+ list(KEYS.invoices).forEach(i=>{try{validateInvoiceChain(i);}catch(e){problems.push("فاتورة "+idOf(i)+": "+e.message);}});
+ list(KEYS.payments).forEach(p=>{try{validatePaymentChain(p);}catch(e){problems.push("دفعة "+idOf(p)+": "+e.message);}});
+ list(KEYS.warranties).forEach(w=>{try{validateWarrantyChain(w);}catch(e){problems.push("ضمان "+idOf(w)+": "+e.message);}});
+ list(KEYS.contracts).forEach(c=>{try{validateContractChain(c);}catch(e){problems.push("عقد "+idOf(c)+": "+e.message);}});
+ const loyaltyCustomers=customers;
+ list(KEYS.loyaltyAccounts).forEach(x=>{if(!loyaltyCustomers.has(String(x.customerId||"")))problems.push("حساب ولاء بدون عميل: "+idOf(x));});
+ const loyaltyAccounts=ids(KEYS.loyaltyAccounts);
+ list(KEYS.loyaltyTransactions).forEach(x=>{if(!loyaltyCustomers.has(String(x.customerId||"")))problems.push("حركة ولاء بدون عميل: "+idOf(x));if(x.loyaltyAccountId&&!loyaltyAccounts.has(String(x.loyaltyAccountId)))problems.push("حركة ولاء بحساب غير موجود: "+idOf(x));});
+ list(KEYS.purchaseOrders).forEach(po=>{if(!suppliers.has(String(po.supplierId||"")))problems.push("طلب شراء بدون مورد: "+idOf(po));(po.items||[]).forEach(x=>{if(!inventory.has(String(x.itemId||"")))problems.push("طلب شراء بصنف غير موجود: "+idOf(po));});});
+ list(KEYS.purchaseReceipts).forEach(rc=>{if(!purchaseOrders.has(String(rc.purchaseOrderId||"")))problems.push("استلام بدون طلب شراء: "+idOf(rc));if(rc.supplierId&&!suppliers.has(String(rc.supplierId)))problems.push("استلام بمورد غير موجود: "+idOf(rc));(rc.items||[]).forEach(x=>{if(!inventory.has(String(x.itemId||"")))problems.push("استلام بصنف غير موجود: "+idOf(rc));});});
+ list(KEYS.purchaseReturns).forEach(rr=>{if(!purchaseOrders.has(String(rr.purchaseOrderId||"")))problems.push("مرتجع بدون طلب شراء: "+idOf(rr));});
+ list(KEYS.inventoryTransactions).forEach(t=>{if(t.itemId&&!inventory.has(String(t.itemId)))problems.push("حركة مخزون لصنف غير موجود: "+idOf(t));if(t.requestId&&!requests.has(String(t.requestId)))problems.push("حركة مخزون بأمر شغل غير موجود: "+idOf(t));});
+ list(KEYS.approvals).forEach(x=>{if(!requests.has(String(x.requestId||"")))problems.push("اعتماد بدون أمر شغل: "+idOf(x));});
+ list(KEYS.diagnoses).forEach(x=>{if(!requests.has(String(x.requestId||"")))problems.push("تشخيص بدون أمر شغل: "+idOf(x));if(x.technicianId&&!techs.has(String(x.technicianId)))problems.push("تشخيص بفني غير موجود: "+idOf(x));});
+ list(KEYS.assignments).forEach(x=>{
+  if(!requests.has(String(x.requestId||"")))problems.push("إسناد بدون أمر شغل: "+idOf(x));
+  if(!techs.has(String(x.technicianId||"")))problems.push("إسناد بفني غير موجود: "+idOf(x));
+  const t=findTechnician(x.technicianId);
+  if(t&&!technicianIsActive(t))problems.push("إسناد لفني غير فعال: "+idOf(x));
+ });
+ const visitByTech={};
+ list(KEYS.visits).forEach(v=>{
+  const tid=String(v.technicianId||"");
+  const date=String(v.date||v.visitDate||v.scheduledDate||"").slice(0,10);
+  if(!tid||!date)return;
+  const key=tid+"|"+date;
+  const arr=visitByTech[key]||(visitByTech[key]=[]);
+  arr.forEach(prev=>{
+   if(rangesOverlap(visitTimeRange(prev),visitTimeRange(v))&&String(prev.id)!==String(v.id))
+    problems.push("تعارض زيارات للفني "+tid+": "+idOf(prev)+" / "+idOf(v));
+  });
+  arr.push(v);
+ });
+
+ list(KEYS.inventoryTransactions).forEach(t=>{
+  const typ=String(t.type||"");
+  if(["صرف","استخدام","تركيب","صرف مخزون"].includes(typ)&&!t.requestId)problems.push("صرف مخزون بدون أمر شغل: "+idOf(t));
+ });
+ list(KEYS.complaints).forEach(x=>{if(!customers.has(String(x.customerId||x.clientId||"")))problems.push("شكوى بدون عميل: "+idOf(x));if(x.requestId&&!requests.has(String(x.requestId)))problems.push("شكوى بأمر شغل غير موجود: "+idOf(x));});
+ list(KEYS.ratings).forEach(x=>{if(!customers.has(String(x.customerId||x.clientId||"")))problems.push("تقييم بدون عميل: "+idOf(x));if(x.requestId&&!requests.has(String(x.requestId)))problems.push("تقييم بأمر شغل غير موجود: "+idOf(x));else if(x.requestId){const r=findRequest(x.requestId);if(r&&r.status!=="مغلق"&&x.archived!==true)problems.push("تقييم قبل إغلاق أمر الشغل: "+idOf(x));}});
+ return {ok:problems.length===0,problems,count:problems.length};
+}
+
+function saveSupplier(data,actor){
+ requirePermission("supplierManage",actor);assert(data&&clean(data.name,200),"اسم المورد مطلوب.");
+ const a=list(KEYS.suppliers),id=clean(data.id,80)||nextId("SUP-",KEYS.suppliers,6);
+ const item=Object.assign({},data,{id,name:clean(data.name,200),updatedAt:now(),createdAt:data.createdAt||now()});
+ const i=a.findIndex(x=>String(idOf(x))===id);if(i>=0)a[i]=Object.assign({},a[i],item);else a.push(item);
+ coreWrite(KEYS.suppliers,a);audit(i>=0?"تعديل":"إضافة","الموردين",id,"حفظ بيانات المورد",actor);return item;
+}
+function savePurchaseOrder(data,actor){
+ requirePermission("purchaseManage",actor);
+ assert(data&&data.supplierId&&exists(KEYS.suppliers,data.supplierId),"المورد غير موجود.");
+ assert(Array.isArray(data.items)&&data.items.length>0,"يجب أن يحتوي طلب الشراء على أصناف.");
+ data.items.forEach(x=>{assert(x.itemId&&exists(KEYS.inventory,x.itemId),"صنف طلب الشراء غير موجود.");const q=Number(x.qty);assert(Number.isFinite(q)&&q>0,"كمية الصنف غير صحيحة.");});
+ const a=list(KEYS.purchaseOrders),id=clean(data.id,80)||nextId("PO-",KEYS.purchaseOrders,6);
+ const item=Object.assign({},data,{id,supplierId:data.supplierId,status:data.status||"مسودة",items:clone(data.items),updatedAt:now(),createdAt:data.createdAt||now()});
+ const i=a.findIndex(x=>String(idOf(x))===id);if(i>=0)a[i]=Object.assign({},a[i],item);else a.push(item);
+ coreWrite(KEYS.purchaseOrders,a);audit(i>=0?"تعديل":"إضافة","طلبات الشراء",id,"حفظ طلب شراء",actor);return item;
+}
+function approvePurchaseOrder(id,actor){
+ requirePermission("approve",actor);const a=list(KEYS.purchaseOrders),i=a.findIndex(x=>String(idOf(x))===String(id));assert(i>=0,"طلب الشراء غير موجود.");
+ assert(a[i].status!=="ملغي","لا يمكن اعتماد طلب شراء ملغي.");a[i]=Object.assign({},a[i],{status:"معتمد",approvedAt:now(),updatedAt:now()});coreWrite(KEYS.purchaseOrders,a);
+ audit("اعتماد","طلبات الشراء",id,"اعتماد طلب شراء",actor);return a[i];
+}
+function receivePurchaseOrder(id,receiptItems,actor){
+ requirePermission("stock",actor);const order=find(KEYS.purchaseOrders,id);assert(order,"طلب الشراء غير موجود.");assert(order.status==="معتمد"||order.status==="مستلم جزئيًا","يجب اعتماد طلب الشراء قبل الاستلام.");
+ const items=Array.isArray(receiptItems)&&receiptItems.length?receiptItems:order.items||[];assert(items.length>0,"لا توجد أصناف للاستلام.");
+ const orderedTotals={};(order.items||[]).forEach(x=>{orderedTotals[x.itemId]=(orderedTotals[x.itemId]||0)+Number(x.qty||0);});
+ const priorReceipts=list(KEYS.purchaseReceipts).filter(r=>String(r.purchaseOrderId)===String(id));
+ const receivedTotals={};priorReceipts.flatMap(r=>r.items||[]).forEach(x=>{receivedTotals[x.itemId]=(receivedTotals[x.itemId]||0)+Number(x.qty||0);});
+ const requestedTotals={};
+ items.forEach(x=>{assert(x.itemId&&exists(KEYS.inventory,x.itemId),"صنف الاستلام غير موجود.");assert(Object.prototype.hasOwnProperty.call(orderedTotals,x.itemId),"صنف الاستلام غير موجود في طلب الشراء.");const q=Number(x.qty);assert(Number.isFinite(q)&&q>0,"كمية الاستلام غير صحيحة.");requestedTotals[x.itemId]=(requestedTotals[x.itemId]||0)+q;});
+ Object.keys(requestedTotals).forEach(itemId=>{const ordered=Number(orderedTotals[itemId]||0),already=Number(receivedTotals[itemId]||0),requested=Number(requestedTotals[itemId]||0);assert(already+requested<=ordered,"كمية الاستلام تتجاوز الكمية المطلوبة في طلب الشراء.");});
+ const received=[];
+ items.forEach(x=>{const q=Number(x.qty);
+  const inv=inventoryItem(x.itemId),before=Number(inv.quantity||0),cost=Number(x.unitCost??x.cost??inv.averageCost??0),after=before+q;
+  const oldAvg=Number(inv.averageCost||0),newAvg=(before>0&&cost>0)?((before*oldAvg)+(q*cost))/after:(cost>0?cost:oldAvg);
+  const updated=addInventoryTransactionInternal(x.itemId,q,"استلام شراء",id,x.notes||"استلام من طلب شراء",actor);
+  const arr=list(KEYS.inventory),ii=arr.findIndex(v=>String(idOf(v))===String(x.itemId));if(ii>=0){arr[ii]=Object.assign({},arr[ii],{averageCost:newAvg,updatedAt:now()});coreWrite(KEYS.inventory,arr);}
+  received.push({itemId:x.itemId,qty:q,unitCost:cost,inventoryBefore:before,inventoryAfter:after});
+ });
+ const ra=list(KEYS.purchaseReceipts),rid=nextId("REC-",KEYS.purchaseReceipts,6);ra.unshift({id:rid,purchaseOrderId:id,supplierId:order.supplierId,items:received,receivedAt:now(),userId:actorInfo(actor).id||"",user:actorInfo(actor).name||"النظام"});coreWrite(KEYS.purchaseReceipts,ra);
+ const po=list(KEYS.purchaseOrders),pi=po.findIndex(x=>String(idOf(x))===String(id));
+ if(pi>=0){
+  const allReceipts=list(KEYS.purchaseReceipts).filter(r=>String(r.purchaseOrderId)===String(id)).flatMap(r=>r.items||[]);
+  const receivedTotals={};
+  allReceipts.forEach(x=>{receivedTotals[x.itemId]=(receivedTotals[x.itemId]||0)+Number(x.qty||0);});
+  const partial=(po[pi].items||[]).some(x=>Number(receivedTotals[x.itemId]||0)<Number(x.qty||0));
+  po[pi]=Object.assign({},po[pi],{status:partial?"مستلم جزئيًا":"مستلم",lastReceiptId:rid,updatedAt:now()});
+ }
+ coreWrite(KEYS.purchaseOrders,po);
+ audit("استلام","طلبات الشراء",id,"اعتماد استلام وتحديث المخزون",actor);return {purchaseOrder:po[pi],receipt:ra[0]};
+}
+
+function decrementInventoryForPurchaseReturn(id,qty,reference,notes,actor){
+ requirePermission("purchaseManage",actor);
+ const n=Number(qty);assert(Number.isFinite(n)&&n>0,"كمية المرتجع غير صحيحة.");
+ const a=list(KEYS.inventory),i=a.findIndex(x=>String(idOf(x))===String(id));assert(i>=0,"الصنف غير موجود.");
+ const before=Number(a[i].quantity||0);assert(n<=before,"كمية المرتجع أكبر من رصيد المخزون.");
+ const after=before-n;
+ a[i]=Object.assign({},a[i],{quantity:after,updatedAt:now()});coreWrite(KEYS.inventory,a);
+ const tr=list(KEYS.inventoryTransactions);
+ tr.unshift({id:nextId("TR-",KEYS.inventoryTransactions,7),itemId:id,itemName:a[i].name||"",type:"مرتجع شراء",qty:-n,
+  before,after,reference:reference||"",notes:notes||"",userId:actorInfo(actor).id||"",user:actorInfo(actor).name||"النظام",date:now()});
+ coreWrite(KEYS.inventoryTransactions,tr);
+ audit("مرتجع شراء","المخزون",id,"خفض مخزون بسبب مرتجع شراء "+String(reference||""),actor);
+ return a[i];
+}
+function returnPurchase(purchaseOrderId,returnItems,reason,actor){
+ requirePermission("purchaseManage",actor);
+ const order=find(KEYS.purchaseOrders,purchaseOrderId);assert(order,"طلب الشراء غير موجود.");
+ const receipts=list(KEYS.purchaseReceipts).filter(r=>String(r.purchaseOrderId)===String(purchaseOrderId));
+ const received={};receipts.flatMap(r=>r.items||[]).forEach(x=>{received[x.itemId]=(received[x.itemId]||0)+Number(x.qty||0);});
+ const alreadyReturned=list(KEYS.purchaseReturns).filter(r=>String(r.purchaseOrderId)===String(purchaseOrderId)).flatMap(r=>r.items||[]);
+ const returned={};alreadyReturned.forEach(x=>{returned[x.itemId]=(returned[x.itemId]||0)+Number(x.qty||0);});
+ assert(Array.isArray(returnItems)&&returnItems.length>0,"أصناف المرتجع مطلوبة.");
+ returnItems.forEach(x=>{
+  const q=Number(x.qty);assert(x.itemId&&exists(KEYS.inventory,x.itemId),"صنف المرتجع غير موجود.");assert(Number.isFinite(q)&&q>0,"كمية المرتجع غير صحيحة.");
+  assert(q+Number(returned[x.itemId]||0)<=Number(received[x.itemId]||0),"كمية المرتجع تتجاوز الكمية المستلمة.");
+  assert(q<=inventoryQuantity(x.itemId),"كمية المرتجع أكبر من رصيد المخزون.");
+ });
+ returnItems.forEach(x=>consumeInventory(x.itemId,Number(x.qty),"مرتجع شراء",purchaseOrderId,reason||"مرتجع إلى المورد",actor));
+ const a=list(KEYS.purchaseReturns),id=nextId("RET-",KEYS.purchaseReturns,6),ret={id,purchaseOrderId,supplierId:order.supplierId,items:clone(returnItems),reason:clean(reason,1000),createdAt:now(),userId:actorInfo(actor).id||"",user:actorInfo(actor).name||"النظام"};
+ a.unshift(ret);coreWrite(KEYS.purchaseReturns,a);audit("مرتجع شراء","طلبات الشراء",id,"إرجاع أصناف إلى المورد",actor);return ret;
+}
+function saveTechnician(data,actor){
+ requirePermission("technicianManage",actor);assert(data&&clean(data.name||data.fullName||data.technicianName,200),"اسم الفني مطلوب.");
+ const a=list(KEYS.technicians),id=clean(data.id,80)||nextId("TECH-",KEYS.technicians,5);
+ const item=Object.assign({},data,{id,name:clean(data.name||data.fullName||data.technicianName,200),updatedAt:now(),createdAt:data.createdAt||now()});
+ const i=a.findIndex(x=>String(idOf(x))===id);if(i>=0)a[i]=Object.assign({},a[i],item);else a.push(item);
+ coreWrite(KEYS.technicians,a);audit(i>=0?"تعديل":"إضافة","الفنيين",id,"حفظ بيانات الفني",actor);syncRelations();return item;
+}
+function archiveTechnician(id,actor){
+ requirePermission("archive",actor);const t=findTechnician(id);assert(t,"الفني غير موجود.");
+ const a=list(KEYS.technicians),i=a.findIndex(x=>String(idOf(x))===String(id));a[i]=Object.assign({},a[i],{archived:true,archivedAt:now(),updatedAt:now()});coreWrite(KEYS.technicians,a);
+ audit("أرشفة","الفنيين",id,"أرشفة الفني",actor);return a[i];
+}
+function updateVisit(id,data,actor){
+ requirePermission("workOrderUpdate",actor);
+ const a=list(KEYS.visits),i=a.findIndex(x=>String(idOf(x))===String(id));assert(i>=0,"الزيارة غير موجودة.");
+ const old=a[i],rid=data.requestId||data.workOrderId||old.requestId||old.workOrderId;
+ assert(exists(KEYS.requests,rid),"أمر الشغل غير موجود.");
+ const normalized=Object.assign({},old,data,{id:old.id,requestId:rid,technicianId:data.technicianId||old.technicianId});
+ const visitCheck=validateVisitAssignment(normalized,actor);
+ const r=visitCheck.req;
+ const item=Object.assign({},old,data,{id:old.id,requestId:rid,technicianId:visitCheck.technicianId,
+  customerId:requestCustomerId(r),deviceId:requestDeviceId(r),updatedAt:now()});
+ a[i]=item;coreWrite(KEYS.visits,a);
+ audit("تعديل","الزيارات",id,"تعديل زيارة",actor);syncRelations();return item;
+}
+function cancelVisit(id,reason,actor){
+ requirePermission("visitManage",actor);const a=list(KEYS.visits),i=a.findIndex(x=>String(idOf(x))===String(id));assert(i>=0,"الزيارة غير موجودة.");
+ a[i]=Object.assign({},a[i],{status:"ملغاة",cancelReason:clean(reason,1000),cancelledAt:now(),updatedAt:now()});coreWrite(KEYS.visits,a);audit("إلغاء","الزيارات",id,"إلغاء زيارة",actor);return a[i];
+}
+function saveInventoryItem(data,actor){
+ requirePermission(data&&data.id?"stock":"stock",actor);
+ assert(data&&clean(data.name,200),"اسم الصنف مطلوب.");
+ const a=list(KEYS.inventory),id=clean(data.id,80)||nextId("ITM-",KEYS.inventory,6);
+ const i=a.findIndex(x=>String(idOf(x))===String(id)),existing=i>=0?a[i]:null;
+ if(existing){
+  if(data.quantity!==undefined)assert(Number(data.quantity)===Number(existing.quantity||0),"تعديل كمية المخزون يجب أن يتم عبر حركة مخزون معتمدة.");
+  if(data.reservedQuantity!==undefined)assert(Number(data.reservedQuantity)===Number(existing.reservedQuantity||0),"تعديل الكمية المحجوزة يجب أن يتم عبر واجهة الحجز.");
+  const item=Object.assign({},existing,data,{id,name:clean(data.name,200),quantity:Number(existing.quantity||0),reservedQuantity:Number(existing.reservedQuantity||0),updatedAt:now()});
+  a[i]=item;coreWrite(KEYS.inventory,a);audit("تعديل","المخزون",id,"تعديل بيانات صنف دون تغيير الرصيد",actor);return item;
+ }
+ const qty=data.quantity===undefined?0:Number(data.quantity);assert(Number.isFinite(qty)&&qty>=0,"رصيد المخزون غير صحيح.");
+ const item=Object.assign({},data,{id,name:clean(data.name,200),quantity:qty,reservedQuantity:0,updatedAt:now(),createdAt:data.createdAt||now()});
+ a.push(item);coreWrite(KEYS.inventory,a);audit("إضافة","المخزون",id,"إنشاء صنف مخزون",actor);return item;
+}
+function saveInvoice(data,actor){
+ const a=list(KEYS.invoices);
+ const id=clean(data&&data.id,80)||nextId("INV-",KEYS.invoices,6);
+ const existing=a.find(x=>String(idOf(x))===String(id));
+ if(existing) requirePermission(existing.status==="مغلقة"||existing.status==="مقفلة"||existing.status==="مؤكدة"||existing.status==="نهائية"?"invoiceClosedEdit":"invoiceEdit",actor);
+ else requirePermission("finance",actor);
+ const item=Object.assign({},existing||{},data,{id,updatedAt:now(),createdAt:(existing&&existing.createdAt)||data.createdAt||now()});
+ validateInvoiceChain(item);
+ if(isFinalInvoice(item)){
+  assert(item.requestId||item.workOrderId,"الفاتورة النهائية يجب أن ترتبط بأمر شغل.");
+  const rid=item.requestId||item.workOrderId,r=findRequest(rid);assert(r,"أمر الشغل المرتبط بالفاتورة غير موجود.");
+  assert(isWorkCompleted(r),"لا تصدر الفاتورة النهائية قبل انتهاء العمل.");
+  assert(costApproved(r),"لا تصدر الفاتورة النهائية قبل اعتماد التكلفة.");
+ }
+ const i=a.findIndex(x=>String(idOf(x))===String(id));if(i>=0)a[i]=item;else a.push(item);
+ coreWrite(KEYS.invoices,a);audit(i>=0?"تعديل":"إضافة","الفواتير",id,"حفظ فاتورة",actor);syncRelations();return item;
+}
+function savePayment(data,actor){
+ requirePermission("finance",actor);
+ assert(data&&data.invoiceId,"الفاتورة مطلوبة للدفعة.");
+ validatePaymentChain(data);
+ const amount=Number(data.amount);assert(Number.isFinite(amount)&&amount>0,"قيمة الدفعة غير صحيحة.");
+ const a=list(KEYS.payments),existing=data.id?a.find(x=>String(idOf(x))===String(data.id)):null;
+ if(existing){assert(existing.status!=="مؤكدة","لا يجوز تعديل دفعة مؤكدة مباشرة؛ استخدم الإلغاء أو الاسترداد.");assert(existing.status!=="ملغاة","لا يجوز تعديل دفعة ملغاة.");}
+ if(data.status==="مؤكدة"&&data.type!=="استرداد"){
+  const oldConfirmed=existing&&existing.status==="مؤكدة"?Number(existing.amount||0):0;
+  const available=invoiceBalance(data.invoiceId)+oldConfirmed;
+  assert(amount<=available,"قيمة الدفعة تتجاوز الرصيد المتبقي للفاتورة.");
+ }
+ const item=Object.assign({},existing||{},data,{id:clean(data.id,80)||nextId("PAY-",KEYS.payments,6),amount,updatedAt:now(),createdAt:(existing&&existing.createdAt)||data.createdAt||now()});
+ const i=a.findIndex(x=>String(idOf(x))===String(item.id));if(i>=0)a[i]=item;else a.push(item);
+ coreWrite(KEYS.payments,a);audit(i>=0?"تعديل":"إضافة","المدفوعات",item.id,"حفظ دفعة",actor);syncRelations();return item;
+}
+function refundPayment(data,actor){
+ requirePermission("finance",actor);assert(data&&data.invoiceId,"الفاتورة مطلوبة للاسترداد.");
+ const inv=findInvoice(data.invoiceId);assert(inv,"الفاتورة غير موجودة.");
+ const amount=Number(data.amount);assert(Number.isFinite(amount)&&amount>0,"قيمة الاسترداد غير صحيحة.");
+ const paid=invoicePaid(data.invoiceId),ref=invoiceRefunded(data.invoiceId);assert(amount<=Math.max(0,paid-ref),"قيمة الاسترداد أكبر من المبلغ المتاح للاسترداد.");
+ const p=Object.assign({},data,{id:clean(data.id,80)||nextId("PAY-",KEYS.payments,6),type:"استرداد",status:"مؤكدة",amount,createdAt:now(),updatedAt:now()});
+ validatePaymentChain(p);const a=list(KEYS.payments);a.push(p);coreWrite(KEYS.payments,a);
+ audit("استرداد","المدفوعات",p.id,"استرداد مرتبط بالفاتورة",actor);syncRelations();return p;
+}
+function cancelPayment(id,reason,actor){
+ requirePermission("finance",actor);const a=list(KEYS.payments),i=a.findIndex(x=>String(idOf(x))===String(id));assert(i>=0,"الدفعة غير موجودة.");assert(a[i].status!=="ملغاة","الدفعة ملغاة بالفعل.");
+ a[i]=Object.assign({},a[i],{status:"ملغاة",cancelReason:clean(reason,1000),cancelledAt:now(),updatedAt:now()});coreWrite(KEYS.payments,a);audit("إلغاء","المدفوعات",id,"إلغاء دفعة",actor);return a[i];
+}
+function saveApproval(data,actor){
+ requirePermission("approve",actor);
+ assert(data&&data.requestId&&exists(KEYS.requests,data.requestId),"أمر الشغل غير موجود.");
+ const a=list(KEYS.approvals),id=clean(data.id,80)||nextId("APR-",KEYS.approvals,6);
+ const item=Object.assign({},data,{id,requestId:data.requestId,updatedAt:now(),createdAt:data.createdAt||now()});
+ const i=a.findIndex(x=>String(idOf(x))===id);if(i>=0)a[i]=Object.assign({},a[i],item);else a.push(item);
+ coreWrite(KEYS.approvals,a);audit(i>=0?"تعديل":"إضافة","الاعتمادات",id,"اعتماد مرتبط بأمر الشغل",actor);return item;
+}
+function saveDiagnosis(data,actor){
+ requirePermission("diagnosis",actor);
+ assert(data&&data.requestId&&exists(KEYS.requests,data.requestId),"أمر الشغل غير موجود.");
+ const a=list(KEYS.diagnoses),id=clean(data.id,80)||nextId("DIA-",KEYS.diagnoses,6);
+ const item=Object.assign({},data,{id,requestId:data.requestId,updatedAt:now(),createdAt:data.createdAt||now()});
+ const i=a.findIndex(x=>String(idOf(x))===id);if(i>=0)a[i]=Object.assign({},a[i],item);else a.push(item);
+ coreWrite(KEYS.diagnoses,a);audit(i>=0?"تعديل":"إضافة","التشخيصات",id,"تشخيص مرتبط بأمر الشغل",actor);return item;
+}
+function technicianIsActive(t){
+ return !!t && t.active!==false && t.isActive!==false && String(t.status||"فعال")!=="غير فعال" && String(t.status||"فعال")!=="موقوف";
+}
+function visitDateValue(v){return String(v.date||v.visitDate||"").slice(0,10);}
+function visitTimeRange(v){
+ const start=String(v.startTime||v.timeFrom||v.from||"").trim();
+ const end=String(v.endTime||v.timeTo||v.to||"").trim();
+ return {start,end};
+}
+function rangesOverlap(a,b){
+ if(!a.start||!a.end||!b.start||!b.end)return false;
+ return a.start<b.end && b.start<a.end;
+}
+function technicianScheduleConflict(technicianId,assignment){
+ const date=String(assignment.date||assignment.visitDate||assignment.scheduledDate||"").slice(0,10);
+ if(!date)return false;
+ const nr=visitTimeRange(assignment);
+ const ignoreVisitId=String(assignment.id||"");
+ return technicianVisits(technicianId,date).some(v=>{
+  if(ignoreVisitId&&String(idOf(v))===ignoreVisitId)return false;
+  return rangesOverlap(nr,visitTimeRange(v));
+ });
+}
+function assignTechnician(data,actor){
+ requirePermission("assign",actor);
+ assert(data&&data.requestId&&exists(KEYS.requests,data.requestId),"أمر الشغل غير موجود.");
+ assert(data.technicianId&&exists(KEYS.technicians,data.technicianId),"الفني غير موجود.");
+ const req=findRequest(data.requestId);
+ assert(!["مغلق","ملغي","مؤرشف"].includes(String(req.status||"")),"لا يمكن إسناد فني لأمر شغل مغلق أو ملغي أو مؤرشف.");
+ const tech=findTechnician(data.technicianId);
+ assert(technicianIsActive(tech),"لا يمكن إسناد أمر الشغل إلى فني غير فعال أو موقوف.");
+ assert(String(requestCustomerId(req))&&String(requestDeviceId(req)),"أمر الشغل غير مكتمل العلاقة بالعميل والجهاز.");
+ validateRequestChain(req);
+ assert(!technicianScheduleConflict(data.technicianId,data),"الفني لديه تعارض في الموعد المحدد.");
+ const updated=updateRequestStatus(req.id,"تم الإسناد",actor);
+ const a=list(KEYS.assignments),id=clean(data.id,80)||nextId("ASN-",KEYS.assignments,6);
+ const item=Object.assign({},data,{id,requestId:req.id,technicianId:data.technicianId,assignedAt:data.assignedAt||now()});
+ const i=a.findIndex(x=>String(idOf(x))===id);if(i>=0)a[i]=Object.assign({},a[i],item);else a.push(item);
+ coreWrite(KEYS.assignments,a);audit(i>=0?"تعديل":"إضافة","إسناد الفنيين",id,"إسناد فني فعال لأمر الشغل",actor);syncRelations();return updated;
+}
+function saveWarranty(data,actor){
+ requirePermission("warranty",actor);
+ validateWarrantyChain(data);
+ const rid=data.requestId||data.workOrderId, r=rid?findRequest(rid):null;
+ const inv=data.invoiceId?findInvoice(data.invoiceId):null;
+ const contract=data.contractId?find(KEYS.contracts,data.contractId):null;
+ const mode=settings().warrantyCreationMode||"close";
+ const triggeredByClose=!!(r&&r.status==="مغلق");
+ const triggeredByInvoice=!!(inv&&isFinalInvoice(inv));
+ const triggeredByContract=!!contract;
+ const manual=String(data.creationMode||"").toLowerCase()==="manual";
+ const allowed=manual||triggeredByClose||(mode==="invoice"&&triggeredByInvoice)||(mode==="contract"&&triggeredByContract)||(mode==="any"&&(triggeredByInvoice||triggeredByContract||triggeredByClose));
+ assert(allowed,"لا يمكن إنشاء الضمان قبل تحقق طريقة الإنشاء المعتمدة.");
+ assert(clean(data.type||data.warrantyType,100),"نوع الضمان مطلوب.");
+ assert(data.startDate||data.startAt||data.warrantyStart,"تاريخ بداية الضمان مطلوب.");
+ assert(data.endDate||data.endAt||data.warrantyEnd||Number(data.durationDays||data.days)>0,"مدة/تاريخ انتهاء الضمان مطلوب.");
+ assert(data.servicesCovered!==undefined||data.coveredServices!==undefined||data.includedServices!==undefined,"الخدمات المشمولة في الضمان مطلوبة.");
+ assert(data.partsCovered!==undefined||data.coveredParts!==undefined||data.includedParts!==undefined,"القطع المشمولة في الضمان مطلوبة.");
+ const warrantyStatus=clean(data.status||"ساري",50);
+ assert(["ساري","منتهي","معلق","ملغي","قيد المراجعة","مغلق"].includes(warrantyStatus),"حالة الضمان غير معتمدة.");
+ if(manual)requirePermission("warranty",actor);
+ const a=list(KEYS.warranties),id=clean(data.id,80)||nextId("WAR-",KEYS.warranties,6);
+ const item=Object.assign({},data,{id,updatedAt:now(),createdAt:data.createdAt||now()});
+ const i=a.findIndex(x=>String(idOf(x))===id);if(i>=0)a[i]=Object.assign({},a[i],item);else a.push(item);
+ coreWrite(KEYS.warranties,a);audit(i>=0?"تعديل":"إضافة","الضمان",id,"سجل ضمان",actor);return item;
+}
+function saveContract(data,actor){
+ requirePermission("contract",actor);
+ validateContractChain(data);
+ const a=list(KEYS.contracts),id=clean(data.id,80)||nextId("CON-",KEYS.contracts,6);
+ const item=Object.assign({},data,{id,updatedAt:now(),createdAt:data.createdAt||now()});
+ const i=a.findIndex(x=>String(idOf(x))===id);if(i>=0)a[i]=Object.assign({},a[i],item);else a.push(item);
+ coreWrite(KEYS.contracts,a);audit(i>=0?"تعديل":"إضافة","العقود",id,"عقد مرتبط بالعميل والأجهزة",actor);return item;
+}
+function saveComplaint(data,actor){
+ requirePermission("complaint",actor);
+ assert(data&&data.customerId&&exists(KEYS.customers,data.customerId),"العميل غير موجود.");
+ if(data.requestId){const rr=findRequest(data.requestId);assert(rr,"أمر الشغل غير موجود.");assert(String(requestCustomerId(rr))===String(data.customerId),"الشكوى لا تخص عميل أمر الشغل.");}
+ const a=list(KEYS.complaints),id=clean(data.id,80)||nextId("CMP-",KEYS.complaints,6);
+ const item=Object.assign({},data,{id,updatedAt:now(),createdAt:data.createdAt||now()});
+ const i=a.findIndex(x=>String(idOf(x))===id);if(i>=0)a[i]=Object.assign({},a[i],item);else a.push(item);
+ coreWrite(KEYS.complaints,a);audit(i>=0?"تعديل":"إضافة","الشكاوى",id,"شكوى عميل",actor);return item;
+}
+function saveRating(data,actor){
+ requirePermission("rating",actor);
+ assert(data&&data.customerId&&exists(KEYS.customers,data.customerId),"العميل غير موجود.");
+ assert(data.requestId,"التقييم يجب أن يرتبط بأمر شغل.");
+ const rr=findRequest(data.requestId);assert(rr,"أمر الشغل غير موجود.");
+ assert(String(requestCustomerId(rr))===String(data.customerId),"التقييم لا يخص عميل أمر الشغل.");
+ assert(rr.status==="مغلق","لا يمكن تقييم الخدمة قبل إغلاق أمر الصيانة.");
+ const rating=Number(data.rating);assert(Number.isFinite(rating)&&rating>=1&&rating<=5,"التقييم يجب أن يكون من 1 إلى 5.");
+ const a=list(KEYS.ratings),id=clean(data.id,80)||nextId("RAT-",KEYS.ratings,6),existing=a.find(x=>String(idOf(x))===String(id));
+ assert(!existing||existing.archived!==true,"لا يمكن تعديل تقييم مؤرشف.");
+ const item=Object.assign({},existing||{},data,{id,rating,archived:false,updatedAt:now(),createdAt:(existing&&existing.createdAt)||data.createdAt||now()});
+ const i=a.findIndex(x=>String(idOf(x))===String(id));if(i>=0)a[i]=item;else a.push(item);
+ coreWrite(KEYS.ratings,a);audit(i>=0?"تعديل":"إضافة","التقييمات",id,"تقييم عميل",actor);return item;
+}
+function archiveRating(id,actor){
+ requirePermission("archive",actor);const a=list(KEYS.ratings),i=a.findIndex(x=>String(idOf(x))===String(id));assert(i>=0,"التقييم غير موجود.");
+ a[i]=Object.assign({},a[i],{archived:true,archivedAt:now(),updatedAt:now()});coreWrite(KEYS.ratings,a);audit("أرشفة","التقييمات",id,"أرشفة تقييم دون حذفه",actor);return a[i];
+}
+
+function runIntegrityCheck(actor){
+ requirePermission("integrity",actor);
+ const result=validateIntegrity();
+ audit("فحص سلامة البيانات","النظام","",result.ok?"نجح فحص سلامة العلاقات":"اكتشاف "+result.count+" مشكلة في العلاقات",actor);
+ return result;
+}
+
+function customerFinancialSummary(cid){
+ const inv=customerInvoices(cid),pay=customerPayments(cid).filter(p=>p.status==="مؤكدة");
+ const total=inv.reduce((s,i)=>s+invoiceTotal(i),0),paid=pay.filter(p=>p.type!=="استرداد").reduce((s,p)=>s+Number(p.amount||0),0),ref=pay.filter(p=>p.type==="استرداد").reduce((s,p)=>s+Number(p.amount||0),0);
+ return {invoices:inv.length,total,paid,refunded:ref,balance:Math.max(0,total-paid+ref)};
+}
+function customer360(cid){
+ const c=findCustomer(cid);if(!c)return null;const req=customerRequests(cid);
+ return {customer:c,devices:customerDevices(cid),requests:req,visits:customerVisits(cid),invoices:customerInvoices(cid),payments:customerPayments(cid),warranties:req.flatMap(r=>requestWarranties(idOf(r))),contracts:list(KEYS.contracts).filter(x=>String(x.customerId)===String(cid)),loyalty:list(KEYS.loyaltyAccounts).find(x=>String(x.customerId)===String(cid))||null,financial:customerFinancialSummary(cid)};
+}
+
+function migrateWorkOrdersToCanonical(){
+ const legacyKey="workOrdersLegacy",canonicalKey=KEYS.requests;
+ const legacy=read(legacyKey,[]);
+ if(!Array.isArray(legacy)||!legacy.length)return;
+ const canonical=list(canonicalKey),seen=new Set(canonical.map(idOf));
+ let changed=false;
+ legacy.forEach(x=>{
+  const id=idOf(x);
+  if(!id||seen.has(id))return;
+  const r=Object.assign({},x,{id,customerId:x.customerId||x.clientId||"",deviceId:x.deviceId||x.applianceId||"",requestType:x.requestType||x.type||"صيانة منزلية"});
+  canonical.push(r);seen.add(id);changed=true;
+ });
+ if(changed){coreWrite(canonicalKey,canonical);audit("ترحيل","النظام","", "تم دمج أوامر الشغل القديمة في المصدر الموحد","النظام");}
+}
+
+function moduleContract(){
+ return {
+  entities:Object.assign({},KEYS),
+  identity:{customer:"customerId",device:"deviceId",request:"requestId",technician:"technicianId",invoice:"invoiceId",payment:"paymentId",warranty:"warrantyId",inventoryItem:"itemId"},
+  mutationRule:"لا توجد كتابة مباشرة؛ استخدم API الخاص بالـCore",
+  auditRule:"كل عملية تغيير مهمة تمر عبر audit",
+  relationRule:"validateIntegrity و validators قبل الحفظ",
+  integrationRule:"إعادة استخدام نفس IDs والمصادر الأساسية وعدم إنشاء بيانات موازية"
+ };
+}
+
+function mutationPolicy(){
+ return {
+  directWrite:false,
+  requiredPath:"WorkshopCore mutation APIs",
+  auditRequired:true,
+  relationValidation:true,
+  integrityCheck:"WorkshopCore.runIntegrityCheck(actor)"
+ };
+}
+
+
+function regressionSelfTest(){
+ const failures=[];
+ const fail=(name,msg)=>failures.push({name,error:String(msg||"فشل غير محدد")});
+ const expectReject=(name,fn,expected)=>{
+  try{fn();fail(name,"العملية قُبلت رغم وجوب رفضها.");}
+  catch(e){
+   const msg=String(e&&e.message||e);
+   if(expected&&!msg.includes(expected))fail(name,"سبب الرفض غير صحيح: "+msg);
+  }
+ };
+ const admin={id:"TEST-ADMIN",name:"اختبار",role:"admin"};
+ const tech={id:"TEST-TECH",name:"فني اختبار",role:"technician"};
+ if(!hasPermission("technicianManage",admin))fail("permission technicianManage","admin denied");
+ if(hasPermission("technicianManage",tech))fail("permission technicianManage","technician bypass");
+ if(!hasPermission("integrity",admin))fail("permission integrity","admin denied");
+ if(!hasPermission("visitManage",admin))fail("permission visitManage","admin denied");
+ if(hasPermission("visitManage",tech))fail("permission visitManage","technician bypass");
+ expectReject("public write",()=>publicWriteBlocked(),"الكتابة المباشرة");
+ const result=validateIntegrity();
+ if(!result.ok)fail("integrity",result.problems.join(" | "));
+ return {ok:failures.length===0,failures};
+}
+
+function systemSummary(){
+ return {version:CORE_VERSION,date:today(),customers:list(KEYS.customers).length,devices:list(KEYS.devices).length,
+ requests:list(KEYS.requests).length,workOrders:list(KEYS.requests).length,technicians:list(KEYS.technicians).length,
+ visits:list(KEYS.visits).length,routes:list(KEYS.routes).length,inventory:list(KEYS.inventory).length,
+ suppliers:list(KEYS.suppliers).length,purchaseOrders:list(KEYS.purchaseOrders).length,invoices:list(KEYS.invoices).length,
+ payments:list(KEYS.payments).length,warranties:list(KEYS.warranties).length,contracts:list(KEYS.contracts).length,
+ notifications:list(KEYS.notifications).length,users:list(KEYS.users).length};
+}
+
+window.WorkshopCore={
+ VERSION:CORE_VERSION,KEYS,DEFAULT_SETTINGS,WORK_ORDER_TYPES,PRIORITIES,STATUSES,
+ getPermissionRegistry,setPermissionRegistry,getWorkflowPolicy,setWorkflowPolicy,allowedWorkflowTransition,assertWorkflowTransition,
+ auditImmutable,deleteAudit,updateAudit,
+ read,list,write:publicWriteBlocked,now,today,clean,idOf,nextId,settings,saveSettings,find,findCustomer,findDevice,findRequest,
+ findTechnician,findVisit,findInvoice,findPayment,customerName,technicianName,requestCustomerId,requestDeviceId,
+ customerDevices,customerRequests,customerVisits,customerInvoices,customerPayments,requestVisits,requestInvoices,
+ requestPayments,requestWarranties,technicianVisits,invoiceTotal,paymentsForInvoice,invoicePaid,invoiceRefunded,
+ invoiceBalance,inventoryItem,inventoryQuantity,addInventoryTransaction,consumeInventory,getOrCreateLoyalty,
+ loyaltyPoints,changeLoyalty,audit,syncRelations,validateIntegrity,validateCustomerDevice,validateRequestRefs,
+ saveRequest,updateRequestStatus,deleteRequest,addVisit,updateVisit,cancelVisit,requestWorkOrder,customerFinancialSummary,customer360,systemSummary,moduleContract,mutationPolicy,runIntegrityCheck,regressionSelfTest,log,hasPermission,requirePermission,requireAnyPermission,saveCustomer,archiveCustomer,deleteCustomer,saveDevice,archiveDevice,deleteDevice,saveTechnician,archiveTechnician,saveSupplier,savePurchaseOrder,approvePurchaseOrder,receivePurchaseOrder,saveInventoryItem,saveInvoice,savePayment,cancelPayment,refundPayment,saveApproval,saveDiagnosis,assignTechnician,saveWarranty,saveContract,saveComplaint,saveRating,reserveInventory,releaseInventoryReservation,returnPurchase,decrementInventoryForPurchaseReturn,archiveRating
+};
+try{
+ migrateWorkOrdersToCanonical();
+ try{localStorage.removeItem("workOrdersLegacy");}catch(e){}
+ syncRelations();
+ const bootIntegrity=validateIntegrity();
+ if(!bootIntegrity.ok)console.error("TWMS integrity check failed:",bootIntegrity.problems);
+}catch(e){console.error("TWMS Core startup sync failed:",e);}
+})(window);
