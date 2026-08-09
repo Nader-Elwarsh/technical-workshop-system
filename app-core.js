@@ -7,7 +7,7 @@
 (function(window){
 "use strict";
 
-const CORE_VERSION="3.8.0-customer-identity-household";
+const CORE_VERSION="3.8.1-customer-identity-matching-hardened";
 
 const KEYS={
  settings:"systemSettings", audit:"auditLog", customers:"customers", devices:"devices",
@@ -494,38 +494,43 @@ function deviceSimilarity(a,b){
  return {serialCount,modelCount};
 }
 function findPossibleCustomerMatches(input,excludeId){
+ // Conservative identity matching: geography and generic device similarity are never identity proof.
  const x=customerIdentitySignals(input||{});
  return list(KEYS.customers).filter(c=>{
   const id=String(idOf(c)||"");return id&&id!==String(excludeId||"")&&!c.mergedIntoCustomerId;
  }).map(c=>{
   const y=customerIdentitySignals(c);
-  const nameMatch=!!x.name&&!!y.name&&x.name===y.name;
   const emailMatch=x.emails.some(e=>y.emails.includes(e));
   const phoneMatch=x.phones.some(p=>y.phones.includes(p));
-  const locationMatch=!!x.governorate&&x.governorate===y.governorate&&!!x.center&&x.center===y.center;
+  const nameMatch=!!x.name&&!!y.name&&x.name===y.name;
   const addressScore=Math.max(0,...(x.addresses||[]).map(a=>Math.max(...(y.addresses||[]).map(b=>addressSimilarity(a,b)),0)));
-  const addressMatch=addressScore>=4;
   const deviceMatch=deviceSimilarity(x,y);
-  let score=(nameMatch?4:0)+(emailMatch?10:0)+(phoneMatch?12:0)+(locationMatch?2:0)+Math.min(4,addressScore)+Math.min(16,deviceMatch.serialCount*16)+Math.min(2,deviceMatch.modelCount);
-  const sameIdentity=phoneMatch||emailMatch||(nameMatch&&locationMatch)||(nameMatch&&addressMatch);
-  const household=!sameIdentity&&(addressScore>=3||deviceMatch.serialCount>0||deviceMatch.modelCount>0||locationMatch);
-  return {id:idOf(c),name:customerName(c),score,sameIdentity,household,signals:{name:nameMatch,email:emailMatch,phone:phoneMatch,location:locationMatch,address:addressMatch,addressScore,sharedDeviceSerialCount:deviceMatch.serialCount,sharedDeviceModelCount:deviceMatch.modelCount}};
- }).filter(r=>r.score>=4).sort((a,b)=>b.score-a.score);
+  const sameIdentity=phoneMatch||emailMatch;
+  const score=(phoneMatch?100:0)+(emailMatch?60:0)+(nameMatch?10:0);
+  return {id:idOf(c),name:customerName(c),score,sameIdentity,household:false,
+   signals:{name:nameMatch,email:emailMatch,phone:phoneMatch,location:false,address:false,addressScore:0,sharedDeviceSerialCount:0,sharedDeviceModelCount:0},
+   reason:phoneMatch?"رقم هاتف مطابق":emailMatch?"بريد إلكتروني مطابق":""};
+ }).filter(r=>r.sameIdentity).sort((a,b)=>b.score-a.score);
 }
 function findCustomerRelationshipSuggestions(cid){
  const c=findCustomer(cid);if(!c)return [];
  const x=customerIdentitySignals(c);
  return list(KEYS.customers).filter(o=>String(idOf(o))!==String(cid)&&!o.mergedIntoCustomerId&&!o.archived).map(o=>{
-  const y=customerIdentitySignals(o),addressScore=Math.max(...(x.addresses||[]).map(a=>Math.max(...(y.addresses||[]).map(b=>addressSimilarity(a,b)),0)),0),deviceMatch=deviceSimilarity(x,y);
+  const y=customerIdentitySignals(o);
+  const addressScore=Math.max(0,...(x.addresses||[]).map(a=>Math.max(...(y.addresses||[]).map(b=>addressSimilarity(a,b)),0)));
+  const deviceMatch=deviceSimilarity(x,y);
   const samePhone=x.phones.some(p=>y.phones.includes(p)),sameEmail=x.emails.some(e=>y.emails.includes(e));
-  const locationMatch=!!x.governorate&&x.governorate===y.governorate&&!!x.center&&x.center===y.center;
   const sameName=!!x.name&&x.name===y.name;
-  let score=(samePhone?12:0)+(sameEmail?10:0)+(sameName?4:0)+(locationMatch?2:0)+Math.min(4,addressScore)+Math.min(16,deviceMatch.serialCount*16)+Math.min(2,deviceMatch.modelCount);
-  const likelyIdentity=samePhone||sameEmail||(sameName&&addressScore>=4);
-  const household=!likelyIdentity&&(addressScore>=3||deviceMatch.serialCount>0||deviceMatch.modelCount>0||locationMatch);
-  return {id:idOf(o),name:customerName(o),score,likelyIdentity,household,signals:{samePhone,sameEmail,sameName,locationMatch,addressScore,sharedDeviceSerialCount:deviceMatch.serialCount,sharedDeviceModelCount:deviceMatch.modelCount}};
- }).filter(x=>x.household||x.likelyIdentity).sort((a,b)=>b.score-a.score).slice(0,10);
+  const sameIdentity=samePhone||sameEmail;
+  // Relationship suggestions require concrete shared evidence: exact/sufficient address match
+  // or the same device serial. Same governorate/center or same model alone is not enough.
+  const household=!sameIdentity&&(addressScore>=4||deviceMatch.serialCount>0);
+  const score=(samePhone?100:0)+(sameEmail?60:0)+(addressScore>=4?20:0)+(deviceMatch.serialCount?40:0)+(sameName?5:0);
+  return {id:idOf(o),name:customerName(o),score,likelyIdentity:sameIdentity,household,
+   signals:{samePhone,sameEmail,sameName,locationMatch:false,addressScore,sharedDeviceSerialCount:deviceMatch.serialCount,sharedDeviceModelCount:deviceMatch.modelCount}};
+ }).filter(x=>x.likelyIdentity||x.household).sort((a,b)=>b.score-a.score).slice(0,10);
 }
+
 function linkCustomerRelationship(customerAId,customerBId,type,evidence,actor){
  requirePermission("customerMerge",actor);
  assert(String(customerAId)!==String(customerBId),"لا يمكن ربط العميل بنفسه.");
