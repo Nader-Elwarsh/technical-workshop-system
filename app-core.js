@@ -1,5 +1,5 @@
 /* =========================================================
-   الورشة الفنية - TWMS Core V3.7.3 Regression Gated
+   الورشة الفنية - TWMS Core V3.7.7 Regression Gated
    المرجع الموحد للبيانات والعلاقات وقواعد العمل - Core V3.7.
    ملاحظة أمنية: localStorage مناسب للنسخة المحلية/التجريبية فقط.
    الصلاحيات والأمان الحقيقيان يحتاجان Backend عند الإنتاج.
@@ -7,7 +7,7 @@
 (function(window){
 "use strict";
 
-const CORE_VERSION="3.7.6-classification-regression";
+const CORE_VERSION="3.7.7-customer-regression-hardening";
 
 const KEYS={
  settings:"systemSettings", audit:"auditLog", customers:"customers", devices:"devices",
@@ -109,7 +109,7 @@ function auditImmutable(action,module,recordId,description,user,meta){
   correlationId:m.correlationId||"",
   user:a.name||settings().adminName||"النظام",userId:a.id||"",role:a.role||"",
   module:module||"النظام",action:action||"أخرى",recordId:recordId||"",
-  description:clean(description,2000),date:now(),source:"core-v3.7.6",
+  description:clean(description,2000),date:now(),source:"core-v3.7.7",
   result:m.result||"success",before:m.before===undefined?null:m.before,
   after:m.after===undefined?null:m.after,
   changedFields:Array.isArray(m.changedFields)?m.changedFields:[],
@@ -396,6 +396,12 @@ function recalculateCustomerClassification(cid,actor){
  return a[i];
 }
 
+function customerPhoneExists(phone,excludeId){
+ const p=String(phone||"").replace(/\D/g,"");
+ if(!p)return false;
+ return list(KEYS.customers).some(c=>String(idOf(c))!==String(excludeId||"")&&String(c.phone||c.mobile||"").replace(/\D/g,"")===p);
+}
+
 function saveCustomer(input,actor){
  requirePermission(input.id||input.customerId?"customerUpdate":"create",actor);
  const d=Object.assign({},input), oldId=clean(d.id||d.customerId,80);
@@ -562,7 +568,7 @@ function addVisit(data,actor){
  assert(exists(KEYS.technicians,data.technicianId),"الفني غير موجود.");
  const r=findRequest(data.requestId);validateRequestChain(r);
  const v=Object.assign({},data,{id:nextId("VIS-",KEYS.visits,6),customerId:requestCustomerId(r),deviceId:requestDeviceId(r),createdAt:now()});
- const a=list(KEYS.visits);a.push(v);coreWrite(KEYS.visits,a);audit("إضافة","الزيارات",v.id,"إضافة زيارة لأمر الشغل "+data.requestId,actor);syncRelations();return v;
+ const a=list(KEYS.visits);a.push(v);coreWrite(KEYS.visits,a);audit("إضافة","الزيارات",v.id,"إضافة زيارة لأمر الشغل "+data.requestId,actor);syncRelations();const visitCid=requestCustomerId(r);if(visitCid)recalculateCustomerClassification(visitCid,actor);return v;
 }
 function requestWorkOrder(id){return findRequest(id);}
 
@@ -657,7 +663,7 @@ function changeLoyalty(cid,points,type,reference,notes,actor){
  if(i<0){getOrCreateLoyalty(cid,actor);return changeLoyalty(cid,n,type,reference,notes,actor);}
  const before=Number(a[i].points||0),delta=type==="earn"?Math.abs(n):-Math.abs(n),after=before+delta;assert(after>=0,"رصيد النقاط غير كافٍ.");
  a[i]=Object.assign({},a[i],{points:after,updatedAt:now()});coreWrite(KEYS.loyaltyAccounts,a);const t=list(KEYS.loyaltyTransactions);
- t.unshift({id:nextId("LP-",KEYS.loyaltyTransactions,6),customerId:cid,customerName:a[i].customerName||"",type:type||"earn",points:Math.abs(delta),before,after,reference:reference||"",notes:notes||"",userId:actorInfo(actor).id||"",user:actorInfo(actor).name||"النظام",date:now()});coreWrite(KEYS.loyaltyTransactions,t);audit("نقاط ولاء","الولاء",cid,"تعديل رصيد النقاط",actor);return a[i];
+ t.unshift({id:nextId("LP-",KEYS.loyaltyTransactions,6),customerId:cid,customerName:a[i].customerName||"",type:type||"earn",points:Math.abs(delta),before,after,reference:reference||"",notes:notes||"",userId:actorInfo(actor).id||"",user:actorInfo(actor).name||"النظام",date:now()});coreWrite(KEYS.loyaltyTransactions,t);audit("نقاط ولاء","الولاء",cid,"تعديل رصيد النقاط",actor);recalculateCustomerClassification(cid,actor);return a[i];
 }
 
 function syncRelations(){
@@ -896,7 +902,7 @@ function refundPayment(data,actor){
 }
 function cancelPayment(id,reason,actor){
  requirePermission("finance",actor);const a=list(KEYS.payments),i=a.findIndex(x=>String(idOf(x))===String(id));assert(i>=0,"الدفعة غير موجودة.");assert(a[i].status!=="ملغاة","الدفعة ملغاة بالفعل.");
- a[i]=Object.assign({},a[i],{status:"ملغاة",cancelReason:clean(reason,1000),cancelledAt:now(),updatedAt:now()});coreWrite(KEYS.payments,a);audit("إلغاء","المدفوعات",id,"إلغاء دفعة",actor);return a[i];
+ a[i]=Object.assign({},a[i],{status:"ملغاة",cancelReason:clean(reason,1000),cancelledAt:now(),updatedAt:now()});coreWrite(KEYS.payments,a);audit("إلغاء","المدفوعات",id,"إلغاء دفعة",actor);const cancelledInv=findInvoice(a[i].invoiceId),cancelledCid=cancelledInv&&(cancelledInv.customerId||cancelledInv.clientId);if(cancelledCid)recalculateCustomerClassification(cancelledCid,actor);return a[i];
 }
 function saveApproval(data,actor){
  requirePermission("approve",actor);
@@ -1108,7 +1114,7 @@ window.WorkshopCore={
  auditImmutable,deleteAudit,updateAudit,
  read,list,write:publicWriteBlocked,now,today,clean,idOf,nextId,settings,saveSettings,find,findCustomer,findDevice,findRequest,
  findTechnician,findVisit,findInvoice,findPayment,customerName,technicianName,requestCustomerId,requestDeviceId,
- customerDevices,customerRequests,customerVisits,customerInvoices,customerPayments,customerClassification,recalculateCustomerClassification,requestVisits,requestInvoices,
+ customerDevices,customerRequests,customerVisits,customerInvoices,customerPayments,customerClassification,recalculateCustomerClassification,customerPhoneExists,requestVisits,requestInvoices,
  requestPayments,requestWarranties,technicianVisits,invoiceTotal,paymentsForInvoice,invoicePaid,invoiceRefunded,
  invoiceBalance,inventoryItem,inventoryQuantity,addInventoryTransaction,consumeInventory,getOrCreateLoyalty,
  loyaltyPoints,changeLoyalty,audit,syncRelations,validateIntegrity,validateCustomerDevice,validateRequestRefs,
