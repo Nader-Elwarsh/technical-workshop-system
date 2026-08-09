@@ -7,9 +7,10 @@
 (function(window){
 "use strict";
 
-const CORE_VERSION="3.8.1-customer-identity-matching-hardened";
+const CORE_VERSION="3.9.1-unified-customer-device";
 
 const KEYS={
+ deviceImages:"deviceImages",deviceLog:"deviceLog",deviceTypes:"deviceTypes",deviceQr:"deviceQr",deviceKnowledge:"deviceKnowledge",
  settings:"systemSettings", audit:"auditLog", customers:"customers", devices:"devices",
  requests:"maintenanceRequests", workOrders:"maintenanceRequests", technicians:"technicians",
  visits:"visits", routes:"routes", inventory:"inventory", inventoryTransactions:"inventory_transactions",
@@ -471,10 +472,8 @@ function customerIdentitySignals(c){
  const phones=[...new Set(customerContactPhones(c))];
  const emails=[...new Set(customerContactEmails(c))];
  const name=normalizeText((c&&c.name)||c&&c.fullName||c&&c.customerName||"");
- const addresses=customerAddressSignals(c);
- const gov=normalizeText(c&&c.governorate),center=normalizeText(c&&c.center),village=normalizeText(c&&c.village),street=normalizeText(c&&c.street);
  const address=normalizeText((c&&c.address)||"");
- return {phones,emails,name,address,governorate:gov,center,village,street,addresses,deviceFingerprints:customerDeviceFingerprints(idOf(c))};
+ return {phones,emails,name,address,governorate:normalizeText(c&&c.governorate),center:normalizeText(c&&c.center),village:normalizeText(c&&c.village),street:normalizeText(c&&c.street),addresses:customerAddressSignals(c),deviceFingerprints:customerDeviceFingerprints(idOf(c))};
 }
 function addressSimilarity(a,b){
  let score=0;
@@ -494,43 +493,36 @@ function deviceSimilarity(a,b){
  return {serialCount,modelCount};
 }
 function findPossibleCustomerMatches(input,excludeId){
- // Conservative identity matching: geography and generic device similarity are never identity proof.
  const x=customerIdentitySignals(input||{});
  return list(KEYS.customers).filter(c=>{
   const id=String(idOf(c)||"");return id&&id!==String(excludeId||"")&&!c.mergedIntoCustomerId;
  }).map(c=>{
   const y=customerIdentitySignals(c);
-  const emailMatch=x.emails.some(e=>y.emails.includes(e));
+  const reasons=[];
+  let score=0;
   const phoneMatch=x.phones.some(p=>y.phones.includes(p));
+  const emailMatch=x.emails.some(e=>y.emails.includes(e));
   const nameMatch=!!x.name&&!!y.name&&x.name===y.name;
-  const addressScore=Math.max(0,...(x.addresses||[]).map(a=>Math.max(...(y.addresses||[]).map(b=>addressSimilarity(a,b)),0)));
-  const deviceMatch=deviceSimilarity(x,y);
-  const sameIdentity=phoneMatch||emailMatch;
-  const score=(phoneMatch?100:0)+(emailMatch?60:0)+(nameMatch?10:0);
-  return {id:idOf(c),name:customerName(c),score,sameIdentity,household:false,
-   signals:{name:nameMatch,email:emailMatch,phone:phoneMatch,location:false,address:false,addressScore:0,sharedDeviceSerialCount:0,sharedDeviceModelCount:0},
-   reason:phoneMatch?"رقم هاتف مطابق":emailMatch?"بريد إلكتروني مطابق":""};
- }).filter(r=>r.sameIdentity).sort((a,b)=>b.score-a.score);
+  if(phoneMatch){score+=100;reasons.push("same_phone");}
+  if(emailMatch){score+=35;reasons.push("same_email");}
+  if(nameMatch){score+=15;reasons.push("same_name");}
+  return {customer:c,score,reasons,location:false,household:false};
+ }).filter(x=>x.score>=35).sort((a,b)=>b.score-a.score);
 }
 function findCustomerRelationshipSuggestions(cid){
  const c=findCustomer(cid);if(!c)return [];
  const x=customerIdentitySignals(c);
  return list(KEYS.customers).filter(o=>String(idOf(o))!==String(cid)&&!o.mergedIntoCustomerId&&!o.archived).map(o=>{
-  const y=customerIdentitySignals(o);
-  const addressScore=Math.max(0,...(x.addresses||[]).map(a=>Math.max(...(y.addresses||[]).map(b=>addressSimilarity(a,b)),0)));
-  const deviceMatch=deviceSimilarity(x,y);
+  const y=customerIdentitySignals(o),addressScore=Math.max(...(x.addresses||[]).map(a=>Math.max(...(y.addresses||[]).map(b=>addressSimilarity(a,b)),0)),0),deviceMatch=deviceSimilarity(x,y);
   const samePhone=x.phones.some(p=>y.phones.includes(p)),sameEmail=x.emails.some(e=>y.emails.includes(e));
+  const locationMatch=!!x.governorate&&x.governorate===y.governorate&&!!x.center&&x.center===y.center;
   const sameName=!!x.name&&x.name===y.name;
-  const sameIdentity=samePhone||sameEmail;
-  // Relationship suggestions require concrete shared evidence: exact/sufficient address match
-  // or the same device serial. Same governorate/center or same model alone is not enough.
-  const household=!sameIdentity&&(addressScore>=4||deviceMatch.serialCount>0);
-  const score=(samePhone?100:0)+(sameEmail?60:0)+(addressScore>=4?20:0)+(deviceMatch.serialCount?40:0)+(sameName?5:0);
-  return {id:idOf(o),name:customerName(o),score,likelyIdentity:sameIdentity,household,
-   signals:{samePhone,sameEmail,sameName,locationMatch:false,addressScore,sharedDeviceSerialCount:deviceMatch.serialCount,sharedDeviceModelCount:deviceMatch.modelCount}};
- }).filter(x=>x.likelyIdentity||x.household).sort((a,b)=>b.score-a.score).slice(0,10);
+  let score=(samePhone?12:0)+(sameEmail?10:0)+(sameName?4:0)+(locationMatch?2:0)+Math.min(4,addressScore)+Math.min(16,deviceMatch.serialCount*16)+Math.min(2,deviceMatch.modelCount);
+  const likelyIdentity=samePhone||sameEmail||(sameName&&addressScore>=4);
+  const household=!likelyIdentity&&(addressScore>=3||deviceMatch.serialCount>0||deviceMatch.modelCount>0||locationMatch);
+  return {id:idOf(o),name:customerName(o),score,likelyIdentity,household,signals:{samePhone,sameEmail,sameName,locationMatch,addressScore,sharedDeviceSerialCount:deviceMatch.serialCount,sharedDeviceModelCount:deviceMatch.modelCount}};
+ }).filter(x=>x.household||x.likelyIdentity).sort((a,b)=>b.score-a.score).slice(0,10);
 }
-
 function linkCustomerRelationship(customerAId,customerBId,type,evidence,actor){
  requirePermission("customerMerge",actor);
  assert(String(customerAId)!==String(customerBId),"لا يمكن ربط العميل بنفسه.");
@@ -647,6 +639,149 @@ function deleteCustomer(cid,actor){
  coreWrite(KEYS.customers,list(KEYS.customers).filter(x=>String(idOf(x))!==String(cid)));
  audit("حذف","العملاء",cid,"تم حذف عميل بلا بيانات تشغيلية",actor);return true;
 }
+
+
+/* Device module completion: lifecycle, history, attachments, types, QR, knowledge */
+function deviceTypeList(){
+ const rows=list(KEYS.deviceTypes);
+ return rows.filter(x=>!x.archived).sort((a,b)=>String(a.name||"").localeCompare(String(b.name||""),"ar"));
+}
+function saveDeviceType(input,actor){
+ requirePermission("deviceTypeManage",actor);
+ const x=Object.assign({},input||{});
+ x.id=x.id||nextId("DT");
+ x.name=clean(x.name,120); assert(x.name,"اسم نوع الجهاز مطلوب.");
+ x.parentId=x.parentId||null;
+ x.active=x.active!==false;
+ x.updatedAt=now(); x.createdAt=x.createdAt||now();
+ const rows=list(KEYS.deviceTypes); const i=rows.findIndex(r=>String(idOf(r))===String(x.id));
+ if(i>=0)rows[i]=x; else rows.push(x);
+ coreWrite(KEYS.deviceTypes,rows);
+ audit(i>=0?"تعديل نوع جهاز":"إضافة نوع جهاز","الأجهزة",x.id,"إدارة أنواع الأجهزة",actor,{after:x});
+ return x;
+}
+function addDeviceAttachment(deviceId,input,actor){
+ requirePermission("deviceUpdate",actor);
+ const d=findDevice(deviceId);assert(d,"الجهاز غير موجود.");
+ const x=Object.assign({},input||{});
+ x.id=x.id||nextId("DIMG");
+ x.deviceId=String(deviceId);
+ x.category=clean(x.category||"other",40);
+ x.fileName=clean(x.fileName,255);
+ x.fileRef=x.fileRef||null;
+ x.note=clean(x.note,1000);
+ x.createdAt=now(); x.createdBy=actor?.id||null;
+ const rows=list(KEYS.deviceImages); rows.push(x); coreWrite(KEYS.deviceImages,rows);
+ audit("إضافة مرفق جهاز","الأجهزة",String(deviceId),"إضافة مرفق إلى ملف الجهاز",actor,{after:x});
+ return x;
+}
+function deviceAttachments(deviceId){
+ return list(KEYS.deviceImages).filter(x=>String(x.deviceId)===String(deviceId)&&!x.archived);
+}
+function deviceHistory(deviceId){
+ const rows=list(KEYS.deviceLog).filter(x=>String(x.deviceId)===String(deviceId));
+ return rows.sort((a,b)=>String(a.createdAt||"").localeCompare(String(b.createdAt||"")));
+}
+function appendDeviceHistory(deviceId,event,actor,data){
+ const d=findDevice(deviceId);assert(d,"الجهاز غير موجود.");
+ const x={id:nextId("DLOG"),deviceId:String(deviceId),event:clean(event,100),createdAt:now(),
+          actorId:actor?.id||null,data:data||null};
+ const rows=list(KEYS.deviceLog);rows.push(x);coreWrite(KEYS.deviceLog,rows);
+ return x;
+}
+function setDeviceQr(deviceId,enabled,actor){
+ requirePermission("deviceQrManage",actor);
+ const d=findDevice(deviceId);assert(d,"الجهاز غير موجود.");
+ const rows=list(KEYS.deviceQr);
+ let x=rows.find(r=>String(r.deviceId)===String(deviceId));
+ if(!x){x={id:nextId("DQR"),deviceId:String(deviceId)};rows.push(x);}
+ x.enabled=!!enabled;x.token=x.token||("dev_"+String(deviceId)+"_"+String(Math.random()).slice(2,10));
+ x.updatedAt=now();x.updatedBy=actor?.id||null;
+ coreWrite(KEYS.deviceQr,rows);
+ audit(enabled?"تفعيل QR للجهاز":"إيقاف QR للجهاز","الأجهزة",String(deviceId),"تغيير حالة QR",actor,{after:x});
+ return x;
+}
+function getDeviceQr(deviceId){
+ return list(KEYS.deviceQr).find(x=>String(x.deviceId)===String(deviceId))||null;
+}
+function setDeviceKnowledge(deviceId,input,actor){
+ requirePermission("deviceKnowledgeManage",actor);
+ const d=findDevice(deviceId);assert(d,"الجهاز غير موجود.");
+ const x=Object.assign({},input||{});
+ x.id=x.id||nextId("DKNOW");
+ x.deviceId=String(deviceId);
+ x.modelKey=clean(x.modelKey||d.model,160);
+ x.faultCodes=Array.isArray(x.faultCodes)?x.faultCodes:[];
+ x.factoryReset=clean(x.factoryReset,2000);
+ x.serviceGuide=clean(x.serviceGuide,2000);
+ x.compatibleParts=Array.isArray(x.compatibleParts)?x.compatibleParts:[];
+ x.commonFaults=Array.isArray(x.commonFaults)?x.commonFaults:[];
+ x.articles=Array.isArray(x.articles)?x.articles:[];
+ x.updatedAt=now();
+ const rows=list(KEYS.deviceKnowledge);const i=rows.findIndex(r=>String(idOf(r))===String(x.id));
+ if(i>=0)rows[i]=x;else rows.push(x);
+ coreWrite(KEYS.deviceKnowledge,rows);
+ audit(i>=0?"تعديل توافق مركز المعرفة":"إضافة توافق مركز المعرفة","الأجهزة",String(deviceId),"ربط الجهاز بمركز المعرفة",actor,{after:x});
+ return x;
+}
+function getDeviceKnowledge(deviceId){
+ return list(KEYS.deviceKnowledge).filter(x=>String(x.deviceId)===String(deviceId));
+}
+function deviceLifecycle(deviceId){
+ const d=findDevice(deviceId);assert(d,"الجهاز غير موجود.");
+ const events=deviceHistory(deviceId);
+ const names=["تسجيل الجهاز","استقبال البلاغ","إنشاء أمر الشغل","التشخيص","تنفيذ الإصلاح","تركيب قطع الغيار","إصدار الفاتورة","إصدار الضمان","زيارة لاحقة","انتهاء الخدمة أو الأرشفة"];
+ return names.map((name,i)=>({stage:i+1,name,status:events.some(e=>e.event===name)?"completed":"pending"}));
+}
+function deviceSearch(criteria){
+ const q=criteria||{};
+ const norm=v=>String(v??"").trim().toLowerCase();
+ const workOrders=list(KEYS.requests), invoices=list(KEYS.invoices);
+ return list(KEYS.devices).filter(d=>{
+  const c=findCustomer(d.customerId||d.clientId);
+  const orderHit=workOrders.some(r=>String(requestDeviceId(r)||"")===String(idOf(d)) && norm(r.id).includes(norm(q.workOrder)));
+  const invoiceHit=invoices.some(r=>String(r.deviceId||r.applianceId||"")===String(idOf(d)) && norm(r.id).includes(norm(q.invoice)));
+  if(q.workOrder && !orderHit)return false;
+  if(q.invoice && !invoiceHit)return false;
+  const fields=[
+   [q.deviceId,d.id],[q.customerName,c?customerName(c):""],[q.type,d.type],
+   [q.manufacturer,d.brand||d.manufacturer],[q.model,d.model],
+   [q.serial,d.serialNumber||d.serial]
+  ];
+  return fields.every(([needle,val])=>!needle||norm(val).includes(norm(needle)));
+ });
+}
+
+function deviceWorkOrders(did){
+ return list(KEYS.requests).filter(r=>String(requestDeviceId(r)||"")===String(did));
+}
+function deviceVisits(did){
+ return list(KEYS.visits).filter(v=>String(v.deviceId||v.applianceId||"")===String(did));
+}
+function deviceInvoices(did){
+ return list(KEYS.invoices).filter(i=>String(i.deviceId||i.applianceId||"")===String(did));
+}
+function deviceWarranties(did){
+ return list(KEYS.warranties).filter(w=>String(w.deviceId||w.applianceId||"")===String(did));
+}
+function deviceContracts(did){
+ return list(KEYS.contracts).filter(c=>Array.isArray(c.deviceIds)&&c.deviceIds.map(String).includes(String(did)));
+}
+function device360(did){
+ const d=findDevice(did);assert(d,"الجهاز غير موجود.");
+ const cid=String(d.customerId||d.clientId||"");
+ const customer=findCustomer(cid);
+ return {
+  device:d, customer,
+  workOrders:deviceWorkOrders(did), visits:deviceVisits(did),
+  invoices:deviceInvoices(did), warranties:deviceWarranties(did),
+  contracts:deviceContracts(did), attachments:deviceAttachments(did),
+  history:deviceHistory(did), lifecycle:deviceLifecycle(did),
+  qr:getDeviceQr(did), knowledge:getDeviceKnowledge(did),
+  integrity:validateCustomerDevice(cid,did)
+ };
+}
+
 function saveDevice(input,actor){
  requirePermission(input.id||input.deviceId?"deviceUpdate":"create",actor);
  const existing=input.id?list(KEYS.devices).find(x=>String(idOf(x))===String(input.id)):null;
@@ -663,13 +798,29 @@ function saveDevice(input,actor){
  d.type=clean(d.type||d.deviceType,100);assert(d.type,"نوع الجهاز مطلوب.");
  d.brand=clean(d.brand||d.manufacturer,100);d.model=clean(d.model,100);
  d.serialNumber=clean(d.serialNumber||d.serial,150);
+ d.manufactureYear=clean(d.manufactureYear||d.year,10);
+ d.color=clean(d.color,60);
+ d.usageLocation=clean(d.usageLocation||d.location,250);
+ d.currentCondition=clean(d.currentCondition||d.condition,80)||"يعمل";
+ d.generalNotes=clean(d.generalNotes||d.notes,2000);
  const a=list(KEYS.devices);
  const duplicate=a.find(x=>String(idOf(x))!==String(oldId)&&String(x.customerId||x.clientId)===String(d.customerId)&&
   d.serialNumber&&String(x.serialNumber||x.serial||"").trim().toLowerCase()===d.serialNumber.trim().toLowerCase());
  assert(!duplicate,"الرقم المسلسل مسجل بالفعل لهذا العميل.");
+ const sameSerialOtherCustomer=a.find(x=>String(idOf(x))!==String(oldId)&&
+  d.serialNumber&&String(x.serialNumber||x.serial||"").trim().toLowerCase()===d.serialNumber.trim().toLowerCase()&&
+  String(x.customerId||x.clientId)!==String(d.customerId));
+ if(sameSerialOtherCustomer){
+  d.serialConflictReview={
+   existingDeviceId:String(idOf(sameSerialOtherCustomer)),
+   existingCustomerId:String(sameSerialOtherCustomer.customerId||sameSerialOtherCustomer.clientId||""),
+   status:"review_required"
+  };
+ }
  if(oldId){
   const i=a.findIndex(x=>String(idOf(x))===oldId);assert(i>=0,"الجهاز غير موجود.");
   a[i]=Object.assign({},a[i],d,{id:oldId,updatedAt:now()});coreWrite(KEYS.devices,a);
+ appendDeviceHistory(d.id,oldId?"تعديل بيانات الجهاز":"تسجيل الجهاز",actor,{changedFields:Object.keys(d)});
   audit("تعديل","الأجهزة",oldId,"تم تعديل بيانات الجهاز",actor);syncRelations();return a[i];
  }
  const id=nextId("DEV-",KEYS.devices,5),item=Object.assign({id,createdAt:now(),archived:false},d);
@@ -1338,7 +1489,7 @@ findPossibleCustomerMatches,findCustomerRelationshipSuggestions,customerRelation
  requestPayments,requestWarranties,technicianVisits,invoiceTotal,paymentsForInvoice,invoicePaid,invoiceRefunded,
  invoiceBalance,inventoryItem,inventoryQuantity,addInventoryTransaction,consumeInventory,getOrCreateLoyalty,
  loyaltyPoints,changeLoyalty,audit,syncRelations,validateIntegrity,validateCustomerDevice,validateRequestRefs,
- saveRequest,updateRequestStatus,deleteRequest,addVisit,updateVisit,cancelVisit,requestWorkOrder,customerFinancialSummary,customer360,systemSummary,moduleContract,mutationPolicy,runIntegrityCheck,regressionSelfTest,log,hasPermission,requirePermission,requireAnyPermission,saveCustomer,archiveCustomer,deleteCustomer,saveDevice,archiveDevice,deleteDevice,saveTechnician,archiveTechnician,saveSupplier,savePurchaseOrder,approvePurchaseOrder,receivePurchaseOrder,saveInventoryItem,saveInvoice,savePayment,cancelPayment,refundPayment,saveApproval,saveDiagnosis,assignTechnician,saveWarranty,saveContract,saveComplaint,saveRating,reserveInventory,releaseInventoryReservation,returnPurchase,decrementInventoryForPurchaseReturn,archiveRating
+ saveRequest,updateRequestStatus,deleteRequest,addVisit,updateVisit,cancelVisit,requestWorkOrder,customerFinancialSummary,customer360,systemSummary,moduleContract,mutationPolicy,runIntegrityCheck,regressionSelfTest,log,hasPermission,requirePermission,requireAnyPermission,saveCustomer,archiveCustomer,deleteCustomer,saveDevice,device360,deviceWorkOrders,deviceVisits,deviceInvoices,deviceWarranties,deviceContracts,archiveDevice,deleteDevice,deviceTypeList,saveDeviceType,addDeviceAttachment,deviceAttachments,deviceHistory,appendDeviceHistory,setDeviceQr,getDeviceQr,setDeviceKnowledge,getDeviceKnowledge,deviceLifecycle,deviceSearch,saveTechnician,archiveTechnician,saveSupplier,savePurchaseOrder,approvePurchaseOrder,receivePurchaseOrder,saveInventoryItem,saveInvoice,savePayment,cancelPayment,refundPayment,saveApproval,saveDiagnosis,assignTechnician,saveWarranty,saveContract,saveComplaint,saveRating,reserveInventory,releaseInventoryReservation,returnPurchase,decrementInventoryForPurchaseReturn,archiveRating
 };
 try{
  migrateWorkOrdersToCanonical();
