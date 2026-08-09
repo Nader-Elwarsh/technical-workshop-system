@@ -187,11 +187,14 @@ hr{border:0;border-top:1px solid #e4e8ef;margin:16px 0}
 <input id="search" placeholder="الاسم، الهاتف، البريد، العنوان، نوع الجهاز، رقم أمر الشغل، رقم الفاتورة أو CUS-...">
 <button class="blue" id="searchBtn">بحث</button>
 </div>
-<div class="row" style="margin-top:10px"><label style="margin:0"><input id="showArchived" type="checkbox" style="width:auto"> عرض العملاء المؤرشفين</label></div><div class="small" style="margin-top:8px">يدعم البحث الجزئي والمركب عبر أكثر من معيار، مع عدم إنشاء سجل عميل موازٍ.</div>
+<div class="row" style="margin-top:10px;justify-content:space-between">
+ <label style="margin:0"><input id="showArchived" type="checkbox" style="width:auto"> عرض المؤرشفين فقط</label>
+ <button type="button" class="blue" id="showAllBtn">👥 عرض كل العملاء</button>
+</div><div class="small" style="margin-top:8px">يدعم البحث الجزئي والمركب عبر أكثر من معيار، مع عدم إنشاء سجل عميل موازٍ.</div>
 </div>
 
 <div class="card">
-<h2>📋 العملاء المسجلون <span id="count" class="badge bb"></span></h2><div id="customerStoreStatus" class="small" style="margin-top:-7px;margin-bottom:8px">المصدر: Core المركزي — لا توجد قاعدة بيانات عملاء موازية.</div>
+<h2>📋 العملاء المسجلون <span id="count" class="badge bb"></span></h2><div id="customerStoreStatus" class="small" style="margin-top:-7px;margin-bottom:8px">المصدر: Core المركزي فقط — القائمة لا تستخدم قاعدة بيانات عملاء موازية.</div>
 <div id="list" class="list"></div>
 </div>
 </div>
@@ -681,21 +684,21 @@ function matchesCustomer(c,q){
 
 
 function render(){
- const q=$("search").value.trim(),showArchived=$("showArchived").checked;
+ const q=$("search").value.trim();
+ const archivedOnly=$("showArchived").checked;
  const sets=visibleCustomerRecords();
- const source=showArchived?sets.archived:sets.active;
+ const source=archivedOnly?sets.archived:sets.all;
  const arr=source.filter(c=>!q||matchesCustomer(c,q));
 
  $("count").textContent=`${arr.length} عميل`+
-   (showArchived?" مؤرشف/مسجل":"")+
-   ` — نشط: ${sets.active.length} | مؤرشف: ${sets.archived.length}`;
+   (archivedOnly?" — مؤرشف فقط":" — كل السجلات")+
+   ` | إجمالي Core: ${sets.all.length}`;
 
  if(!arr.length){
   $("list").innerHTML=`<div class="empty">
-   لا توجد عملاء مطابقة.
-   <br><span class="small">إجمالي سجلات العملاء في الـCore: ${sets.all.length}</span>
-   ${sets.all.length&&sets.active.length===0&&!showArchived?
-     '<br><button type="button" class="blue" style="margin-top:8px" onclick="showAllCustomerRecords()">📋 عرض السجلات المؤرشفة</button>':""}
+   <b>لا توجد سجلات مطابقة في العرض الحالي.</b>
+   <br><span class="small">إجمالي سجلات العملاء المقروءة من Core: ${sets.all.length} | النشطة: ${sets.active.length} | المؤرشفة: ${sets.archived.length}</span>
+   ${archivedOnly?'<br><button type="button" class="blue" style="margin-top:8px" onclick="showAllCustomerRecords()">👥 عرض كل العملاء</button>':""}
   </div>`;
   return;
  }
@@ -713,18 +716,20 @@ function render(){
   return `<div class="customer">
    <div class="customer-head"><div><h3>${esc(displayName)}</h3>
     <div class="mini">🆔 ${esc(id)}<br>📞 ${esc(c.phone||c.mobile||"—")} ${c.phone2?" / "+esc(c.phone2):""}<br>📍 ${esc(c.address||[c.governorate,c.center,c.village,c.street].filter(Boolean).join(" - ")||"—")}</div>
-    <div class="chips"><span class="badge bb">🏷️ ${esc(c.customerTier||c.category||"جديد")}</span>${archived?'<span class="badge red">مؤرشف</span>':""}<span class="badge">عناوين ${addresses}</span><span class="badge">تواصل ${contacts}</span></div>
+    <div class="chips"><span class="badge bb">🏷️ ${esc(c.customerTier||c.category||"جديد")}</span>${archived?'<span class="badge red">مؤرشف</span>':'<span class="badge green">نشط</span>'}<span class="badge">عناوين ${addresses}</span><span class="badge">تواصل ${contacts}</span></div>
    </div><div><span class="badge bb">طلبات ${rq.length}</span><span class="badge">أجهزة ${dv.length}</span><span class="badge">زيارات ${vi.length}</span><span class="badge">فواتير ${iv.length}</span></div></div>
    <div class="customer-actions"><button class="blue" onclick="open360('${esc(id)}')">👁️ ملف 360°</button><button class="gray" onclick="editCustomer('${esc(id)}')">✏️ تعديل</button>${archived?"":`<button class="amber" onclick="archiveCustomer('${esc(id)}')">📦 أرشفة</button>`}${canDelete?`<button class="danger" onclick="deleteCustomer('${esc(id)}')">🗑️ حذف</button>`:""}</div>
   </div>`;
  }).join("");
 }
 function showAllCustomerRecords(){
- $("showArchived").checked=true;
+ $("showArchived").checked=false;
+ $("search").value="";
  render();
  $("searchAndList").scrollIntoView({behavior:"smooth",block:"start"});
 }
 window.showAllCustomerRecords=showAllCustomerRecords;
+
 
 $("toggleRegistrationBtn").onclick=()=>{if($("registrationCard").classList.contains("hidden")){clearForm();showRegistration("new")}else hideRegistration()};$("governorate").addEventListener("change",()=>refreshCenters(""));
 $("useLocationBtn").onclick=useCurrentLocation;$("openMapsBtn").onclick=openGoogleMaps;$("clearLocationBtn").onclick=clearLocation;
@@ -737,7 +742,7 @@ $("integrityBtn").onclick=function(){
   else show("تم اكتشاف "+r.count+" مشكلة. راجع سجل المراجعة.",true);
  }catch(e){show(e.message||"تعذر تنفيذ فحص السلامة.",true)}
 };
-$("search").addEventListener("input",render);$("showArchived").addEventListener("change",render);$("addAddressBtn").onclick=addAddress;$("defaultAddressBtn").onclick=setDefaultAddress;
+$("search").addEventListener("input",render);$("showArchived").addEventListener("change",render);$("showAllBtn").onclick=showAllCustomerRecords;$("addAddressBtn").onclick=addAddress;$("defaultAddressBtn").onclick=setDefaultAddress;
 $("addContactBtn").onclick=addContact;$("closeModal").onclick=()=>$("modal").classList.remove("open");
 $("modal").addEventListener("click",e=>{if(e.target===$("modal"))$("modal").classList.remove("open")});
 window.editCustomer=editCustomer;window.archiveCustomer=archiveCustomer;window.deleteCustomer=deleteCustomer;window.open360=open360;window.setDefaultAddress=setDefaultAddress;
