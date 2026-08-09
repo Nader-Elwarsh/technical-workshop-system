@@ -194,7 +194,7 @@ hr{border:0;border-top:1px solid #e4e8ef;margin:16px 0}
 </div>
 
 <div class="card">
-<h2>📋 العملاء المسجلون <span id="count" class="badge bb"></span></h2><div id="customerStoreStatus" class="small" style="margin-top:-7px;margin-bottom:8px">المصدر: Core المركزي فقط — القائمة لا تستخدم قاعدة بيانات عملاء موازية.</div>
+<h2>📋 العملاء المسجلون <span id="count" class="badge bb"></span></h2><div id="customerStoreStatus" class="small" style="margin-top:-7px;margin-bottom:8px">المصدر: Core المركزي فقط — القائمة لا تستخدم قاعدة بيانات عملاء موازية.</div><div id="customerStoreDiag" class="small" style="margin-bottom:8px"></div>
 <div id="list" class="list"></div>
 </div>
 </div>
@@ -241,7 +241,32 @@ function requireCore(){
  if(!C||typeof C.saveCustomer!=="function")throw new Error("Core غير متاح.");
  if(String(C.VERSION)!=="3.7.7-customer-regression-hardening")throw new Error("هذه الوحدة تعتمد Core V3.7.7 Customer Regression Hardening؛ لا تُشغّلها على نسخة Core أقدم أو مختلفة.");
 }
-function customers(){return C.list(C.KEYS.customers)}
+function customers(){
+ try{
+  const raw=C.read(C.KEYS.customers,[]);
+  if(Array.isArray(raw))return raw;
+  if(raw&&typeof raw==="object"){
+   if(Array.isArray(raw.items))return raw.items;
+   if(Array.isArray(raw.data))return raw.data;
+   if(Array.isArray(raw.records))return raw.records;
+   if(Array.isArray(raw.customers))return raw.customers;
+  }
+ }catch(e){console.error("Customer Core read error",e);}
+ return [];
+}
+function customerStoreDiagnostic(){
+ try{
+  const raw=C.read(C.KEYS.customers,[]);
+  const listed=C.list(C.KEYS.customers);
+  const summary=C.systemSummary();
+  let rawCount=Array.isArray(raw)?raw.length:
+    (raw&&Array.isArray(raw.items)?raw.items.length:
+    raw&&Array.isArray(raw.data)?raw.data.length:
+    raw&&Array.isArray(raw.records)?raw.records.length:
+    raw&&Array.isArray(raw.customers)?raw.customers.length:0);
+  return {rawCount,listedCount:listed.length,summaryCount:Number(summary&&summary.customers||0),rawType:Array.isArray(raw)?"array":typeof raw};
+ }catch(e){return {rawCount:0,listedCount:0,summaryCount:0,rawType:"error",error:String(e.message||e)}}
+}
 function selectedId(){return $("customerId").value.trim()}
 function selectedCustomer(){return selectedId()?C.findCustomer(selectedId()):null}
 
@@ -683,8 +708,19 @@ function matchesCustomer(c,q){
 }
 
 
+function renderCustomerStoreDiagnostic(){
+ const d=customerStoreDiagnostic();
+ const el=$("customerStoreDiag"); if(!el)return;
+ if(d.error){
+  el.textContent="تعذر قراءة مصدر العملاء من الـCore: "+d.error;
+  return;
+ }
+ el.textContent=`تشخيص المصدر — Core: ${d.summaryCount} | القراءة المباشرة: ${d.rawCount} | القائمة: ${d.listedCount}`;
+}
+
 function render(){
  const q=$("search").value.trim();
+ renderCustomerStoreDiagnostic();
  const archivedOnly=$("showArchived").checked;
  const sets=visibleCustomerRecords();
  const source=archivedOnly?sets.archived:sets.all;
@@ -723,6 +759,7 @@ function render(){
  }).join("");
 }
 function showAllCustomerRecords(){
+ renderCustomerStoreDiagnostic();
  $("showArchived").checked=false;
  $("search").value="";
  render();
