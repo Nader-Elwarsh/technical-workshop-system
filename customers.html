@@ -223,7 +223,7 @@ customerManagementCards is selected-customer-only UI.
 </div>
 </div>
 
-<script src="app-core.js?v=3.13.0-customer-device-integrated"></script>
+<script src="app-core.js?v=3.13.0-customer-device-integrated-fix1"></script>
 <script>
 (function(){
 "use strict";
@@ -374,6 +374,64 @@ function fillCustomer(c){
  window.scrollTo({top:0,behavior:"smooth"});
 }
 function editCustomer(id){const c=C.findCustomer(id);if(!c){show("العميل غير موجود.",true);return}closeCustomerDetail();fillCustomer(c);showRegistration("edit")}
+
+let customerSaveBusy=false;
+
+function saveCustomer(){
+ if(customerSaveBusy)return;
+ customerSaveBusy=true;
+ const btn=$("saveBtn");
+ if(btn){btn.disabled=true;btn.textContent="⏳ جاري الحفظ...";}
+ try{
+  requireCore();
+  const id=selectedId();
+  const name=$("name").value.trim();
+  const phone=$("phone").value.trim();
+  if(!name)throw new Error("اسم العميل مطلوب.");
+  if(!phone)throw new Error("رقم الهاتف الأساسي مطلوب.");
+  const location=validateLocation($("lat").value,$("lng").value);
+  const governorate=$("governorate").value.trim();
+  const center=$("center").value.trim();
+  if(!governorate)throw new Error("المحافظة مطلوبة.");
+  if(!center)throw new Error("المركز مطلوب.");
+  const payload={
+   id:id||undefined,
+   name,
+   nickname:$("nickname").value.trim(),
+   phone,
+   phone2:$("phone2").value.trim(),
+   email:validateEmail($("email").value),
+   contactPreference:$("contactPreference").value,
+   workSchedule:$("workSchedule").value.trim(),
+   governorate,center,
+   village:$("village").value.trim(),
+   street:$("street").value.trim(),
+   address:$("address").value.trim(),
+   notes:$("notes").value.trim(),
+   location,
+   addresses:[]
+  };
+  if(!id){
+   const addressText=payload.address || [governorate,center,payload.village,payload.street].filter(Boolean).join(" - ");
+   if(addressText){
+    payload.addresses=[{id:"ADDR-"+Date.now(),label:"العنوان الأساسي",text:addressText,governorate,center,village:payload.village,street:payload.street,location,isDefault:true,createdAt:C.now()}];
+   }
+  }
+  const saved=C.saveCustomer(payload,ACTOR);
+  const savedId=C.idOf(saved);
+  show(id?"تم حفظ تعديل العميل بنجاح.":"تم تسجيل العميل بنجاح.");
+  clearSaveFeedback();
+  if(savedId){
+   fillCustomer(C.findCustomer(savedId)||saved);
+   openCustomerDetail(savedId);
+  }
+ }catch(e){
+  show(e&&e.message?e.message:"تعذر حفظ العميل.",true);
+ }finally{
+  customerSaveBusy=false;
+  if(btn){btn.disabled=false;btn.textContent=selectedId()?"✏️ حفظ تعديل العميل":"💾 حفظ العميل";}
+ }
+}
 
 function renderCustomerTier(c){
  try{
