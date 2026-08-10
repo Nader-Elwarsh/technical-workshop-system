@@ -223,7 +223,7 @@ customerManagementCards is selected-customer-only UI.
 </div>
 </div>
 
-<script src="app-core.js"></script>
+<script src="app-core.js?v=3.10.0-workshop-serial-schema"></script>
 <script>
 (function(){
 "use strict";
@@ -250,7 +250,7 @@ function clearSaveFeedback(){
 function show(msg,error=false){$("notice").textContent=msg;$("notice").className="notice "+(error?"bad":"good");$("notice").style.display="block";clearTimeout(show.t);show.t=setTimeout(()=>$("notice").style.display="none",3500)}
 function requireCore(){
  if(!C||typeof C.saveCustomer!=="function")throw new Error("Core غير متاح.");
- if(String(C.VERSION)!=="3.9.2-device-serial-delete")throw new Error("هذه الوحدة تعتمد Core V3.9.2-device-serial-delete Customer Identity + Household؛ لا تُشغّلها على نسخة Core أقدم أو مختلفة.");
+ if(String(C.VERSION)!=="3.10.0-workshop-serial-schema")throw new Error("هذه الوحدة تعتمد Core V3.10.0-workshop-serial-schema؛ لا تُشغّلها على نسخة Core أقدم أو مختلفة.");
 }
 function customers(){
  try{
