@@ -1,6 +1,6 @@
 /* =========================================================
-   الورشة الفنية - TWMS Core V3.7.7 Regression Gated
-   المرجع الموحد للبيانات والعلاقات وقواعد العمل - Core V3.7.
+   الورشة الفنية - TWMS Core V3.10.0 Regression Gated
+   المرجع الموحد للبيانات والعلاقات وقواعد العمل - Core V3.10.0.
    ملاحظة أمنية: localStorage مناسب للنسخة المحلية/التجريبية فقط.
    الصلاحيات والأمان الحقيقيان يحتاجان Backend عند الإنتاج.
    ========================================================= */
@@ -668,22 +668,36 @@ function deleteCustomer(cid,actor){
 
 
 /* Device module completion: lifecycle, history, attachments, types, QR, knowledge */
+const DEFAULT_DEVICE_TYPES=[
+ {id:"washing",name:"غسالة"},
+ {id:"fridge",name:"تلاجة"},
+ {id:"ac",name:"تكييف"},
+ {id:"heater",name:"سخان"},
+ {id:"cooler",name:"مبرد"},
+ {id:"freezer",name:"فريزر"},
+ {id:"stove",name:"بوتاجاز"},
+ {id:"oven",name:"فرن"},
+ {id:"microwave",name:"ميكروويف"}
+];
 function deviceSubtypeOptions(type){
  const t=normalizeText(type);
  const map=[
-  [/غسالة|washing/i,["حوضيت","تحميل علوي","تحميل أمامي","أطفال"]],
-  [/ثلاجة|refrigerator/i,["بابين نو فروست","بابين ديفروست أو عادية","باب واحد","دي فروست أو عادية","نو فروست فقط (3 أبواب فأكثر)"]],
-  [/فريزر|freezer/i,["أفقي","رأسي","أدراج"]],
-  [/تكييف|air\s*condition|ac/i,["شباك","اسبليت"]],
-  [/سخان|heater/i,["غاز","كهرباء","فوري غاز","فوري كهرباء"]],
-  [/مبرد مياه|water\s*cooler/i,["مبرد عادي","مبرد بارد/ساخن","مبرد تحميل علوي","مبرد تحميل سفلي"]]
+  [/غسالة|washing/i,["هاف أو نص اتوماتيك","اتوماتيك تحميل علوي","اتوماتيك تحميل امامي","أطفال"]],
+  [/تلاجة|ثلاجة|refrigerator/i,["بابين نوفروست","بابين ديفروست أو عادية","باب واحد","٣ باب نوفروست"]],
+  [/فريزر|freezer/i,["أدراج نوفروست","أدراج ديفروست أو عادي","صندوق"]],
+  [/تكييف|air\s*condition|ac/i,["اسبليت","شباك","متنقل فريون","متنقل صحراوي"]],
+  [/سخان|heater/i,["غاز","كهرباء"]],
+  [/بوتاجاز|stove/i,["٤ شعلة","٥ شعلة","بلت ان"]],
+  [/فرن|oven/i,["فرن كهربائي","يعمل بالغاز"]],
+  [/ميكروويف|microwave/i,["تاتش","زراير"]]
  ];
  for(const [rx,vals] of map)if(rx.test(t))return vals.slice();
  return [];
 }
 function deviceTypeList(){
- const rows=list(KEYS.deviceTypes);
- return rows.filter(x=>!x.archived).sort((a,b)=>String(a.name||"").localeCompare(String(b.name||""),"ar"));
+ const rows=list(KEYS.deviceTypes).filter(x=>!x.archived);
+ if(rows.length)return rows.sort((a,b)=>DEFAULT_DEVICE_TYPES.findIndex(d=>d.id===a.id)-DEFAULT_DEVICE_TYPES.findIndex(d=>d.id===b.id));
+ return DEFAULT_DEVICE_TYPES.map(x=>Object.assign({},x));
 }
 function saveDeviceType(input,actor){
  requirePermission("deviceTypeManage",actor);
