@@ -7,7 +7,7 @@
 (function(window){
 "use strict";
 
-const CORE_VERSION="3.11.0-device-condition-auto";
+const CORE_VERSION="3.12.0-device-submit-guard";
 
 const KEYS={
  deviceImages:"deviceImages",deviceLog:"deviceLog",deviceTypes:"deviceTypes",deviceQr:"deviceQr",deviceKnowledge:"deviceKnowledge",
@@ -74,6 +74,26 @@ function nextWorkshopSerial(){
 function workshopSerialExists(value,excludeId){
  const k=normalizeWorkshopSerial(value);
  return !!k&&list(KEYS.devices).some(d=>String(idOf(d))!==String(excludeId||"")&&normalizeWorkshopSerial(d.workshopSerial)===k);
+}
+function deviceFingerprint(input){
+ const x=input||{};
+ const brand=normalizeText(x.brand||x.manufacturer||"");
+ const custom=normalizeText(x.brandCustom||"");
+ return [
+  String(x.customerId||x.clientId||""),
+  normalizeText(x.type||x.deviceType||""),
+  normalizeText(x.subtype||x.deviceSubtype||x.configuration||""),
+  brand,
+  brand==="أخرى"?custom:"",
+  normalizeText(x.refrigerant||""),
+  normalizeText(x.capacity||""),
+  normalizeText(x.inverter||"")
+ ].join("|");
+}
+function findDuplicateDevice(input,excludeId){
+ const fp=deviceFingerprint(input);
+ if(!fp.replace(/\|/g,""))return null;
+ return list(KEYS.devices).find(d=>String(idOf(d))!==String(excludeId||"")&&!d.archived&&deviceFingerprint(d)===fp)||null;
 }
 function normalizeSerialNumber(v){
  let s=String(v??"").normalize("NFKC").trim().toLowerCase();
@@ -918,6 +938,12 @@ function saveDevice(input,actor){
  d.workshopSerial=normalizeWorkshopSerial(d.workshopSerial||existing?.workshopSerial||"");
  if(!d.workshopSerial)d.workshopSerial=nextWorkshopSerial();
  assert(!workshopSerialExists(d.workshopSerial,oldId),"رقم الورشة مستخدم بالفعل؛ لا يمكن تكراره.");
+ const duplicate=findDuplicateDevice(d,oldId);
+ if(duplicate&&!d.allowDuplicateDevice){
+  const dupName=customerName(findCustomer(duplicate.customerId))||"العميل";
+  assert(false,"هذا الجهاز يبدو مسجلًا بالفعل للعميل "+dupName+" ("+idOf(duplicate)+"). راجع الجهاز الموجود قبل إنشاء جهاز مطابق.");
+ }
+ delete d.allowDuplicateDevice;
  d.manufactureYear=clean(d.manufactureYear||d.year,10);
  d.color=clean(d.color,60);
  d.usageLocation=clean(d.usageLocation||d.location,250);
@@ -1611,7 +1637,7 @@ findPossibleCustomerMatches,findCustomerRelationshipSuggestions,customerRelation
  requestPayments,requestWarranties,technicianVisits,invoiceTotal,paymentsForInvoice,invoicePaid,invoiceRefunded,
  invoiceBalance,inventoryItem,inventoryQuantity,addInventoryTransaction,consumeInventory,getOrCreateLoyalty,
  loyaltyPoints,changeLoyalty,audit,syncRelations,validateIntegrity,validateCustomerDevice,validateRequestRefs,
- saveRequest,updateRequestStatus,deleteRequest,addVisit,updateVisit,cancelVisit,requestWorkOrder,customerFinancialSummary,customer360,systemSummary,moduleContract,mutationPolicy,runIntegrityCheck,regressionSelfTest,log,hasPermission,requirePermission,requireAnyPermission,saveCustomer,archiveCustomer,deleteCustomer,saveDevice,isStaffActor,device360,deviceWorkOrders,deviceVisits,deviceInvoices,deviceWarranties,deviceContracts,archiveDevice,deleteDevice,deriveDeviceCondition,syncDeviceConditions,deviceTypeList,deviceSubtypeOptions,saveDeviceType,addDeviceAttachment,deviceAttachments,deviceHistory,appendDeviceHistory,setDeviceQr,getDeviceQr,setDeviceKnowledge,getDeviceKnowledge,deviceLifecycle,deviceSearch,saveTechnician,archiveTechnician,saveSupplier,savePurchaseOrder,approvePurchaseOrder,receivePurchaseOrder,saveInventoryItem,saveInvoice,savePayment,cancelPayment,refundPayment,saveApproval,saveDiagnosis,assignTechnician,saveWarranty,saveContract,saveComplaint,saveRating,reserveInventory,releaseInventoryReservation,returnPurchase,decrementInventoryForPurchaseReturn,archiveRating
+ saveRequest,updateRequestStatus,deleteRequest,addVisit,updateVisit,cancelVisit,requestWorkOrder,customerFinancialSummary,customer360,systemSummary,moduleContract,mutationPolicy,runIntegrityCheck,regressionSelfTest,log,hasPermission,requirePermission,requireAnyPermission,saveCustomer,archiveCustomer,deleteCustomer,saveDevice,findDuplicateDevice,deviceFingerprint,isStaffActor,device360,deviceWorkOrders,deviceVisits,deviceInvoices,deviceWarranties,deviceContracts,archiveDevice,deleteDevice,deriveDeviceCondition,syncDeviceConditions,deviceTypeList,deviceSubtypeOptions,saveDeviceType,addDeviceAttachment,deviceAttachments,deviceHistory,appendDeviceHistory,setDeviceQr,getDeviceQr,setDeviceKnowledge,getDeviceKnowledge,deviceLifecycle,deviceSearch,saveTechnician,archiveTechnician,saveSupplier,savePurchaseOrder,approvePurchaseOrder,receivePurchaseOrder,saveInventoryItem,saveInvoice,savePayment,cancelPayment,refundPayment,saveApproval,saveDiagnosis,assignTechnician,saveWarranty,saveContract,saveComplaint,saveRating,reserveInventory,releaseInventoryReservation,returnPurchase,decrementInventoryForPurchaseReturn,archiveRating
 };
 try{
  migrateWorkOrdersToCanonical();
