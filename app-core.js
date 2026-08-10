@@ -7,7 +7,7 @@
 (function(window){
 "use strict";
 
-const CORE_VERSION="3.12.0-device-submit-guard";
+const CORE_VERSION="3.13.0-customer-device-integrated";
 
 const KEYS={
  deviceImages:"deviceImages",deviceLog:"deviceLog",deviceTypes:"deviceTypes",deviceQr:"deviceQr",deviceKnowledge:"deviceKnowledge",
@@ -80,7 +80,6 @@ function deviceFingerprint(input){
  const brand=normalizeText(x.brand||x.manufacturer||"");
  const custom=normalizeText(x.brandCustom||"");
  return [
-  String(x.customerId||x.clientId||""),
   normalizeText(x.type||x.deviceType||""),
   normalizeText(x.subtype||x.deviceSubtype||x.configuration||""),
   brand,
@@ -90,10 +89,25 @@ function deviceFingerprint(input){
   normalizeText(x.inverter||"")
  ].join("|");
 }
+function findDeviceByWorkshopSerial(serial){
+ const key=normalizeWorkshopSerial(serial);
+ if(!key)return null;
+ return list(KEYS.devices).find(d=>normalizeWorkshopSerial(d.workshopSerial)===key)||null;
+}
+function findDeviceByLegacySerial(serial){
+ const key=normalizeSerialNumber(serial);
+ if(!key)return null;
+ return list(KEYS.devices).find(d=>normalizeSerialNumber(d.manufacturerSerial||d.serialNumber||d.serial)===key)||null;
+}
 function findDuplicateDevice(input,excludeId){
- const fp=deviceFingerprint(input);
- if(!fp.replace(/\|/g,""))return null;
- return list(KEYS.devices).find(d=>String(idOf(d))!==String(excludeId||"")&&!d.archived&&deviceFingerprint(d)===fp)||null;
+ const x=input||{},cid=String(x.customerId||x.clientId||"");
+ const fp=deviceFingerprint(x);
+ if(!cid||!fp.replace(/\|/g,""))return null;
+ return list(KEYS.devices).find(d=>{
+  if(String(idOf(d))===String(excludeId||"")||d.archived)return false;
+  const dcid=String(d.customerId||d.clientId||"");
+  return dcid===cid&&deviceFingerprint(d)===fp;
+ })||null;
 }
 function normalizeSerialNumber(v){
  let s=String(v??"").normalize("NFKC").trim().toLowerCase();
@@ -507,10 +521,14 @@ function customerAddressSignals(c){
 }
 function customerDeviceFingerprints(cid){
  return customerDevices(cid).map(d=>({
-  id:idOf(d),serial:normalizeSerialNumber(d.serialNumber||d.serial),type:normalizeText(d.type||d.deviceType),brand:normalizeText(d.brand||d.manufacturer),model:normalizeText(d.model)
+  id:idOf(d),
+  workshopSerial:normalizeWorkshopSerial(d.workshopSerial||""),
+  legacySerial:normalizeSerialNumber(d.manufacturerSerial||d.serialNumber||d.serial),
+  type:normalizeText(d.type||d.deviceType),
+  brand:normalizeText(d.brand||d.manufacturer)
  })).map(d=>({
-  serialKey:d.serial?"serial:"+d.serial:"",
-  modelKey:[d.type,d.brand,d.model].filter(Boolean).join("|")?"model:"+[d.type,d.brand,d.model].filter(Boolean).join("|"):"",
+  serialKey:d.workshopSerial?"workshop:"+d.workshopSerial:(d.legacySerial?"legacy:"+d.legacySerial:""),
+  modelKey:"",
   data:d
  }));
 }
@@ -563,9 +581,9 @@ function findCustomerRelationshipSuggestions(cid){
   const samePhone=x.phones.some(p=>y.phones.includes(p)),sameEmail=x.emails.some(e=>y.emails.includes(e));
   const locationMatch=!!x.governorate&&x.governorate===y.governorate&&!!x.center&&x.center===y.center;
   const sameName=!!x.name&&x.name===y.name;
-  let score=(samePhone?12:0)+(sameEmail?10:0)+(sameName?4:0)+(locationMatch?2:0)+Math.min(4,addressScore)+Math.min(16,deviceMatch.serialCount*16)+Math.min(2,deviceMatch.modelCount);
+  let score=(samePhone?12:0)+(sameEmail?10:0)+(sameName?4:0)+(locationMatch?1:0)+Math.min(4,addressScore)+Math.min(16,deviceMatch.serialCount*16);
   const likelyIdentity=samePhone||sameEmail||(sameName&&addressScore>=4);
-  const household=!likelyIdentity&&(addressScore>=3||deviceMatch.serialCount>0||deviceMatch.modelCount>0||locationMatch);
+  const household=!likelyIdentity&&(addressScore>=3||deviceMatch.serialCount>0||(sameName&&locationMatch));
   return {id:idOf(o),name:customerName(o),score,likelyIdentity,household,signals:{samePhone,sameEmail,sameName,locationMatch,addressScore,sharedDeviceSerialCount:deviceMatch.serialCount,sharedDeviceModelCount:deviceMatch.modelCount}};
  }).filter(x=>x.household||x.likelyIdentity).sort((a,b)=>b.score-a.score).slice(0,10);
 }
@@ -873,6 +891,7 @@ function deviceSearch(criteria){
   if(q.invoice && !invoices.some(r=>String(r.deviceId||r.applianceId||"")===String(idOf(d))&&norm(r.id).includes(norm(q.invoice))))return false;
   if(wsQ && !normalizeWorkshopSerial(d.workshopSerial).includes(wsQ))return false;
   if(msQ && !normalizeSerialNumber(d.manufacturerSerial||d.serialNumber||d.serial).includes(msQ))return false;
+  if(q.condition && !norm(d.condition||d.currentCondition).includes(norm(q.condition)))return false;
   const fields=[
    [q.customerName,c?customerName(c):""],[q.type,d.type],[q.subtype,d.subtype],
    [q.manufacturer,d.brand||d.manufacturer]
@@ -938,10 +957,20 @@ function saveDevice(input,actor){
  d.workshopSerial=normalizeWorkshopSerial(d.workshopSerial||existing?.workshopSerial||"");
  if(!d.workshopSerial)d.workshopSerial=nextWorkshopSerial();
  assert(!workshopSerialExists(d.workshopSerial,oldId),"رقم الورشة مستخدم بالفعل؛ لا يمكن تكراره.");
+ const legacySerial=clean(d.manufacturerSerial||d.serialNumber||d.serial,150);
+ if(legacySerial){
+  const legacyHit=findDeviceByLegacySerial(legacySerial);
+  if(legacyHit&&String(idOf(legacyHit))!==String(oldId||"")){
+   const hitCustomer=customerName(findCustomer(legacyHit.customerId))||"عميل آخر";
+   const err=new Error("الرقم المسلسل القديم موجود بالفعل على الجهاز "+idOf(legacyHit)+" لدى "+hitCustomer+".");
+   err.code="DUPLICATE_DEVICE_SERIAL";err.deviceId=idOf(legacyHit);throw err;
+  }
+ }
  const duplicate=findDuplicateDevice(d,oldId);
  if(duplicate&&!d.allowDuplicateDevice){
   const dupName=customerName(findCustomer(duplicate.customerId))||"العميل";
-  assert(false,"هذا الجهاز يبدو مسجلًا بالفعل للعميل "+dupName+" ("+idOf(duplicate)+"). راجع الجهاز الموجود قبل إنشاء جهاز مطابق.");
+  const err=new Error("هذا الجهاز يبدو مسجلًا بالفعل للعميل "+dupName+" ("+idOf(duplicate)+"). الأفضل فتح السجل الحالي بدل إنشاء نسخة جديدة.");
+  err.code="DUPLICATE_DEVICE";err.deviceId=idOf(duplicate);throw err;
  }
  delete d.allowDuplicateDevice;
  d.manufactureYear=clean(d.manufactureYear||d.year,10);
@@ -1637,7 +1666,7 @@ findPossibleCustomerMatches,findCustomerRelationshipSuggestions,customerRelation
  requestPayments,requestWarranties,technicianVisits,invoiceTotal,paymentsForInvoice,invoicePaid,invoiceRefunded,
  invoiceBalance,inventoryItem,inventoryQuantity,addInventoryTransaction,consumeInventory,getOrCreateLoyalty,
  loyaltyPoints,changeLoyalty,audit,syncRelations,validateIntegrity,validateCustomerDevice,validateRequestRefs,
- saveRequest,updateRequestStatus,deleteRequest,addVisit,updateVisit,cancelVisit,requestWorkOrder,customerFinancialSummary,customer360,systemSummary,moduleContract,mutationPolicy,runIntegrityCheck,regressionSelfTest,log,hasPermission,requirePermission,requireAnyPermission,saveCustomer,archiveCustomer,deleteCustomer,saveDevice,findDuplicateDevice,deviceFingerprint,isStaffActor,device360,deviceWorkOrders,deviceVisits,deviceInvoices,deviceWarranties,deviceContracts,archiveDevice,deleteDevice,deriveDeviceCondition,syncDeviceConditions,deviceTypeList,deviceSubtypeOptions,saveDeviceType,addDeviceAttachment,deviceAttachments,deviceHistory,appendDeviceHistory,setDeviceQr,getDeviceQr,setDeviceKnowledge,getDeviceKnowledge,deviceLifecycle,deviceSearch,saveTechnician,archiveTechnician,saveSupplier,savePurchaseOrder,approvePurchaseOrder,receivePurchaseOrder,saveInventoryItem,saveInvoice,savePayment,cancelPayment,refundPayment,saveApproval,saveDiagnosis,assignTechnician,saveWarranty,saveContract,saveComplaint,saveRating,reserveInventory,releaseInventoryReservation,returnPurchase,decrementInventoryForPurchaseReturn,archiveRating
+ saveRequest,updateRequestStatus,deleteRequest,addVisit,updateVisit,cancelVisit,requestWorkOrder,customerFinancialSummary,customer360,systemSummary,moduleContract,mutationPolicy,runIntegrityCheck,regressionSelfTest,log,hasPermission,requirePermission,requireAnyPermission,saveCustomer,archiveCustomer,deleteCustomer,saveDevice,findDuplicateDevice,findDeviceByWorkshopSerial,findDeviceByLegacySerial,deviceFingerprint,isStaffActor,device360,deviceWorkOrders,deviceVisits,deviceInvoices,deviceWarranties,deviceContracts,archiveDevice,deleteDevice,deriveDeviceCondition,syncDeviceConditions,deviceTypeList,deviceSubtypeOptions,saveDeviceType,addDeviceAttachment,deviceAttachments,deviceHistory,appendDeviceHistory,setDeviceQr,getDeviceQr,setDeviceKnowledge,getDeviceKnowledge,deviceLifecycle,deviceSearch,saveTechnician,archiveTechnician,saveSupplier,savePurchaseOrder,approvePurchaseOrder,receivePurchaseOrder,saveInventoryItem,saveInvoice,savePayment,cancelPayment,refundPayment,saveApproval,saveDiagnosis,assignTechnician,saveWarranty,saveContract,saveComplaint,saveRating,reserveInventory,releaseInventoryReservation,returnPurchase,decrementInventoryForPurchaseReturn,archiveRating
 };
 try{
  migrateWorkOrdersToCanonical();
