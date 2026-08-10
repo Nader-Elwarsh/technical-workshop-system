@@ -427,7 +427,7 @@ function renderIdentityMatches(){
 function requestOrApproveCustomerMerge(otherId){
  try{
   const current=selectedId();
-  if(current){show("افتح تسجيل عميل جديد أولًا لمراجعة حساب سابق.");return;}
+  if(current){show("أنت تعدل حسابًا قائمًا. احفظ التعديل أولًا، ثم استخدم قسم ربط/دمج الحسابات من ملف العميل.",true);return;}
   const newPhone=$("phone").value.trim();
   const currentName=$("name").value.trim();
   const candidate=C.findCustomer(otherId);
