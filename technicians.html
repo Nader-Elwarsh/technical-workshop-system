@@ -48,6 +48,8 @@ button{border:0;border-radius:10px;padding:12px 16px;font-size:16px;font-family:
 .profile{flex-direction:column}.actions{flex-direction:column}
 }
 </style>
+
+<script src="app-core.js?v=4.7.0-unified"></script><script src="twms-ui.js?v=4.7.0"></script><script>window.TWMS_ACTOR=window.TWMS_ACTOR||{id:"LOCAL-ADMIN",name:"المدير",role:"admin"};window.C=window.WorkshopCore;</script>
 </head>
 <body>
 <header>
@@ -141,16 +143,17 @@ button{border:0;border-radius:10px;padding:12px 16px;font-size:16px;font-family:
 <a class="back" href="index.html">🏠 العودة إلى الرئيسية</a>
 </div>
 
+
 <script>
 const TK="technicians", RK="maintenanceRequests";
 let editingId=null, photoData="";
 
 const $=id=>document.getElementById(id);
-const arr=k=>{try{let x=JSON.parse(localStorage.getItem(k)||"[]");return Array.isArray(x)?x:[]}catch(e){return[]}};
+const arr=k=>window.WorkshopCore.legacyList(k);
 const techs=()=>arr(TK), requests=()=>arr(RK);
 const esc=v=>String(v??"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&#039;");
-const saveTechs=x=>localStorage.setItem(TK,JSON.stringify(x));
-const saveReqs=x=>localStorage.setItem(RK,JSON.stringify(x));
+const saveTechs=x=>window.WorkshopCore.legacyWrite(TK,x,"المستخدم الحالي");
+const saveReqs=x=>window.WorkshopCore.legacyWrite(RK,x,"المستخدم الحالي");
 
 function nextId(){
  let max=0;
@@ -211,7 +214,7 @@ function save(){
   audit:[...(old?.audit||[]),{at:now,event:editingId?"تعديل ملف فني":"إنشاء ملف فني"}]
  };
  const i=all.findIndex(x=>String(x.id)===String(t.id));if(i>=0)all[i]=t;else all.unshift(t);saveTechs(all);
- notice(editingId?"تم تعديل ملف الفني بنجاح ✅":"تم إنشاء ملف الفني بنجاح ✅");reset();render();renderAssignments();
+ notice(editingId?"تم تعديل ملف الفني بنجاح ✅":"تم إنشاء ملف الفني بنجاح ✅"); if(window.TWMSUI&&TWMSUI.afterSave)TWMSUI.afterSave(editingId?"تم تعديل ملف الفني":"تم إنشاء ملف الفني", "record.html?type=technicians&id="+encodeURIComponent(t.id)); else {reset();render();renderAssignments();}
 }
 function remove(id){
  const t=getTech(id),rs=requests();
@@ -288,5 +291,6 @@ $("list").onclick=e=>{const b=e.target.closest("button[data-a]");if(!b)return;co
 $("unassigned").onclick=e=>{const b=e.target.closest("button[data-saveassign]");if(b)assign(b.dataset.saveassign)};
 reset();render();renderAssignments();
 </script>
+
 </body>
 </html>
