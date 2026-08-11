@@ -17,6 +17,8 @@ button{border:0;border-radius:10px;padding:11px 15px;font:inherit;cursor:pointer
 pre{white-space:pre-wrap;background:#f8fafc;border-radius:10px;padding:12px;line-height:1.8;overflow:auto}.back{display:block;text-align:center;background:#333;color:#fff;text-decoration:none;padding:14px;border-radius:10px}
 .hidden{display:none!important}@media(max-width:700px){.grid,.filters{grid-template-columns:1fr}.full{grid-column:auto}.actions{flex-direction:column}}
 </style>
+
+<script src="app-core.js?v=4.7.0-unified"></script><script src="twms-ui.js?v=4.7.0"></script><script>window.TWMS_ACTOR=window.TWMS_ACTOR||{id:"LOCAL-ADMIN",name:"المدير",role:"admin"};window.C=window.WorkshopCore;</script>
 </head>
 <body>
 <header><h1>📚 المكتبة الفنية</h1><p>المراجع والأعطال والأدلة الفنية للورشة</p></header>
@@ -50,11 +52,12 @@ pre{white-space:pre-wrap;background:#f8fafc;border-radius:10px;padding:12px;line
 <div class="card"><h2>📖 عرض المرجع</h2><div id="viewer"><div class="empty">اختر مرجعًا لعرضه.</div></div></div>
 <a class="back" href="index.html">🏠 العودة إلى الرئيسية</a>
 </div>
+
 <script>
 const KEY="technicalLibrary";let editing=null;
 const $=id=>document.getElementById(id);
-const arr=k=>{try{let x=JSON.parse(localStorage.getItem(k)||"[]");return Array.isArray(x)?x:[]}catch(e){return[]}};
-const save=(k,v)=>localStorage.setItem(k,JSON.stringify(v));
+const arr=k=>window.WorkshopCore.legacyList(k);
+const save=(k,v)=>window.WorkshopCore.legacyWrite(k,v,"المستخدم الحالي");
 const esc=v=>String(v??"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&#039;");
 function notice(t,b=false){$("notice").textContent=t;$("notice").className="notice "+(b?"error":"good");$("notice").style.display="block";setTimeout(()=>$("notice").style.display="none",3000)}
 function nextId(){let n=0;arr(KEY).forEach(x=>{let m=String(x.id||"").match(/^LIB-(\d+)$/);if(m)n=Math.max(n,+m[1])});return"LIB-"+String(n+1).padStart(5,"0")}
@@ -63,10 +66,10 @@ function saveItem(){
  let title=$("title").value.trim(),content=$("content").value.trim();if(!title||!content){notice("أدخل العنوان والمحتوى الفني",true);return}
  let all=arr(KEY),old=editing?all.find(x=>String(x.id)===String(editing)):null,now=new Date().toISOString();
  let x={id:editing||nextId(),title,type:$("type").value,deviceType:$("deviceType").value,brand:$("brand").value.trim(),model:$("model").value.trim(),tags:$("tags").value.trim(),url:$("url").value.trim(),content,notes:$("notes").value.trim(),createdAt:old?.createdAt||now,updatedAt:now};
- let i=all.findIndex(a=>String(a.id)===String(x.id));if(i>=0)all[i]=x;else all.unshift(x);save(KEY,all);notice(editing?"تم تعديل المرجع":"تمت إضافة المرجع");reset();renderAll()
+ x=C.saveTechnicalLibrary(x,window.TWMS_ACTOR);notice(editing?"تم تعديل المرجع":"تمت إضافة المرجع"); if(window.TWMSUI&&TWMSUI.afterSave)TWMSUI.afterSave(editing?"تم تعديل المرجع":"تمت إضافة المرجع", "record.html?type=technical-library&id="+encodeURIComponent(x.id)); else {reset();renderAll()}
 }
 function editItem(id){let x=arr(KEY).find(a=>String(a.id)===String(id));if(!x)return;editing=x.id;$("formTitle").textContent="✏️ تعديل المرجع";$("save").textContent="💾 حفظ التعديل";$("cancel").classList.remove("hidden");$("id").value=x.id;$("title").value=x.title||"";$("type").value=x.type||"دليل صيانة";$("deviceType").value=x.deviceType||"عام";$("brand").value=x.brand||"";$("model").value=x.model||"";$("tags").value=x.tags||"";$("url").value=x.url||"";$("content").value=x.content||"";$("notes").value=x.notes||"";scrollTo({top:0,behavior:"smooth"})}
-function deleteItem(id){if(!confirm("حذف المرجع؟"))return;save(KEY,arr(KEY).filter(x=>String(x.id)!==String(id)));renderAll();notice("تم حذف المرجع")}
+function deleteItem(id){if(!confirm("حذف المرجع؟"))return;try{C.deleteTechnicalLibrary(id,window.TWMS_ACTOR);renderAll();notice("تم حذف المرجع")}catch(e){notice(e.message||"تعذر الحذف",true)}}
 function viewItem(id){let x=arr(KEY).find(a=>String(a.id)===String(id));if(!x)return;$("viewer").innerHTML='<div class="item"><h3>📚 '+esc(x.title)+'</h3><span class="badge bluebadge">'+esc(x.type)+'</span><span class="badge">'+esc(x.deviceType)+'</span>'+(x.brand?'<span class="badge">'+esc(x.brand)+'</span>':"")+(x.model?'<span class="badge">'+esc(x.model)+'</span>':"")+'<p><b>الكلمات:</b> '+esc(x.tags||"لا توجد")+'</p><pre>'+esc(x.content)+'</pre>'+(x.notes?'<p><b>ملاحظات:</b> '+esc(x.notes)+'</p>':"")+(x.url?'<p><a href="'+esc(x.url)+'" target="_blank" rel="noopener">🔗 فتح الرابط الخارجي</a></p>':"")+'</div>';$("viewer").scrollIntoView({behavior:"smooth"})}
 function renderList(){
  let q=$("search").value.trim().toLowerCase(),t=$("filterType").value,d=$("filterDevice").value,a=arr(KEY).filter(x=>([x.title,x.brand,x.model,x.tags,x.content,x.notes].join(" ").toLowerCase().includes(q))&&(!t||x.type===t)&&(!d||x.deviceType===d));
@@ -79,5 +82,6 @@ $("save").onclick=saveItem;$("cancel").onclick=reset;$("search").oninput=renderL
 $("list").onclick=e=>{let b=e.target.closest("button[data-a]");if(!b)return;let a=b.dataset.a,id=b.dataset.id;if(a==="view")viewItem(id);else if(a==="edit")editItem(id);else deleteItem(id)};
 reset();renderAll();
 </script>
+
 </body>
 </html>
