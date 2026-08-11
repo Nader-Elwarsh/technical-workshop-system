@@ -1,0 +1,26 @@
+<!doctype html><html lang="ar" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>ملف السجل - الورشة الفنية</title><style>*{box-sizing:border-box}body{margin:0;background:#f4f6f8;color:#172033;font-family:Arial,Tahoma,sans-serif}header{background:#07152f;color:#fff;padding:18px;text-align:center}.wrap{max-width:1000px;margin:auto;padding:16px}.card{background:#fff;border-radius:14px;padding:18px;margin-bottom:14px;box-shadow:0 2px 10px #0001}.grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}.item{background:#f7f9fb;padding:12px;border-radius:10px}.actions{display:flex;gap:8px;flex-wrap:wrap}.btn{display:inline-block;padding:11px 14px;border-radius:9px;text-decoration:none;border:0;background:#1769aa;color:#fff}.gray{background:#59616d}.badge{display:inline-block;padding:5px 9px;border-radius:20px;background:#e8edf3;margin:3px;font-size:12px}@media(max-width:700px){.grid{grid-template-columns:1fr}}</style>
+<script src="app-core.js?v=4.7.0-unified"></script><script src="twms-ui.js?v=4.7.0"></script><script>window.TWMS_ACTOR=window.TWMS_ACTOR||{id:"LOCAL-ADMIN",name:"المدير",role:"admin"};window.C=window.WorkshopCore;</script>
+</head><body><header><h1>📂 ملف السجل</h1><div>الورشة الفنية — الملف الموحد</div></header><div class="wrap"><div id="app"></div><div class="actions"><a class="btn gray" href="index.html">🏠 الرئيسية</a><a class="btn" href="javascript:history.back()">← رجوع</a></div></div><script>
+const C=window.WorkshopCore, p=new URLSearchParams(location.search),type=p.get('type')||'',id=p.get('id')||'',app=document.getElementById('app');
+const esc=v=>String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]));
+function row(k,v){return '<div class="item"><b>'+esc(k)+'</b><br>'+esc(v||'—')+'</div>'}
+function show(){let x=null,title='',extra=[];
+ if(type==='customers'){x=C.findCustomer(id);title='👤 ملف العميل'; if(x){const d=C.customerDevices(id),r=C.customerRequests(id);extra=[row('الأجهزة',d.length),row('طلبات الصيانة',r.length),row('الهاتف',x.phone)]}}
+ else if(type==='devices'){x=C.findDevice(id);title='📱 ملف الجهاز';if(x){extra=[row('العميل',C.customerName(C.findCustomer(x.customerId))),row('النوع',x.type),row('الفئة',x.subtype),row('الماركة',x.brand==='أخرى'?x.brandCustom:x.brand),row('رقم الورشة',x.workshopSerial||x.id),row('الحالة',x.condition||x.currentCondition)]}}
+ else if(type==='requests'){x=C.findRequest(id);title='🔧 ملف أمر الشغل / الطلب';if(x){extra=[row('العميل',x.customerName||C.customerName(C.findCustomer(x.customerId))),row('الجهاز',x.deviceId),row('الحالة',x.status),row('الأولوية',x.priority),row('العطل',x.problem||x.fault||x.description)]}}
+ else if(type==='technicians'){x=C.findTechnician(id);title='👨‍🔧 ملف الفني';if(x)extra=[row('الاسم',x.name),row('الهاتف',x.phone),row('التخصص',x.mainSpecialty),row('التوفر',x.availability)]}
+ else if(type==='inventory'){x=C.list(C.KEYS.inventory).find(a=>String(a.id)===String(id));title='📦 ملف الصنف';if(x)extra=[row('الصنف',x.name),row('الكمية',x.quantity),row('الحد الأدنى',x.minQuantity||x.minimumStock)]}
+ else if(type==='suppliers'){x=C.list(C.KEYS.suppliers).find(a=>String(a.id)===String(id));title='🏭 ملف المورد';if(x)extra=[row('الاسم',x.name),row('الهاتف',x.phone),row('التخصص',x.specialty),row('طريقة الدفع',x.paymentMethod)]}
+ else {const keys={invoices:'invoices',payments:'payments',warranties:'warranties',contracts:'contracts','purchase-orders':'purchaseOrders',visits:'visits',routes:'routes',loyalty:'loyaltyTransactions',notifications:'notifications','technical-library':'knowledge',users:'users'};const k=keys[type];if(k){x=C.list(C.KEYS[k]).find(a=>String(a.id)===String(id));title='📂 ملف '+type;}}
+ if(!x){app.innerHTML='<div class="card"><h2>السجل غير موجود</h2><p>قد يكون تم حذفه أو أن الرابط غير صحيح.</p></div>';return}
+ const fields=Object.entries(x).filter(([k])=>!['technicalNotes','deleted'].includes(k)).slice(0,30).map(([k,v])=>row(k,typeof v==='object'?JSON.stringify(v):v)).join('');
+ let links=[];const link=(label,url)=>`<a class="btn" href="${url}">${label}</a>`;
+ if(x.customerId)links.push(link('👤 ملف العميل','customers.html#customer='+encodeURIComponent(x.customerId)));
+ if(x.deviceId)links.push(link('📱 ملف الجهاز','devices.html#device='+encodeURIComponent(x.deviceId)));
+ if(x.requestId)links.push(link('🔧 ملف أمر الشغل','record.html?type=requests&id='+encodeURIComponent(x.requestId)));
+ if(x.technicianId)links.push(link('👨‍🔧 ملف الفني','record.html?type=technicians&id='+encodeURIComponent(x.technicianId)));
+ if(x.invoiceId)links.push(link('🧾 الفاتورة','record.html?type=invoices&id='+encodeURIComponent(x.invoiceId)));
+ if(x.paymentId)links.push(link('💳 الدفعة','record.html?type=payments&id='+encodeURIComponent(x.paymentId)));
+ if(x.warrantyId)links.push(link('🛡️ الضمان','record.html?type=warranties&id='+encodeURIComponent(x.warrantyId)));
+ app.innerHTML='<div class="card"><h2>'+title+' <span class="badge">'+esc(id)+'</span></h2><div class="actions" style="margin-bottom:12px">'+links.join('')+'</div><div class="grid">'+extra.join('')+fields+'</div></div>';
+}show();</script></body></html>
