@@ -21,6 +21,8 @@ button{border:0;border-radius:10px;padding:11px 15px;font:inherit;cursor:pointer
 .payment{background:#f8fafc;border-radius:10px;padding:10px;margin-top:8px}.line{display:grid;grid-template-columns:1fr 1fr;gap:8px}
 @media(max-width:700px){.grid,.filters,.line{grid-template-columns:1fr}.full{grid-column:auto}.summary{grid-template-columns:repeat(2,1fr)}.actions{flex-direction:column}}
 </style>
+
+<script src="app-core.js?v=4.7.0-unified"></script><script src="twms-ui.js?v=4.7.0"></script><script>window.TWMS_ACTOR=window.TWMS_ACTOR||{id:"LOCAL-ADMIN",name:"المدير",role:"admin"};window.C=window.WorkshopCore;</script>
 </head>
 <body>
 <header><h1>🧾 الفواتير والمدفوعات</h1><p>الورشة الفنية لصيانة الأجهزة المنزلية والتكييف</p></header>
@@ -78,12 +80,13 @@ button{border:0;border-radius:10px;padding:11px 15px;font:inherit;cursor:pointer
 <a class="back" href="index.html">🏠 العودة إلى الرئيسية</a>
 </div>
 
+
 <script>
 const IK="invoices",PK="payments",RK="maintenanceRequests";
 let editing=null;
 const $=id=>document.getElementById(id);
-const arr=k=>{try{let x=JSON.parse(localStorage.getItem(k)||"[]");return Array.isArray(x)?x:[]}catch(e){return[]}};
-const save=(k,v)=>localStorage.setItem(k,JSON.stringify(v));
+const arr=k=>window.WorkshopCore.legacyList(k);
+const save=(k,v)=>window.WorkshopCore.legacyWrite(k,v,"المستخدم الحالي");
 const esc=v=>String(v??"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&#039;");
 function nextId(){let n=0;arr(IK).forEach(x=>{let m=String(x.id||"").match(/^INV-(\d+)$/);if(m)n=Math.max(n,+m[1])});return"INV-"+String(n+1).padStart(6,"0")}
 function payId(){let n=0;arr(PK).forEach(x=>{let m=String(x.id||"").match(/^PAY-(\d+)$/);if(m)n=Math.max(n,+m[1])});return"PAY-"+String(n+1).padStart(6,"0")}
@@ -104,7 +107,7 @@ function saveInvoice(){
  const oid=$("order").value,r=arr(RK).find(x=>String(x.id)===String(oid));if(!r){notice("اختر أمر الشغل المرتبط بالفاتورة",true);return}
  const now=new Date().toISOString(),old=editing?arr(IK).find(x=>String(x.id)===String(editing)):null,all=arr(IK);
  const inv={id:editing||nextId(),workOrderId:r.id,customerId:r.customerId||"",customerName:r.customerName||"",customerPhone:r.customerPhone||"",inspection:Number($("inspection").value||0),repair:Number($("repair").value||0),parts:Number($("parts").value||0),labor:Number($("labor").value||0),discount:Number($("discount").value||0),total:totalForm(),status:$("status").value,createdAt:old?.createdAt||now,issueDate:$("date").value||now,notes:$("notes").value.trim(),payments:old?.payments||[],audit:[...(old?.audit||[]),{at:now,event:editing?"تعديل فاتورة":"إنشاء فاتورة",status:$("status").value}]};
- const i=all.findIndex(x=>String(x.id)===String(inv.id));if(i>=0)all[i]=inv;else all.unshift(inv);save(IK,all);notice(editing?"تم تعديل الفاتورة":"تم إنشاء الفاتورة");reset();render()
+ const i=all.findIndex(x=>String(x.id)===String(inv.id));if(i>=0)all[i]=inv;else all.unshift(inv);C.saveInvoice(inv,window.TWMS_ACTOR);notice(editing?"تم تعديل الفاتورة":"تم إنشاء الفاتورة"); if(window.TWMSUI&&TWMSUI.afterSave)TWMSUI.afterSave(editing?"تم تعديل الفاتورة":"تم إنشاء الفاتورة", "record.html?type=invoices&id="+encodeURIComponent(inv.id)); else {reset();render()}
 }
 function edit(id){
  const x=arr(IK).find(i=>String(i.id)===String(id));if(!x)return;
@@ -116,8 +119,8 @@ function addPayment(){
  const amount=Number($("payAmount").value||0),paid=arr(PK).filter(p=>String(p.invoiceId)===String(id)).reduce((n,p)=>n+Number(p.amount||0),0),remaining=Math.max(0,Number(inv.total)-paid);
  if(amount<=0||amount>remaining){notice("قيمة الدفعة غير صحيحة. المتبقي: "+money(remaining)+" جنيه",true);return}
  const p={id:payId(),invoiceId:inv.id,customerId:inv.customerId,amount,method:$("payMethod").value,reference:$("reference").value.trim(),receivedBy:$("receivedBy").value.trim()||"المستخدم الحالي",paymentDate:$("payDate").value||new Date().toISOString(),notes:$("payNotes").value.trim(),createdAt:new Date().toISOString()};
- let ps=arr(PK);ps.unshift(p);save(PK,ps);
- const newPaid=paid+amount;let ins=arr(IK),ii=ins.findIndex(x=>String(x.id)===String(id));ins[ii].payments=[...(ins[ii].payments||[]),p.id];ins[ii].paid=newPaid;ins[ii].remaining=Math.max(0,Number(ins[ii].total)-newPaid);ins[ii].status=newPaid>=Number(ins[ii].total)?"مدفوعة":"جزئي";save(IK,ins);
+ C.savePayment(p,window.TWMS_ACTOR);
+ const newPaid=paid+amount;let ins=arr(IK),ii=ins.findIndex(x=>String(x.id)===String(id));ins[ii].payments=[...(ins[ii].payments||[]),p.id];ins[ii].paid=newPaid;ins[ii].remaining=Math.max(0,Number(ins[ii].total)-newPaid);ins[ii].status=newPaid>=Number(ins[ii].total)?"مدفوعة":"جزئي";C.saveInvoice(ins[ii],window.TWMS_ACTOR);
  $("payAmount").value="";$("reference").value="";$("payNotes").value="";render();notice("تم تسجيل الدفعة بنجاح ✅")
 }
 function recalc(inv){const paid=arr(PK).filter(p=>String(p.invoiceId)===String(inv.id)).reduce((n,p)=>n+Number(p.amount||0),0);return{paid,remaining:Math.max(0,Number(inv.total)-paid)}}
@@ -130,11 +133,13 @@ function render(){
 }
 function printInvoice(id){
  const x=arr(IK).find(i=>String(i.id)===String(id));if(!x)return;const p=recalc(x);
- const w=window.open("","_blank");w.document.write('<html lang="ar" dir="rtl"><head><title>'+esc(x.id)+'</title><style>body{font-family:Arial;padding:30px}table{width:100%;border-collapse:collapse}td,th{border:1px solid #ccc;padding:9px;text-align:right}</style></head><body><h1>الورشة الفنية</h1><h2>فاتورة رقم '+esc(x.id)+'</h2><p>العميل: '+esc(x.customerName)+' | الهاتف: '+esc(x.customerPhone)+'</p><p>أمر الشغل: '+esc(x.workOrderId)+' | التاريخ: '+esc(x.issueDate)+'</p><table><tr><th>البند</th><th>القيمة</th></tr><tr><td>الكشف</td><td>'+money(x.inspection)+'</td></tr><tr><td>الإصلاح</td><td>'+money(x.repair)+'</td></tr><tr><td>قطع الغيار</td><td>'+money(x.parts)+'</td></tr><tr><td>العمالة</td><td>'+money(x.labor)+'</td></tr><tr><td>الخصم</td><td>'+money(x.discount)+'</td></tr><tr><th>الإجمالي</th><th>'+money(x.total)+'</th></tr><tr><th>المدفوع</th><th>'+money(p.paid)+'</th></tr><tr><th>المتبقي</th><th>'+money(p.remaining)+'</th></tr></table><script>window.print()<\/script></body></html>');w.document.close()
+ const w=window.open("","_blank");w.document.write('<html lang="ar" dir="rtl"><head><title>'+esc(x.id)+'</title><style>body{font-family:Arial;padding:30px}table{width:100%;border-collapse:collapse}td,th{border:1px solid #ccc;padding:9px;text-align:right}</style></head><body><h1>الورشة الفنية</h1><h2>فاتورة رقم '+esc(x.id)+'</h2><p>العميل: '+esc(x.customerName)+' | الهاتف: '+esc(x.customerPhone)+'</p><p>أمر الشغل: '+esc(x.workOrderId)+' | التاريخ: '+esc(x.issueDate)+'</p><table><tr><th>البند</th><th>القيمة</th></tr><tr><td>الكشف</td><td>'+money(x.inspection)+'</td></tr><tr><td>الإصلاح</td><td>'+money(x.repair)+'</td></tr><tr><td>قطع الغيار</td><td>'+money(x.parts)+'</td></tr><tr><td>العمالة</td><td>'+money(x.labor)+'</td></tr><tr><td>الخصم</td><td>'+money(x.discount)+'</td></tr><tr><th>الإجمالي</th><th>'+money(x.total)+'</th></tr><tr><th>المدفوع</th><th>'+money(p.paid)+'</th></tr><tr><th>المتبقي</th><th>'+money(p.remaining)+'</th></tr></table><script>window.print()<\/script>
+</body></html>');w.document.close()
 }
 $("order").onchange=orderInfo;["inspection","repair","parts","labor","discount"].forEach(x=>$(x).oninput=updateTotal);$("save").onclick=saveInvoice;$("cancel").onclick=reset;$("addPayment").onclick=addPayment;$("search").oninput=render;$("filter").onchange=render;
 $("list").onclick=e=>{const b=e.target.closest("button[data-a]");if(!b)return;if(b.dataset.a==="edit")edit(b.dataset.id);if(b.dataset.a==="pay"){$("payInvoice").value=b.dataset.id;window.scrollTo({top:document.body.scrollHeight,behavior:"smooth"})}if(b.dataset.a==="print")printInvoice(b.dataset.id)};
 loadOrders();$("payDate").value=new Date().toISOString().slice(0,16);reset();render();
 </script>
+
 </body>
 </html>
