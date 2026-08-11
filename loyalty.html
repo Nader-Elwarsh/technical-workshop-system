@@ -19,6 +19,8 @@ table{width:100%;border-collapse:collapse}th,td{padding:9px;border-bottom:1px so
 .back{display:block;text-align:center;background:#333;color:#fff;text-decoration:none;padding:14px;border-radius:10px}
 @media(max-width:700px){.grid,.filters{grid-template-columns:1fr}.full{grid-column:auto}.stats{grid-template-columns:repeat(2,1fr)}.actions{flex-direction:column}}
 </style>
+
+<script src="app-core.js?v=4.7.0-unified"></script><script src="twms-ui.js?v=4.7.0"></script><script>window.TWMS_ACTOR=window.TWMS_ACTOR||{id:"LOCAL-ADMIN",name:"المدير",role:"admin"};window.C=window.WorkshopCore;</script>
 </head>
 <body>
 <header><h1>⭐ برنامج ولاء العملاء</h1><p>الورشة الفنية لصيانة الأجهزة المنزلية والتكييف</p></header>
@@ -63,12 +65,13 @@ table{width:100%;border-collapse:collapse}th,td{padding:9px;border-bottom:1px so
 <a class="back" href="index.html">🏠 العودة إلى الرئيسية</a>
 </div>
 
+
 <script>
 const KEY="loyaltyAccounts",TR="loyaltyTransactions",CUSTOMERS="customers";
 const POINT_VALUE=1; // قيمة النقطة بالجنيه في الخصم، ويمكن تعديلها لاحقًا من الإعدادات المركزية.
 const $=id=>document.getElementById(id);
-const arr=k=>{try{let x=JSON.parse(localStorage.getItem(k)||"[]");return Array.isArray(x)?x:[]}catch(e){return[]}};
-const save=(k,v)=>localStorage.setItem(k,JSON.stringify(v));
+const arr=k=>window.WorkshopCore.legacyList(k);
+const save=(k,v)=>window.WorkshopCore.legacyWrite(k,v,"المستخدم الحالي");
 const esc=v=>String(v??"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&#039;");
 const today=()=>new Date().toISOString().slice(0,10);
 function notice(t,b=false){$("notice").textContent=t;$("notice").className="notice "+(b?"error":"good");$("notice").style.display="block";setTimeout(()=>$("notice").style.display="none",3000)}
@@ -84,14 +87,11 @@ function account(id){
 }
 function balance(id){return Number(account(id).points||0)}
 function updateAccount(id,delta){
- let all=arr(KEY),i=all.findIndex(x=>String(x.customerId)===String(id)),a=account(id);a.points=Number(a.points||0)+delta;a.updatedAt=new Date().toISOString();
- if(i>=0)all[i]=a;else all.push(a);save(KEY,all)
+ let type=delta>=0?"earn":"redeem";return C.changeLoyalty(id,Math.abs(delta),type,"","",window.TWMS_ACTOR)
 }
 function transaction(id,type,points,ref,notes){
- let t=arr(TR),a=account(id),before=Number(a.points||0),delta=type==="earn"?points:-(points);
- if(type==="adjust")delta=points-before;
- updateAccount(id,delta);let after=balance(id);
- t.unshift({id:"LP-"+Date.now(),customerId:id,customerName:a.customerName,type,points:Math.abs(delta),before,after,reference:ref,date:$("date").value||today(),notes});save(TR,t)
+ if(type==="adjust"){let current=balance(id),delta=Number(points)-current; if(delta===0)return account(id); return C.changeLoyalty(id,Math.abs(delta),delta>=0?"earn":"redeem",ref,notes,window.TWMS_ACTOR)}
+ return C.changeLoyalty(id,Number(points),type==="charity"?"redeem":type,ref,notes,window.TWMS_ACTOR)
 }
 $("save").onclick=()=>{
  let id=$("customer").value,p=Number($("pointsInput").value||0),type=$("type").value;
@@ -121,4 +121,5 @@ function renderAll(){
 }
 $("date").value=today();loadCustomers();renderAll();
 </script>
+
 </body></html>
