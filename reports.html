@@ -22,6 +22,8 @@ table{width:100%;border-collapse:collapse;margin-top:10px}th,td{padding:9px;bord
 @media(max-width:550px){.grid,.reportgrid{grid-template-columns:1fr}.stats{grid-template-columns:repeat(2,1fr)}table{font-size:12px}}
 @media print{header,.filters,.actions,.back{display:none!important}.card{box-shadow:none;border:1px solid #ddd}.reportgrid{grid-template-columns:1fr 1fr}body{background:#fff}}
 </style>
+
+<script src="app-core.js?v=4.7.0-unified"></script><script src="twms-ui.js?v=4.7.0"></script><script>window.TWMS_ACTOR=window.TWMS_ACTOR||{id:"LOCAL-ADMIN",name:"المدير",role:"admin"};window.C=window.WorkshopCore;</script>
 </head>
 <body>
 <header><h1>📊 التقارير والإحصائيات</h1><p>الورشة الفنية لصيانة الأجهزة المنزلية والتكييف</p></header>
@@ -64,10 +66,11 @@ table{width:100%;border-collapse:collapse;margin-top:10px}th,td{padding:9px;bord
 <a class="back" href="index.html">🏠 العودة إلى الرئيسية</a>
 </div>
 
+
 <script>
 const REQ="maintenanceRequests",USERS="users",DEV="devices",INV="invoices",SUP="suppliers",PO="purchaseOrders",WAR="warranties",CON="contracts",CUST="customers",RAT="customerRatings",PAY="payments",TRANS="inventory_transactions";
 const $=id=>document.getElementById(id);
-const arr=k=>{try{let x=JSON.parse(localStorage.getItem(k)||"[]");return Array.isArray(x)?x:[]}catch(e){return[]}};
+const arr=k=>window.WorkshopCore.legacyList(k);
 const esc=v=>String(v??"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&#039;");
 const money=n=>Number(n||0).toFixed(2);
 const dateOf=x=>x?.date||x?.createdAt||x?.createdDate||x?.scheduledDate||x?.startDate||"";
@@ -169,5 +172,6 @@ $("reportType").onchange=renderReports;
 function init(){let d=new Date(),first=new Date(d.getFullYear(),d.getMonth(),1);$("from").value=first.toISOString().slice(0,10);$("to").value=d.toISOString().slice(0,10);options();renderKPI();renderReports()}
 init();
 </script>
+
 </body>
 </html>
