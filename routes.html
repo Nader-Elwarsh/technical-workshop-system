@@ -21,6 +21,8 @@ button{border:0;border-radius:10px;padding:11px 15px;font:inherit;cursor:pointer
 .back{display:block;text-align:center;background:#333;color:#fff;text-decoration:none;padding:14px;border-radius:10px}
 @media(max-width:700px){.grid,.filters,.stop{grid-template-columns:1fr}.full{grid-column:auto}.stats{grid-template-columns:repeat(2,1fr)}.actions{flex-direction:column}.route-head{display:block}}
 </style>
+
+<script src="app-core.js?v=4.7.0-unified"></script><script src="twms-ui.js?v=4.7.0"></script><script>window.TWMS_ACTOR=window.TWMS_ACTOR||{id:"LOCAL-ADMIN",name:"المدير",role:"admin"};window.C=window.WorkshopCore;</script>
 </head>
 <body>
 <header><h1>🗺️ المسارات والزيارات اليومية</h1><p>تنظيم خط سير الفنيين وترتيب الزيارات</p></header>
@@ -58,12 +60,13 @@ button{border:0;border-radius:10px;padding:11px 15px;font:inherit;cursor:pointer
 <a class="back" href="index.html">🏠 العودة إلى الرئيسية</a>
 </div>
 
+
 <script>
 const KEY="routes",VIS="visits",TECH="technicians";
 let editing=null;
 const $=id=>document.getElementById(id);
-const arr=k=>{try{let x=JSON.parse(localStorage.getItem(k)||"[]");return Array.isArray(x)?x:[]}catch(e){return[]}};
-const save=(k,v)=>localStorage.setItem(k,JSON.stringify(v));
+const arr=k=>window.WorkshopCore.legacyList(k);
+const save=(k,v)=>window.WorkshopCore.legacyWrite(k,v,"المستخدم الحالي");
 const esc=v=>String(v??"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&#039;");
 const today=()=>new Date().toISOString().slice(0,10);
 const tomorrow=()=>{let d=new Date();d.setDate(d.getDate()+1);return d.toISOString().slice(0,10)};
@@ -104,20 +107,18 @@ function getStops(){
 function saveRoute(){
  let tech=$("technician").value,stops=getStops();if(!tech){notice("اختر الفني",true);return}if(!stops.length){notice("أضف زيارة واحدة على الأقل",true);return}
  let all=arr(KEY),old=editing?all.find(x=>String(x.id)===String(editing)):null,now=new Date().toISOString(),x={id:editing||nextId(),date:$("date").value,technicianId:tech,technicianName:tname(arr(TECH).find(t=>String(tid(t))===String(tech))||{}),status:$("status").value,area:$("area").value.trim(),transport:$("transport").value,notes:$("notes").value.trim(),stops,createdAt:old?.createdAt||now,updatedAt:now};
- let i=all.findIndex(a=>String(a.id)===String(x.id));if(i>=0)all[i]=x;else all.unshift(x);save(KEY,all);
- // Save route/order reference on visits without changing their basic data.
- let vs=arr(VIS);vs.forEach(v=>{let s=stops.find(z=>String(z.visitId)===String(vid(v)));if(s){v.routeId=x.id;v.routeOrder=s.order;v.updatedAt=now}else if(v.routeId===x.id){delete v.routeId;delete v.routeOrder}});save(VIS,vs);
- notice(editing?"تم تعديل المسار":"تم إنشاء المسار");reset();renderAll()
+ x=C.saveRoute(x,window.TWMS_ACTOR);
+ notice(editing?"تم تعديل المسار":"تم إنشاء المسار"); if(window.TWMSUI&&TWMSUI.afterSave)TWMSUI.afterSave(editing?"تم تعديل المسار":"تم إنشاء المسار", "record.html?type=routes&id="+encodeURIComponent(x.id)); else {reset();renderAll()}
 }
 function editRoute(id){
  let x=arr(KEY).find(r=>String(r.id)===String(id));if(!x)return;editing=x.id;$("formTitle").textContent="✏️ تعديل المسار";$("save").textContent="💾 حفظ التعديل";$("cancel").style.display="block";$("id").value=x.id;$("date").value=x.date||today();loadTechs(x.technicianId);$("status").value=x.status||"مخطط";$("area").value=x.area||"";$("transport").value=x.transport||"سيارة الورشة";$("notes").value=x.notes||"";$("stops").innerHTML="";(x.stops||[]).forEach(addStop);if(!x.stops?.length)addStop();window.scrollTo({top:0,behavior:"smooth"})
 }
 function deleteRoute(id){
  let all=arr(KEY),x=all.find(r=>String(r.id)===String(id));if(!x)return;if(x.status==="جاري التنفيذ"||x.status==="مكتمل"){notice("لا يمكن حذف مسار بدأ التنفيذ",true);return}if(!confirm("حذف المسار؟"))return;
- let vs=arr(VIS);vs.forEach(v=>{if(v.routeId===id){delete v.routeId;delete v.routeOrder}});save(VIS,vs);save(KEY,all.filter(r=>String(r.id)!==String(id)));renderAll();notice("تم حذف المسار")
+ C.deleteRoute(id,window.TWMS_ACTOR);renderAll();notice("تم حذف المسار")
 }
 function routeStatus(id,status){
- let all=arr(KEY),x=all.find(r=>String(r.id)===String(id));if(!x)return;x.status=status;x.updatedAt=new Date().toISOString();save(KEY,all);renderAll();notice("تم تحديث حالة المسار")
+ let x=arr(KEY).find(r=>String(r.id)===String(id));if(!x)return;try{C.saveRoute(Object.assign({},x,{status}),window.TWMS_ACTOR);renderAll();notice("تم تحديث حالة المسار")}catch(e){notice(e.message||"تعذر تحديث حالة المسار",true)}
 }
 function renderUnassigned(){
  let d=today(),a=availableVisits().filter(v=>!v.alreadyAssigned).sort((x,y)=>(x.startTime||"").localeCompare(y.startTime||""));
@@ -134,5 +135,6 @@ $("date").onchange=()=>{loadDay()};$("technician").onchange=()=>{loadDay()};$("a
 $("list").onclick=e=>{let b=e.target.closest("button[data-a]");if(!b)return;let a=b.dataset.a,id=b.dataset.id;if(a==="edit")editRoute(id);else if(a==="start")routeStatus(id,"جاري التنفيذ");else if(a==="done")routeStatus(id,"مكتمل");else deleteRoute(id)};
 loadTechs();reset();renderAll();
 </script>
+
 </body>
 </html>
