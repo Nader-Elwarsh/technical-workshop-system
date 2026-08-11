@@ -22,6 +22,8 @@ table{width:100%;border-collapse:collapse}th,td{padding:9px;border-bottom:1px so
 .back{display:block;text-align:center;background:#333;color:#fff;text-decoration:none;padding:14px;border-radius:10px}.hidden{display:none!important}
 @media(max-width:700px){.grid,.filters,.linegrid{grid-template-columns:1fr}.full{grid-column:auto}.stats{grid-template-columns:repeat(2,1fr)}.actions{flex-direction:column}}
 </style>
+
+<script src="app-core.js?v=4.7.0-unified"></script><script src="twms-ui.js?v=4.7.0"></script><script>window.TWMS_ACTOR=window.TWMS_ACTOR||{id:"LOCAL-ADMIN",name:"المدير",role:"admin"};window.C=window.WorkshopCore;</script>
 </head>
 <body>
 <header><h1>🛒 إدارة طلبات الشراء</h1><p>الورشة الفنية لصيانة الأجهزة المنزلية والتكييف</p></header>
@@ -85,12 +87,13 @@ table{width:100%;border-collapse:collapse}th,td{padding:9px;border-bottom:1px so
 <a class="back" href="index.html">🏠 العودة إلى الرئيسية</a>
 </div>
 
+
 <script>
 const KEY="purchaseOrders",SUP="suppliers",INV="inventory",TR="inventory_transactions";
 let editing=null;
 const $=id=>document.getElementById(id);
-const arr=k=>{try{let x=JSON.parse(localStorage.getItem(k)||"[]");return Array.isArray(x)?x:[]}catch(e){return[]}};
-const save=(k,v)=>localStorage.setItem(k,JSON.stringify(v));
+const arr=k=>window.WorkshopCore.legacyList(k);
+const save=(k,v)=>window.WorkshopCore.legacyWrite(k,v,"المستخدم الحالي");
 const esc=v=>String(v??"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&#039;");
 const today=()=>new Date().toISOString().slice(0,10);
 function notice(t,b=false){$("notice").textContent=t;$("notice").className="notice "+(b?"error":"good");$("notice").style.display="block";setTimeout(()=>$("notice").style.display="none",3200)}
@@ -120,7 +123,7 @@ function saveOrder(){
  let sid=$("supplier").value,lines=getLines();if(!sid){notice("اختر المورد",true);return}if(!lines.length){notice("أضف صنفًا واحدًا على الأقل",true);return}
  let all=arr(KEY),old=editing?all.find(x=>String(x.id)===String(editing)):null,s=arr(SUP).find(x=>String(supplierId(x))===String(sid)),now=new Date().toISOString();
  let x={id:editing||nextId(),supplierId:sid,supplierName:supplierName(s||{}),status:$("status").value,date:$("date").value||today(),expectedDate:$("expectedDate").value,supplierRef:$("supplierRef").value.trim(),location:$("location").value.trim(),paymentMethod:$("paymentMethod").value,notes:$("notes").value.trim(),lines,receivedLines:old?.receivedLines||{},createdAt:old?.createdAt||now,updatedAt:now};
- let i=all.findIndex(a=>String(a.id)===String(x.id));if(i>=0)all[i]=x;else all.unshift(x);save(KEY,all);notice(editing?"تم تعديل طلب الشراء":"تم إنشاء طلب الشراء");reset();renderAll()
+ let i=all.findIndex(a=>String(a.id)===String(x.id));if(i>=0)all[i]=x;else all.unshift(x);C.savePurchaseOrder(x,window.TWMS_ACTOR);notice(editing?"تم تعديل طلب الشراء":"تم إنشاء طلب الشراء"); if(window.TWMSUI&&TWMSUI.afterSave)TWMSUI.afterSave(editing?"تم تعديل طلب الشراء":"تم إنشاء طلب الشراء", "record.html?type=purchase-orders&id="+encodeURIComponent(x.id)); else {reset();renderAll()}
 }
 function editOrder(id){
  let x=arr(KEY).find(a=>String(a.id)===String(id));if(!x)return;
@@ -130,10 +133,10 @@ function editOrder(id){
 function deleteOrder(id){
  let x=arr(KEY).find(a=>String(a.id)===String(id));if(!x)return;
  if(Object.keys(x.receivedLines||{}).length){notice("لا يمكن حذف طلب بدأ استلامه",true);return}
- if(!confirm("حذف طلب الشراء؟"))return;save(KEY,arr(KEY).filter(a=>String(a.id)!==String(id)));renderAll();notice("تم حذف الطلب")
+ if(!confirm("حذف طلب الشراء؟"))return;try{C.deletePurchaseOrder(id,window.TWMS_ACTOR);renderAll();notice("تم حذف الطلب")}catch(e){notice(e.message||"تعذر حذف الطلب",true)}
 }
 function approve(id){
- let all=arr(KEY),x=all.find(a=>String(a.id)===String(id));if(!x)return;x.status="معتمدة";x.updatedAt=new Date().toISOString();save(KEY,all);renderAll();notice("تم اعتماد الطلب")
+ C.approvePurchaseOrder(id,window.TWMS_ACTOR);renderAll();notice("تم اعتماد الطلب")
 }
 function prepareReceive(id){
  let x=arr(KEY).find(a=>String(a.id)===String(id));if(!x)return;$("receiveOrder").value=id;renderReceiveLines();$("receiveOrder").scrollIntoView({behavior:"smooth"})
@@ -146,10 +149,7 @@ function renderReceiveLines(){
 function receive(){
  let id=$("receiveOrder").value,all=arr(KEY),x=all.find(a=>String(a.id)===String(id));if(!x){notice("اختر طلبًا",true);return}
  if(x.status==="مسودة"||x.status==="معلقة"){notice("اعتمد الطلب أولًا قبل الاستلام",true);return}
- let inv=arr(INV),transactions=arr(TR),received=x.receivedLines||{},any=false,invalid=false;
- document.querySelectorAll(".receiveQty").forEach(input=>{let q=Number(input.value||0),remain=Number(input.dataset.remain||0),itemId=input.dataset.item;if(q<0||q>remain){invalid=true;return}if(q>0){let item=inv.find(a=>String(a.id)===String(itemId));if(!item){invalid=true;return}let before=Number(item.quantity||0);item.quantity=before+q;item.updatedAt=new Date().toISOString();received[itemId]=Number(received[itemId]||0)+q;transactions.unshift({id:"TR-"+Date.now()+"-"+itemId,itemId,itemName:item.name,type:"شراء/استلام",qty:q,before,after:item.quantity,ref:id,date:new Date().toISOString(),notes:$("receiveNotes").value.trim()});any=true}});
- if(invalid){notice("تحقق من كميات الاستلام",true);return}if(!any){notice("أدخل كمية استلام واحدة على الأقل",true);return}
- x.receivedLines=received;let complete=x.lines.every(l=>Number(received[l.itemId]||0)>=Number(l.qty));x.status=complete?"مستلمة بالكامل":"مستلمة جزئيًا";x.updatedAt=new Date().toISOString();save(INV,inv);save(TR,transactions);save(KEY,all);$("receiveNotes").value="";renderAll();notice(complete?"تم استلام الطلب بالكامل وتحديث المخزون":"تم تسجيل الاستلام الجزئي وتحديث المخزون")
+ let receiptItems=[],invalid=false;document.querySelectorAll(".receiveQty").forEach(input=>{let q=Number(input.value||0),remain=Number(input.dataset.remain||0),itemId=input.dataset.item;if(q<0||q>remain){invalid=true;return}if(q>0)receiptItems.push({itemId,qty:q,notes:$("receiveNotes").value.trim()})});if(invalid){notice("تحقق من كميات الاستلام",true);return}if(!receiptItems.length){notice("أدخل كمية استلام واحدة على الأقل",true);return}try{C.receivePurchaseOrder(id,receiptItems,window.TWMS_ACTOR);$("receiveNotes").value="";renderAll();notice("تم تسجيل الاستلام وتحديث المخزون")}catch(e){notice(e.message||"تعذر تسجيل الاستلام",true)}
 }
 function renderList(){
  let q=$("search").value.trim().toLowerCase(),s=$("filterStatus").value,sid=$("filterSupplier").value,a=arr(KEY).filter(x=>[x.id,x.supplierName,x.supplierRef].join(" ").toLowerCase().includes(q)&&(!s||x.status===s)&&(!sid||String(x.supplierId)===String(sid)));
@@ -164,5 +164,6 @@ $("addLine").onclick=()=>addLine();$("save").onclick=saveOrder;$("cancel").oncli
 $("list").onclick=e=>{let b=e.target.closest("button[data-a]");if(!b)return;let id=b.dataset.id,a=b.dataset.a;if(a==="approve")approve(id);else if(a==="receive")prepareReceive(id);else if(a==="edit")editOrder(id);else deleteOrder(id)};
 $("date").value=today();$("receiveDate").value=today();reset();renderAll();
 </script>
+
 </body>
 </html>
