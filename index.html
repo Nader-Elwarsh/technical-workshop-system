@@ -38,17 +38,9 @@ button{border:0;border-radius:10px;padding:12px 16px;font:inherit;cursor:pointer
 footer{text-align:center;color:#777;padding:15px}
 @media(max-width:850px){.grid,.links{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:600px){.grid,.links,.search{grid-template-columns:1fr}header h1{font-size:23px}}
-
-.dashboard-summary{padding:14px 16px}
-.dashboard-summary h2{font-size:20px;margin:0 0 10px}
-.summary-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));border:1px solid #3d4654;border-radius:12px;overflow:hidden}
-.summary-grid .stat{margin:0;border-left:1px solid #3d4654;border-bottom:1px solid #3d4654;border-radius:0;padding:10px 12px;display:flex;align-items:center;justify-content:space-between;gap:8px;min-height:48px}
-.summary-grid .stat:nth-child(4n){border-left:0}
-.summary-grid .stat:nth-last-child(-n+4){border-bottom:0}
-.summary-grid .stat b{font-size:18px}
-.summary-grid .stat span{font-size:12px}
-@media(max-width:700px){.summary-grid{grid-template-columns:repeat(2,1fr)}.summary-grid .stat:nth-child(4n){border-left:1px solid #3d4654}.summary-grid .stat:nth-child(2n){border-left:0}.summary-grid .stat:nth-last-child(-n+4){border-bottom:1px solid #3d4654}.summary-grid .stat:nth-last-child(-n+2){border-bottom:0}}
 </style>
+
+<script src="app-core.js?v=4.7.0-unified"></script><script src="twms-ui.js?v=4.7.0"></script><script>window.TWMS_ACTOR=window.TWMS_ACTOR||{id:"LOCAL-ADMIN",name:"المدير",role:"admin"};window.C=window.WorkshopCore;</script>
 </head>
 <body>
 
@@ -61,9 +53,9 @@ footer{text-align:center;color:#777;padding:15px}
 
 <div class="container">
 
-<div class="card dashboard-summary">
+<div class="card">
 <h2>📊 ملخص النظام</h2>
-<div id="stats" class="summary-grid"></div>
+<div id="stats" class="grid"></div>
 </div>
 
 <div class="card">
@@ -113,9 +105,10 @@ footer{text-align:center;color:#777;padding:15px}
 
 </div>
 
-<footer>الورشة الفنية — النظام المركزي V1</footer>
+<footer>الورشة الفنية — النظام المركزي V4.0 — Unified</footer>
 
-<script src="app-core.js"></script>
+
+
 <script>
 (function(){
 "use strict";
