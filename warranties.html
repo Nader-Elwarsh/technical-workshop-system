@@ -21,6 +21,8 @@ button{border:0;border-radius:10px;padding:11px 15px;font:inherit;cursor:pointer
 .claim{background:#fffaf0;border:1px solid #efd48a;border-radius:11px;padding:12px;margin-top:10px}
 @media(max-width:700px){.grid,.filters{grid-template-columns:1fr}.full{grid-column:auto}.summary{grid-template-columns:repeat(2,1fr)}.actions{flex-direction:column}}
 </style>
+
+<script src="app-core.js?v=4.7.0-unified"></script><script src="twms-ui.js?v=4.7.0"></script><script>window.TWMS_ACTOR=window.TWMS_ACTOR||{id:"LOCAL-ADMIN",name:"المدير",role:"admin"};window.C=window.WorkshopCore;</script>
 </head>
 <body>
 <header><h1>🛡️ إدارة الضمانات</h1><p>الورشة الفنية لصيانة الأجهزة المنزلية والتكييف</p></header>
@@ -77,13 +79,14 @@ button{border:0;border-radius:10px;padding:11px 15px;font:inherit;cursor:pointer
 <a class="back" href="index.html">🏠 العودة إلى الرئيسية</a>
 </div>
 
+
 <script>
 const WK="warranties",CK="warrantyClaims",RK="maintenanceRequests",IK="invoices",CUSTOMERS="customers";
 let editing=null;
 
 const $=id=>document.getElementById(id);
-const arr=k=>{try{let x=JSON.parse(localStorage.getItem(k)||"[]");return Array.isArray(x)?x:[]}catch(e){return[]}};
-const save=(k,v)=>localStorage.setItem(k,JSON.stringify(v));
+const arr=k=>window.WorkshopCore.legacyList(k);
+const save=(k,v)=>window.WorkshopCore.legacyWrite(k,v,"المستخدم الحالي");
 const esc=v=>String(v??"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&#039;");
 const money=n=>Number(n||0).toFixed(2);
 
@@ -130,8 +133,8 @@ function saveWarranty(){
   claims:old?.claims||[],createdAt:old?.createdAt||now,updatedAt:now,
   audit:[...(old?.audit||[]),{at:now,event:editing?"تعديل ضمان":"إنشاء ضمان",status:$("status").value}]
  };
- const i=all.findIndex(x=>String(x.id)===String(w.id));if(i>=0)all[i]=w;else all.unshift(w);save(WK,all);
- notice(editing?"تم تعديل الضمان":"تم تسجيل الضمان بنجاح ✅");reset();render()
+ const i=all.findIndex(x=>String(x.id)===String(w.id));if(i>=0)all[i]=w;else all.unshift(w);C.saveWarranty(w,window.TWMS_ACTOR);
+ notice(editing?"تم تعديل الضمان":"تم تسجيل الضمان بنجاح ✅"); if(window.TWMSUI&&TWMSUI.afterSave)TWMSUI.afterSave(editing?"تم تعديل الضمان":"تم تسجيل الضمان بنجاح", "record.html?type=warranties&id="+encodeURIComponent(w.id)); else {reset();render()}
 }
 function edit(id){
  const w=arr(WK).find(x=>String(x.id)===String(id));if(!w)return;
@@ -175,5 +178,6 @@ $("list").onclick=e=>{const b=e.target.closest("button[data-a]");if(!b)return;b.
 $("claimsList").onclick=e=>{const b=e.target.closest("button[data-claim]");if(b)closeClaim(b.dataset.claim)};
 loadOrders();loadInvoices();reset();render();
 </script>
+
 </body>
 </html>
