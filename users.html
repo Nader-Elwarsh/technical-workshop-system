@@ -22,6 +22,8 @@ button{border:0;border-radius:10px;padding:11px 15px;font:inherit;cursor:pointer
 .back{display:block;text-align:center;background:#333;color:#fff;text-decoration:none;padding:14px;border-radius:10px}
 @media(max-width:700px){.grid,.filters,.permissions{grid-template-columns:1fr}.full{grid-column:auto}.stats{grid-template-columns:repeat(2,1fr)}.actions{flex-direction:column}}
 </style>
+
+<script src="app-core.js?v=4.7.0-unified"></script><script src="twms-ui.js?v=4.7.0"></script><script>window.TWMS_ACTOR=window.TWMS_ACTOR||{id:"LOCAL-ADMIN",name:"المدير",role:"admin"};window.C=window.WorkshopCore;</script>
 </head>
 <body>
 <header><h1>👥 المستخدمون والصلاحيات</h1><p>الورشة الفنية لصيانة الأجهزة المنزلية والتكييف</p></header>
@@ -97,6 +99,7 @@ button{border:0;border-radius:10px;padding:11px 15px;font:inherit;cursor:pointer
 <a class="back" href="index.html">🏠 العودة إلى الرئيسية</a>
 </div>
 
+
 <script>
 const USERS="users",SET="securitySettings",AUDIT="auditLogs";
 let editing=null;
@@ -108,13 +111,13 @@ const modules=[
 const actions=["view","create","edit","delete"];
 const actionNames={view:"عرض",create:"إضافة",edit:"تعديل",delete:"حذف"};
 const $=id=>document.getElementById(id);
-const arr=k=>{try{let x=JSON.parse(localStorage.getItem(k)||"[]");return Array.isArray(x)?x:[]}catch(e){return[]}};
-const save=(k,v)=>localStorage.setItem(k,JSON.stringify(v));
+const arr=k=>window.WorkshopCore.legacyList(k);
+const save=(k,v)=>window.WorkshopCore.legacyWrite(k,v,"المستخدم الحالي");
 const esc=v=>String(v??"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&#039;");
 function nextId(){let n=0;arr(USERS).forEach(u=>{let m=String(u.id||"").match(/^USR-(\d+)$/);if(m)n=Math.max(n,+m[1])});return"USR-"+String(n+1).padStart(4,"0")}
 function notice(t,bad=false){$("notice").textContent=t;$("notice").className="notice "+(bad?"error":"good");$("notice").style.display="block";setTimeout(()=>$("notice").style.display="none",3000)}
 function defaults(){return{securityEnabled:true,sessionMinutes:60,selfEdit:true,auditEnabled:true,technicianCustomerData:"limited",deletePolicy:"admin"}}
-function settings(){return Object.assign(defaults(),JSON.parse(localStorage.getItem(SET)||"{}"))}
+function settings(){return Object.assign(defaults(),window.WorkshopCore.read(SET,{}))}
 function loadSettings(){let s=settings();Object.entries(s).forEach(([k,v])=>{if($(k))$(k).value=String(v)})}
 function saveSettings(){save(SET,{securityEnabled:$("securityEnabled").value==="true",sessionMinutes:Number($("sessionMinutes").value||60),selfEdit:$("selfEdit").value==="true",auditEnabled:$("auditEnabled").value==="true",technicianCustomerData:$("technicianCustomerData").value,deletePolicy:$("deletePolicy").value});notice("تم حفظ سياسة الأمان")}
 function defaultPerm(role){
@@ -135,12 +138,12 @@ $("role").onchange=()=>renderPermissions();
 function reset(){editing=null;$("formTitle").textContent="➕ إضافة مستخدم";$("save").textContent="💾 حفظ المستخدم";$("cancel").classList.add("hidden");$("userId").value=nextId();["name","username","phone","email","branch","technicianId","password","notes"].forEach(x=>$(x).value="");$("role").value="فني";$("status").value="نشط";renderPermissions()}
 function saveUser(){
  let name=$("name").value.trim(),username=$("username").value.trim();if(!name||!username){notice("اكتب الاسم واسم المستخدم",true);return}
- let all=arr(USERS),duplicate=all.find(u=>u.username.toLowerCase()===username.toLowerCase()&&String(u.id)!==String(editing));if(duplicate){notice("اسم المستخدم مستخدم بالفعل",true);return}
+ let all=arr(USERS),old=editing?all.find(u=>String(u.id)===String(editing)):null,now=new Date().toISOString();
  let perms={};modules.forEach(([m])=>{perms[m]={};actions.forEach(a=>perms[m][a]=!!document.querySelector('[data-perm="'+m+'"][data-action="'+a+'"]')?.checked)});
- let old=editing?all.find(u=>String(u.id)===String(editing)):null,now=new Date().toISOString();
  let u={id:editing||nextId(),name,username,phone:$("phone").value.trim(),email:$("email").value.trim(),role:$("role").value,status:$("status").value,branch:$("branch").value.trim(),technicianId:$("technicianId").value.trim(),permissions:perms,notes:$("notes").value.trim(),passwordConfigured:editing?old?.passwordConfigured:!!$("password").value,createdAt:old?.createdAt||now,updatedAt:now,lastLogin:old?.lastLogin||null};
- let i=all.findIndex(x=>String(x.id)===String(u.id));if(i>=0)all[i]=u;else all.unshift(u);save(USERS,all);audit(u.id,u.name,"users",editing?"تعديل مستخدم":"إنشاء مستخدم");notice(editing?"تم تعديل المستخدم":"تم إنشاء المستخدم");reset();renderAll()
+ try{u=C.saveUser(u,window.TWMS_ACTOR||{id:"LOCAL-ADMIN",role:"admin",name:"المدير"});notice(editing?"تم تعديل المستخدم":"تم إنشاء المستخدم");if(window.TWMSUI&&TWMSUI.afterSave)TWMSUI.afterSave(editing?"تم تعديل المستخدم":"تم إنشاء المستخدم","record.html?type=users&id="+encodeURIComponent(u.id));else{reset();renderAll()}}catch(e){notice(e.message||"تعذر حفظ المستخدم",true)}
 }
+
 function editUser(id){
  let u=arr(USERS).find(x=>String(x.id)===String(id));if(!u)return;
  editing=u.id;$("formTitle").textContent="✏️ تعديل المستخدم";$("save").textContent="💾 حفظ التعديل";$("cancel").classList.remove("hidden");
@@ -152,12 +155,12 @@ function audit(uid,name,module,event){
 function toggleUser(id){
  let all=arr(USERS),u=all.find(x=>String(x.id)===String(id));if(!u)return;
  if(u.role==="مدير النظام"&&u.status==="نشط"&&all.filter(x=>x.role==="مدير النظام"&&x.status==="نشط").length<=1){notice("لا يمكن تعطيل آخر مدير نشط.",true);return}
- u.status=u.status==="نشط"?"معطل":"نشط";u.updatedAt=new Date().toISOString();save(USERS,all);audit(u.id,u.name,"users",u.status==="نشط"?"تفعيل مستخدم":"تعطيل مستخدم");renderAll();notice("تم تغيير حالة المستخدم")
+ u=C.setUserStatus(id,u.status==="نشط"?"معطل":"نشط",window.TWMS_ACTOR||{id:"LOCAL-ADMIN",role:"admin",name:"المدير"});renderAll();notice("تم تغيير حالة المستخدم")
 }
 function deleteUser(id){
  let all=arr(USERS),u=all.find(x=>String(x.id)===String(id));if(!u)return;
  if(u.role==="مدير النظام"&&all.filter(x=>x.role==="مدير النظام"&&x.status==="نشط").length<=1){notice("لا يمكن حذف آخر مدير نشط.",true);return}
- if(!confirm("حذف المستخدم "+u.name+"؟"))return;save(USERS,all.filter(x=>String(x.id)!==String(id)));audit(id,u.name,"users","حذف مستخدم");renderAll();notice("تم حذف المستخدم")
+ if(!confirm("حذف المستخدم "+u.name+"؟"))return;C.deleteUser(id,window.TWMS_ACTOR||{id:"LOCAL-ADMIN",role:"admin",name:"المدير"});renderAll();notice("تم حذف المستخدم")
 }
 function renderUsers(){
  let us=arr(USERS),q=$("search").value.trim().toLowerCase(),r=$("filterRole").value,s=$("filterStatus").value;
@@ -177,5 +180,6 @@ $("list").onclick=e=>{let b=e.target.closest("button[data-a]");if(!b)return;if(b
 function renderAll(){let us=arr(USERS),logs=arr(AUDIT);$("total").textContent=us.length;$("active").textContent=us.filter(u=>u.status==="نشط").length;$("disabled").textContent=us.filter(u=>u.status!=="نشط").length;$("admins").textContent=us.filter(u=>u.role==="مدير النظام").length;$("logs").textContent=logs.length;renderUsers();renderLogs()}
 loadSettings();reset();renderAll();
 </script>
+
 </body>
 </html>
