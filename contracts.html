@@ -21,6 +21,8 @@ button{border:0;border-radius:10px;padding:11px 15px;font:inherit;cursor:pointer
 .devicebox,.visit{background:#f8fafc;border-radius:10px;padding:10px;margin-top:8px}.visit{border:1px solid #dde3ea}.row{display:flex;gap:8px;align-items:center}.row>*{flex:1}
 @media(max-width:700px){.grid,.filters{grid-template-columns:1fr}.full{grid-column:auto}.summary{grid-template-columns:repeat(2,1fr)}.actions,.row{flex-direction:column}}
 </style>
+
+<script src="app-core.js?v=4.7.0-unified"></script><script src="twms-ui.js?v=4.7.0"></script><script>window.TWMS_ACTOR=window.TWMS_ACTOR||{id:"LOCAL-ADMIN",name:"المدير",role:"admin"};window.C=window.WorkshopCore;</script>
 </head>
 <body>
 <header><h1>📑 إدارة العقود</h1><p>الورشة الفنية لصيانة الأجهزة المنزلية والتكييف</p></header>
@@ -103,19 +105,20 @@ button{border:0;border-radius:10px;padding:11px 15px;font:inherit;cursor:pointer
 <a class="back" href="index.html">🏠 العودة إلى الرئيسية</a>
 </div>
 
+
 <script>
 const CK="contracts",SET="contractSettings",RK="maintenanceRequests",CUSTOMERS="customers",DEV="devices",WK="warranties",IK="invoices";
 let editing=null;
 
 const $=id=>document.getElementById(id);
-const arr=k=>{try{let x=JSON.parse(localStorage.getItem(k)||"[]");return Array.isArray(x)?x:[]}catch(e){return[]}};
-const save=(k,v)=>localStorage.setItem(k,JSON.stringify(v));
+const arr=k=>window.WorkshopCore.legacyList(k);
+const save=(k,v)=>window.WorkshopCore.legacyWrite(k,v,"المستخدم الحالي");
 const esc=v=>String(v??"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&#039;");
 const money=n=>Number(n||0).toFixed(2);
 const today=()=>new Date().toISOString().slice(0,10);
 function nextId(){let n=0;arr(CK).forEach(x=>{let m=String(x.id||"").match(/^CON-(\d+)$/);if(m)n=Math.max(n,+m[1])});return"CON-"+String(n+1).padStart(5,"0")}
 function notice(t,bad=false){$("notice").textContent=t;$("notice").className="notice "+(bad?"error":"good");$("notice").style.display="block";setTimeout(()=>$("notice").style.display="none",3000)}
-function settings(){return Object.assign({enabled:true,autoRenew:false,autoWorkOrder:false,expiryNotice:30},JSON.parse(localStorage.getItem(SET)||"{}"))}
+function settings(){return Object.assign({enabled:true,autoRenew:false,autoWorkOrder:false,expiryNotice:30},window.WorkshopCore.read(SET,{}))}
 function loadSettings(){let s=settings();$("enabled").value=String(s.enabled);$("autoRenew").value=String(s.autoRenew);$("autoWorkOrder").value=String(s.autoWorkOrder);$("expiryNotice").value=s.expiryNotice}
 function saveSettings(){save(SET,{enabled:$("enabled").value==="true",autoRenew:$("autoRenew").value==="true",autoWorkOrder:$("autoWorkOrder").value==="true",expiryNotice:Number($("expiryNotice").value||30)});notice("تم حفظ إعدادات العقود")}
 function customerId(x){return x.id||x.customerId||x.code||""}
@@ -144,7 +147,7 @@ function saveContract(){
  if(!$("start").value||!$("end").value){notice("أدخل تاريخ البداية والنهاية",true);return}
  let selected=[...document.querySelectorAll(".device:checked")].map(x=>x.value),services=[...document.querySelectorAll(".service:checked")].map(x=>x.value),all=arr(CK),old=editing?all.find(x=>String(x.id)===String(editing)):null,now=new Date().toISOString(),cst=arr(CUSTOMERS).find(x=>String(customerId(x))===String(cid));
  let c={id:editing||nextId(),customerId:cid,customerName:customerName(cst||{}),type:$("type").value,startDate:$("start").value,endDate:$("end").value,durationDays:Number($("duration").value||0),value:Number($("value").value||0),paymentMethod:$("payment").value,status:$("status").value,frequency:$("frequency").value,deviceIds:selected,services,coverage:$("coverage").value.trim(),notes:$("notes").value.trim(),visits:old?.visits||[],renewals:old?.renewals||[],termination:old?.termination||null,createdAt:old?.createdAt||now,updatedAt:now,audit:[...(old?.audit||[]),{at:now,event:editing?"تعديل عقد":"إنشاء عقد",status:$("status").value}]};
- let i=all.findIndex(x=>String(x.id)===String(c.id));if(i>=0)all[i]=c;else all.unshift(c);save(CK,all);notice(editing?"تم تعديل العقد":"تم إنشاء العقد بنجاح");reset();renderAll()
+ let i=all.findIndex(x=>String(x.id)===String(c.id));if(i>=0)all[i]=c;else all.unshift(c);C.saveContract(c,window.TWMS_ACTOR);notice(editing?"تم تعديل العقد":"تم إنشاء العقد بنجاح"); if(window.TWMSUI&&TWMSUI.afterSave)TWMSUI.afterSave(editing?"تم تعديل العقد":"تم إنشاء العقد", "record.html?type=contracts&id="+encodeURIComponent(c.id)); else {reset();renderAll()}
 }
 function editContract(id){
  let c=arr(CK).find(x=>String(x.id)===String(id));if(!c)return;
@@ -205,5 +208,6 @@ $("visitsList").onclick=e=>{let b=e.target.closest("button[data-v]");if(b)create
 $("actionsList").onclick=e=>{let b=e.target.closest("button[data-r]");if(b)renew(b.dataset.id)};
 loadSettings();loadTypes();reset();renderAll();
 </script>
+
 </body>
 </html>
