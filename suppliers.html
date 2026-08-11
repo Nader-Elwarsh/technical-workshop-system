@@ -21,6 +21,8 @@ button{border:0;border-radius:10px;padding:11px 15px;font:inherit;cursor:pointer
 .back{display:block;text-align:center;background:#333;color:#fff;text-decoration:none;padding:14px;border-radius:10px}
 @media(max-width:700px){.grid,.filters,.line{grid-template-columns:1fr}.full{grid-column:auto}.summary{grid-template-columns:repeat(2,1fr)}.actions{flex-direction:column}}
 </style>
+
+<script src="app-core.js?v=4.7.0-unified"></script><script src="twms-ui.js?v=4.7.0"></script><script>window.TWMS_ACTOR=window.TWMS_ACTOR||{id:"LOCAL-ADMIN",name:"المدير",role:"admin"};window.C=window.WorkshopCore;</script>
 </head>
 <body>
 <header><h1>🚚 الموردون والمشتريات</h1><p>الورشة الفنية لصيانة الأجهزة المنزلية والتكييف</p></header>
@@ -132,13 +134,14 @@ button{border:0;border-radius:10px;padding:11px 15px;font:inherit;cursor:pointer
 <a class="back" href="index.html">🏠 العودة إلى الرئيسية</a>
 </div>
 
+
 <script>
 const SK="suppliers",PK="purchaseOrders",RK="purchaseReceipts",TK="supplierRatings",RET="purchaseReturns",IK="purchaseInvoices",INVKEY="inventoryParts";
 let editingSupplier=null;
 
 const $=id=>document.getElementById(id);
-const arr=k=>{try{let x=JSON.parse(localStorage.getItem(k)||"[]");return Array.isArray(x)?x:[]}catch(e){return[]}};
-const save=(k,v)=>localStorage.setItem(k,JSON.stringify(v));
+const arr=k=>window.WorkshopCore.legacyList(k);
+const save=(k,v)=>window.WorkshopCore.legacyWrite(k,v,"المستخدم الحالي");
 const esc=v=>String(v??"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&#039;");
 const money=n=>Number(n||0).toFixed(2);
 function nextId(key,prefix,pad){let n=0;arr(key).forEach(x=>{let m=String(x.id||"").match(new RegExp("^"+prefix+"-(\\\\d+)$"));if(m)n=Math.max(n,+m[1])});return prefix+"-"+String(n+1).padStart(pad,"0")}
@@ -149,7 +152,7 @@ function saveSupplier(){
  let name=$("supplierName").value.trim(),phone=$("phone").value.trim();if(!name||!phone){notice("اكتب اسم المورد ورقم الهاتف",true);return}
  let all=arr(SK),old=editingSupplier?all.find(x=>String(x.id)===String(editingSupplier)):null,now=new Date().toISOString();
  let s={id:editingSupplier||nextId(SK,"SUP",4),name,company:$("company").value.trim(),phone,phone2:$("phone2").value.trim(),email:$("email").value.trim(),address:$("address").value.trim(),city:$("city").value.trim(),governorate:$("governorate").value.trim(),category:$("category").value,specialty:$("specialty").value.trim(),products:$("products").value.trim(),leadTime:Number($("leadTime").value||0),paymentMethod:$("paymentMethod").value,balance:Number($("balance").value||0),status:$("status").value,notes:$("notes").value.trim(),ratings:old?.ratings||[],createdAt:old?.createdAt||now,updatedAt:now,audit:[...(old?.audit||[]),{at:now,event:editingSupplier?"تعديل مورد":"إنشاء مورد"}]};
- let i=all.findIndex(x=>String(x.id)===String(s.id));if(i>=0)all[i]=s;else all.unshift(s);save(SK,all);notice(editingSupplier?"تم تعديل المورد":"تم إنشاء المورد");resetSupplier();renderAll()
+ let i=all.findIndex(x=>String(x.id)===String(s.id));if(i>=0)all[i]=s;else all.unshift(s);C.saveSupplier(s,window.TWMS_ACTOR);notice(editingSupplier?"تم تعديل المورد":"تم إنشاء المورد"); if(window.TWMSUI&&TWMSUI.afterSave)TWMSUI.afterSave(editingSupplier?"تم تعديل المورد":"تم إنشاء المورد", "record.html?type=suppliers&id="+encodeURIComponent(s.id)); else {resetSupplier();renderAll()}
 }
 function hasPurchases(id){return arr(PK).some(p=>String(p.supplierId)===String(id))}
 function deleteSupplier(id){let s=arr(SK).find(x=>String(x.id)===String(id));if(!s)return;if(hasPurchases(id)){notice("لا يمكن حذف مورد مرتبط بعمليات شراء سابقة؛ استخدم الأرشفة.",true);return}if(!confirm("حذف المورد "+s.name+"؟"))return;save(SK,arr(SK).filter(x=>String(x.id)!==String(id)));renderAll();notice("تم حذف المورد")}
@@ -176,10 +179,10 @@ function savePO(){
  let lines=[...document.querySelectorAll("#poLines .line")].map(x=>({partId:x.querySelector(".linePart").value,quantity:Number(x.querySelector(".lineQty").value||0),unitPrice:Number(x.querySelector(".linePrice").value||0)})).filter(x=>x.partId&&x.quantity>0);
  if(!lines.length){notice("أضف صنفًا واحدًا على الأقل",true);return}
  let now=new Date().toISOString(),p={id:nextId(PK,"PO",5),supplierId:s.id,supplierName:s.name,source:$("poSource").value,priority:$("poPriority").value,createdDate:$("poDate").value||now.slice(0,10),status:"مسودة",notes:$("poNotes").value.trim(),lines,total:lines.reduce((n,x)=>n+x.quantity*x.unitPrice,0),receipts:[],audit:[{at:now,event:"إنشاء طلب شراء"}]};
- let ps=arr(PK);ps.unshift(p);save(PK,ps);notice("تم إنشاء طلب الشراء "+p.id);$("poLines").innerHTML="";lineTemplate();$("poNotes").value="";renderAll()
+ C.savePurchaseOrder(p,window.TWMS_ACTOR);notice("تم إنشاء طلب الشراء "+p.id);$("poLines").innerHTML="";lineTemplate();$("poNotes").value="";renderAll()
 }
 function changePOStatus(id,status){
- let ps=arr(PK),p=ps.find(x=>String(x.id)===String(id));if(!p)return;p.status=status;p.updatedAt=new Date().toISOString();p.audit=[...(p.audit||[]),{at:new Date().toISOString(),event:"تغيير حالة الطلب",status}];save(PK,ps);renderAll();notice("تم تحديث حالة الطلب")
+ let p=arr(PK).find(x=>String(x.id)===String(id));if(!p)return;p.status=status;p.updatedAt=new Date().toISOString();p.audit=[...(p.audit||[]),{at:new Date().toISOString(),event:"تغيير حالة الطلب",status}];C.savePurchaseOrder(p,window.TWMS_ACTOR);renderAll();notice("تم تحديث حالة الطلب")
 }
 function receivePO(id){
  let p=arr(PK).find(x=>String(x.id)===String(id));if(!p)return;
@@ -230,5 +233,6 @@ $("receivePO").onchange=()=>{if($("receivePO").value)receivePO($("receivePO").va
 $("saveRating").onclick=saveRating;$("saveReturn").onclick=saveReturn;
 resetSupplier();lineTemplate();renderAll();
 </script>
+
 </body>
 </html>
