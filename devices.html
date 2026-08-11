@@ -23,6 +23,8 @@ button,.back{border:0;border-radius:9px;padding:12px 14px;font:inherit;cursor:po
 .search-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}table{width:100%;border-collapse:collapse}th,td{border-bottom:1px solid #e7e9ed;padding:9px;text-align:right}
 @media(max-width:700px){.grid,.summary,.search-grid{grid-template-columns:1fr}.actions{flex-direction:column}}
 </style>
+
+<script src="app-core.js?v=4.7.0-unified"></script><script src="twms-ui.js?v=4.7.0"></script><script>window.TWMS_ACTOR=window.TWMS_ACTOR||{id:"LOCAL-ADMIN",name:"المدير",role:"admin"};window.C=window.WorkshopCore;</script>
 </head>
 <body>
 <header><h1>📱 إدارة الأجهزة</h1><div>الورشة الفنية لصيانة الأجهزة المنزلية والتكييف</div></header>
@@ -65,14 +67,15 @@ button,.back{border:0;border-radius:9px;padding:12px 14px;font:inherit;cursor:po
 <div id="detailPanel" class="card hidden"></div>
 </div>
 
-<script src="app-core.js?v=3.13.0-customer-device-integrated-fix1"></script>
+
+
 <script>
 "use strict";
 const C=window.WorkshopCore, ACTOR=window.TWMS_CURRENT_USER||window.currentUser||{id:"WEB-USER",role:"manager",name:"مدير الاختبار"};
 const $=id=>document.getElementById(id), esc=x=>String(x??"").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[m]));
 const BRANDS=["تورنيدو","فريش","توشيبا","شارب","كريازي","يونيون إير","يونيون تك","بيكو","زانوسي","وايت بوينت","وايت ويل","سامسونج","إل جي","أريستون","كاريير","ميديا","جري","هاير","هيسنس","باناسونيك","بوش","كاندي","هوفر","جاك","أوشن","تكنو جاز","فاجور","لاجيرمانيا","إندست","إلكترولوكس","دايكن","أو جنرال","هيتاشي","كاجيتسو","أوكس","كاسيل","شيجو","يورك","جنرال","أخرى"];
 let editingId=null,saveBusy=false;
-function check(){if(!C)throw Error("لم يتم تحميل Core.");if(String(C.VERSION)!=="3.13.0-customer-device-integrated")throw Error("نسخة Core غير متوافقة مع وحدة الأجهزة.");}
+function check(){if(!C)throw Error("لم يتم تحميل Core.");if(String(C.VERSION)!=="4.8.0-unified")throw Error("نسخة Core غير متوافقة مع وحدة الأجهزة.");}
 function customers(){return C.list(C.KEYS.customers).filter(c=>!c.archived&&!c.mergedIntoCustomerId);}
 function loadBrands(){const s=$("brand");s.innerHTML='<option value="">اختر الماركة</option>'+BRANDS.map(b=>`<option value="${esc(b)}">${esc(b)}</option>`).join("");}
 function loadSubtypes(){const s=$("subtype"),type=$("type").value,vals=C.deviceSubtypeOptions(type)||[];s.innerHTML=vals.length?'<option value="">اختر الفئة / الشكل</option>'+vals.map(v=>`<option value="${esc(v)}">${esc(v)}</option>`).join(""):'<option value="">لا توجد فئة فرعية لهذا النوع</option>';$("subtypeWrap").classList.toggle("hidden",!vals.length);const ref=["تلاجة","تكييف","مبرد"].includes(type);$("refrigerantWrap").classList.toggle("hidden",!ref);$("capacityWrap").classList.toggle("hidden",type!=="تكييف");$("inverterWrap").classList.toggle("hidden",type!=="تكييف");if(!ref)$("refrigerant").value="";if(type!=="تكييف"){$("capacity").value="";$('inverter').value="غير محدد";}}
@@ -93,7 +96,7 @@ function save(){
  try{
   const customerId=$("customer").value,type=$("type").value,subtype=$("subtype").value,brand=$("brand").value,custom=$("brandCustom").value.trim();
   if(!customerId)throw Error("اختر العميل أولًا.");if(!type)throw Error("اختر نوع الجهاز.");if((C.deviceSubtypeOptions(type)||[]).length&&!subtype)throw Error("اختر الفئة / الشكل.");if(!brand)throw Error("اختر الماركة أو اختر أخرى واكتبها.");if(brand==="أخرى"&&!custom)throw Error("اكتب اسم الماركة.");
-  const serialHit=serialCheck();if(serialHit) {openExisting(serialHit.id);return;}
+  const serialHit=serialCheck();if(serialHit && String(serialHit.id)!==String(editingId||"")) {openExisting(serialHit.id);return;}
   const payload={id:editingId||undefined,customerId,type,subtype,brand,brandCustom:custom,workshopSerial:$("workshopSerial").value.trim(),refrigerant:$("refrigerant").value.trim(),capacity:$("capacity").value.trim(),inverter:$("inverter").value,notes:$("notes").value.trim(),technicalNotes:$("technicalNotes").value.trim()};
   if(!editingId&&typeof C.findDuplicateDevice==="function"){
    const dup=C.findDuplicateDevice(payload);
@@ -110,7 +113,7 @@ function save(){
   closeRegister();openDetail(d.id);
  }catch(e){
   setSaveBusy(false);
-  if(e&&e.code==="DUPLICATE_DEVICE"&&e.deviceId){setSaveStatus("⚠️ الجهاز موجود بالفعل. جارٍ فتح السجل الحالي…","error");openExisting(e.deviceId);return;}
+  if(e&&e.deviceId&&(e.code==="DUPLICATE_DEVICE"||e.code==="DUPLICATE_WORKSHOP_SERIAL")){setSaveStatus("⚠️ الجهاز موجود بالفعل. جارٍ فتح السجل الحالي…","error");openExisting(e.deviceId);return;}
   alert(e.message||"تعذر الحفظ.");setSaveStatus("❌ "+(e.message||"تعذر الحفظ."),"error");
  }
 }
