@@ -21,6 +21,8 @@ button{border:0;border-radius:10px;padding:11px 15px;font:inherit;cursor:pointer
 .back{display:block;text-align:center;background:#333;color:#fff;text-decoration:none;padding:14px;border-radius:10px}
 @media(max-width:700px){.grid,.filters,.checkgrid{grid-template-columns:1fr}.full{grid-column:auto}.stats{grid-template-columns:repeat(2,1fr)}.actions{flex-direction:column}}
 </style>
+
+<script src="app-core.js?v=4.7.0-unified"></script><script src="twms-ui.js?v=4.7.0"></script><script>window.TWMS_ACTOR=window.TWMS_ACTOR||{id:"LOCAL-ADMIN",name:"المدير",role:"admin"};window.C=window.WorkshopCore;</script>
 </head>
 <body>
 <header><h1>🔔 الإشعارات والتنبيهات</h1><p>الورشة الفنية لصيانة الأجهزة المنزلية والتكييف</p></header>
@@ -90,16 +92,17 @@ button{border:0;border-radius:10px;padding:11px 15px;font:inherit;cursor:pointer
 <a class="back" href="index.html">🏠 العودة إلى الرئيسية</a>
 </div>
 
+
 <script>
 const KEY="notifications",SET="notificationSettings",USERS="users",CUSTOMERS="customers",REQ="maintenanceRequests",INV="invoices",WAR="warranties",CON="contracts",DEV="devices",PO="purchaseOrders";
 const $=id=>document.getElementById(id);
-const arr=k=>{try{let x=JSON.parse(localStorage.getItem(k)||"[]");return Array.isArray(x)?x:[]}catch(e){return[]}};
-const save=(k,v)=>localStorage.setItem(k,JSON.stringify(v));
+const arr=k=>window.WorkshopCore.legacyList(k);
+const save=(k,v)=>window.WorkshopCore.legacyWrite(k,v,"المستخدم الحالي");
 const esc=v=>String(v??"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&#039;");
 const today=()=>new Date().toISOString().slice(0,10);
-function settings(){return Object.assign({enabled:true,inApp:true,stockAlert:true,warrantyAlert:true,contractAlert:true,invoiceAlert:true,requestAlert:true,purchaseAlert:true},JSON.parse(localStorage.getItem(SET)||"{}"))}
+function settings(){return Object.assign({enabled:true,inApp:true,stockAlert:true,warrantyAlert:true,contractAlert:true,invoiceAlert:true,requestAlert:true,purchaseAlert:true},window.WorkshopCore.read(SET,{}))}
 function loadSettings(){let s=settings();["enabled","inApp","stockAlert","warrantyAlert","contractAlert","invoiceAlert","requestAlert","purchaseAlert"].forEach(k=>$(k).value=String(s[k]))}
-function saveSettings(){let o={};["enabled","inApp","stockAlert","warrantyAlert","contractAlert","invoiceAlert","requestAlert","purchaseAlert"].forEach(k=>o[k]=$(k).value==="true");save(SET,o);notice("تم حفظ إعدادات الإشعارات")}
+function saveSettings(){let o={};["enabled","inApp","stockAlert","warrantyAlert","contractAlert","invoiceAlert","requestAlert","purchaseAlert"].forEach(k=>o[k]=$(k).value==="true");C.saveNotificationSettings(o,window.TWMS_ACTOR);notice("تم حفظ إعدادات الإشعارات")}
 function notice(t,bad=false){$("notice").textContent=t;$("notice").className="notice "+(bad?"error":"good");$("notice").style.display="block";setTimeout(()=>$("notice").style.display="none",3000)}
 function uid(x){return x.id||x.userId||x.customerId||x.code||""}
 function uname(x){return x.name||x.fullName||x.customerName||x.username||"مستخدم"}
@@ -117,8 +120,7 @@ function notificationExists(type,ref,target,title){
 }
 function addNotification(o){
  let s=settings();if(!s.enabled)return false;
- let all=arr(KEY),n={id:"NTF-"+Date.now()+"-"+Math.random().toString(36).slice(2,6),type:o.type||"عام",title:o.title,message:o.message,priority:o.priority||"medium",targetType:o.targetType||"all",targetId:o.targetId||"",targetName:o.targetName||"",referenceId:o.referenceId||"",read:false,createdAt:new Date().toISOString(),scheduledAt:o.scheduledAt||null,source:o.source||"manual"};
- all.unshift(n);save(KEY,all);return true
+ try{C.saveNotification(Object.assign({},o,{read:false,createdAt:new Date().toISOString()}),window.TWMS_ACTOR);return true}catch(e){console.error(e);return false}
 }
 function createManual(){
  let title=$("title").value.trim(),message=$("message").value.trim(),type=$("targetType").value,target=$("targetUser").value;
@@ -134,10 +136,10 @@ function renderList(){
  let q=$("search").value.trim().toLowerCase(),t=$("filterType").value,s=$("filterStatus").value,ns=arr(KEY).filter(n=>!n.deleted&&[n.title,n.message,n.type,n.targetName,n.referenceId].join(" ").toLowerCase().includes(q)&&(!t||n.type===t)&&(!s||(s==="unread"?!n.read:n.read)));
  $("list").innerHTML=ns.length?ns.map(n=>'<div class="note '+(!n.read?"unread ":"")+statusClass(n.priority)+'"><h3>🔔 '+esc(n.title)+'</h3><span class="badge '+statusClass(n.priority)+'Badge">'+(n.priority==="high"?"عالية":n.priority==="medium"?"متوسطة":"منخفضة")+'</span><span class="badge">'+esc(n.type)+'</span><span class="badge">'+(n.read?"مقروء":"غير مقروء")+'</span><p>'+esc(n.message)+'</p><small>🎯 '+esc(n.targetName||n.targetType)+' | 🕒 '+esc(n.createdAt)+' '+(n.referenceId?"| 🔗 "+esc(n.referenceId):"")+'</small><div class="actions"><button class="blue" data-a="read" data-id="'+esc(n.id)+'">'+(n.read?"↩️ تعليم كغير مقروء":"✓ تعليم كمقروء")+'</button><button class="danger" data-a="delete" data-id="'+esc(n.id)+'">🗑️ حذف</button></div></div>').join(""):'<div class="empty">لا توجد إشعارات.</div>'
 }
-function toggleRead(id){let all=arr(KEY),n=all.find(x=>String(x.id)===String(id));if(!n)return;n.read=!n.read;save(KEY,all);renderAll()}
-function deleteOne(id){let all=arr(KEY),n=all.find(x=>String(x.id)===String(id));if(!n)return;n.deleted=true;save(KEY,all);renderAll()}
-function readAll(){let all=arr(KEY);all.forEach(n=>n.read=true);save(KEY,all);renderAll();notice("تم تعليم الإشعارات كمقروءة")}
-function clearRead(){let all=arr(KEY);all.forEach(n=>{if(n.read)n.deleted=true});save(KEY,all);renderAll();notice("تم حذف الإشعارات المقروءة")}
+function toggleRead(id){let n=arr(KEY).find(x=>String(x.id)===String(id));if(!n)return;C.updateNotification(id,{read:!n.read},window.TWMS_ACTOR);renderAll()}
+function deleteOne(id){let n=arr(KEY).find(x=>String(x.id)===String(id));if(!n)return;C.updateNotification(id,{deleted:true},window.TWMS_ACTOR);renderAll()}
+function readAll(){arr(KEY).filter(n=>!n.read&&!n.deleted).forEach(n=>C.updateNotification(n.id,{read:true},window.TWMS_ACTOR));renderAll();notice("تم تعليم الإشعارات كمقروءة")}
+function clearRead(){arr(KEY).filter(n=>n.read&&!n.deleted).forEach(n=>C.updateNotification(n.id,{deleted:true},window.TWMS_ACTOR));renderAll();notice("تم حذف الإشعارات المقروءة")}
 function addAuto(type,title,message,priority,ref,targetId,targetName){
  if(notificationExists(type,ref,targetId,title))return false;
  return addNotification({type,title,message,priority,referenceId:ref,targetType:targetId?"user":"all",targetId,targetName,source:"system"})
@@ -173,5 +175,6 @@ $("saveSettings").onclick=saveSettings;$("targetType").onchange=loadTargets;$("c
 $("list").onclick=e=>{let b=e.target.closest("button[data-a]");if(!b)return;if(b.dataset.a==="read")toggleRead(b.dataset.id);else deleteOne(b.dataset.id)};
 loadSettings();loadTargets();renderAll();
 </script>
+
 </body>
 </html>
