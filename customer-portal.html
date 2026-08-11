@@ -22,7 +22,10 @@ button{border:0;border-radius:10px;padding:11px 15px;font:inherit;cursor:pointer
 .back{display:block;text-align:center;background:#333;color:#fff;text-decoration:none;padding:14px;border-radius:10px}
 @media(max-width:700px){.grid,.filters{grid-template-columns:1fr}.full{grid-column:auto}.stats{grid-template-columns:repeat(2,1fr)}.actions{flex-direction:column}}
 </style>
-<script src="app-core.js"></script>
+
+
+
+<script src="app-core.js?v=4.7.0-unified"></script><script src="twms-ui.js?v=4.7.0"></script><script>window.TWMS_ACTOR=window.TWMS_ACTOR||{id:"LOCAL-ADMIN",name:"المدير",role:"admin"};window.C=window.WorkshopCore;</script>
 </head>
 <body>
 <header><h1>🌐 بوابة العميل والموقع</h1><p>الورشة الفنية لصيانة الأجهزة المنزلية والتكييف</p></header>
@@ -70,7 +73,7 @@ button{border:0;border-radius:10px;padding:11px 15px;font:inherit;cursor:pointer
 <div class="grid">
 <div><label>نوع الجهاز *</label><select id="deviceType"><option>ثلاجة</option><option>فريزر</option><option>غسالة أوتوماتيك</option><option>غسالة فوق أوتوماتيك</option><option>غسالة نصف أوتوماتيك</option><option>تكييف</option><option>سخان مياه</option><option>كولدير</option><option>سخان غاز</option><option>أخرى</option></select></div>
 <div><label>الماركة</label><input id="brand"></div>
-<div><label>الموديل</label><input id="model"></div>
+<div><label>الجهاز المسجل</label><select id="deviceSelect"><option value="">اختر جهازًا مسجلًا أو أضف جهازًا جديدًا</option></select></div>
 <div><label>الموعد المفضل</label><input id="preferredDate" type="datetime-local"></div>
 <div class="full"><label>وصف العطل *</label><textarea id="fault" placeholder="اكتب العطل بالتفصيل"></textarea></div>
 <div><label>الموقع / العنوان</label><input id="location"></div>
@@ -150,14 +153,15 @@ button{border:0;border-radius:10px;padding:11px 15px;font:inherit;cursor:pointer
 <script>
 const CUSTOMER="customers",REQ="maintenanceRequests",DEV="devices",INV="invoices",WAR="warranties",CON="contracts",RAT="customerRatings",MSG="customerMessages",SET="portalSettings",FAQ="faqItems",BLOG="blogPosts";
 let current=null;
+const portalActor=()=>current?{id:String(cid(current)),name:cname(current),role:"customer"}:null;
 
 const $=id=>document.getElementById(id);
-const arr=k=>{try{let x=JSON.parse(localStorage.getItem(k)||"[]");return Array.isArray(x)?x:[]}catch(e){return[]}};
-const save=(k,v)=>localStorage.setItem(k,JSON.stringify(v));
+const arr=k=>window.WorkshopCore.legacyList(k);
+const save=(k,v)=>window.WorkshopCore.legacyWrite(k,v,"المستخدم الحالي");
 const esc=v=>String(v??"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&#039;");
 const today=()=>new Date().toISOString().slice(0,10);
 function notice(t,bad=false){$("notice").textContent=t;$("notice").className="notice "+(bad?"error":"good");$("notice").style.display="block";setTimeout(()=>$("notice").style.display="none",3000)}
-function settings(){return Object.assign({portalEnabled:true,showTechnician:false,allowProfileEdit:true,requestMode:"تدخل مباشرة للنظام",siteTitle:"الورشة الفنية لصيانة الأجهزة المنزلية والتكييف",sitePhone:"",siteDescription:""},JSON.parse(localStorage.getItem(SET)||"{}"))}
+function settings(){return Object.assign({portalEnabled:true,showTechnician:false,allowProfileEdit:true,requestMode:"تدخل مباشرة للنظام",siteTitle:"الورشة الفنية لصيانة الأجهزة المنزلية والتكييف",sitePhone:"",siteDescription:""},window.WorkshopCore.read(SET,{}))}
 function loadSettings(){let s=settings();$("portalEnabled").value=String(s.portalEnabled);$("showTechnician").value=String(s.showTechnician);$("allowProfileEdit").value=String(s.allowProfileEdit);$("requestMode").value=s.requestMode;$("siteTitle").value=s.siteTitle;$("sitePhone").value=s.sitePhone;$("siteDescription").value=s.siteDescription}
 function saveSettings(){save(SET,{portalEnabled:$("portalEnabled").value==="true",showTechnician:$("showTechnician").value==="true",allowProfileEdit:$("allowProfileEdit").value==="true",requestMode:$("requestMode").value,siteTitle:$("siteTitle").value.trim(),sitePhone:$("sitePhone").value.trim(),siteDescription:$("siteDescription").value.trim()});notice("تم حفظ إعدادات البوابة")}
 function cid(c){return c.id||c.customerId||c.code||""}
@@ -203,13 +207,15 @@ function submitRequest(){
  if(!C){notice("تعذر الاتصال بالنظام المركزي. أعد تحميل الصفحة.",true);return}
  let fault=$("fault").value.trim();if(!fault){notice("اكتب وصف العطل",true);return}
  try{
-  const customerId=cid(current),type=$("deviceType").value,brand=$("brand").value.trim(),model=$("model").value.trim();
-  let devices=C.customerDevices(customerId);
-  let device=devices.find(d=>String(d.type||d.deviceType||"")===String(type)&&String(d.brand||"").trim().toLowerCase()===brand.toLowerCase()&&String(d.model||"").trim().toLowerCase()===model.toLowerCase());
-  if(!device){
-   const deviceId=C.nextId("DEV-",C.KEYS.devices,5);
-   device={id:deviceId,customerId,customerName:cname(current),type,deviceType:type,brand,model,condition:"غير معروف",location:$("location").value.trim(),createdAt:C.now(),updatedAt:C.now(),source:"الموقع الإلكتروني"};
-   const all=C.list(C.KEYS.devices);all.push(device);C.write(C.KEYS.devices,all);
+  const customerId=cid(current),type=$("deviceType").value,brand=$("brand").value.trim();
+  let device=null;
+  const selectedId=$("deviceSelect")?$("deviceSelect").value:"";
+  if(selectedId){
+   device=C.findDevice(selectedId);
+   if(!device||String(device.customerId)!==String(customerId))throw Error("الجهاز المختار غير تابع لحسابك.");
+  } else {
+   if(!brand)throw Error("اكتب الماركة عند تسجيل جهاز جديد.");
+   device=C.saveDevice({customerId,type,brand,workshopSerial:"",refrigerant:"",capacity:"",inverter:"غير محدد",notes:"أُضيف من بوابة العميل",technicalNotes:""},portalActor());
   }
   const item=C.saveRequest({
    customerId,deviceId:device.id,type:"صيانة منزلية",requestType:"صيانة منزلية",
@@ -219,32 +225,38 @@ function submitRequest(){
    address:$("location").value.trim()||current.address||"",
    problem:fault,faultDescription:fault,notes:$("requestNotes").value.trim(),
    customerName:cname(current),customerPhone:cphone(current),
-   deviceName:device.name||device.deviceName||[device.type,device.brand,device.model].filter(Boolean).join(" "),
+   deviceName:[device.type,device.brand,device.subtype].filter(Boolean).join(" "),
    beforePhotos:$("photo").value.trim()?[$("photo").value.trim()]:[]
-  },"بوابة الموقع الإلكتروني");
+  },portalActor());
   notice("تم إرسال طلب الصيانة رقم "+item.id);
-  ["brand","model","preferredDate","location","photo","fault","requestNotes"].forEach(x=>$(x).value="");
-  renderPortal();
+  ["brand","preferredDate","location","photo","fault","requestNotes"].forEach(x=>$(x).value="");
+  $("deviceSelect").value="";renderPortal();
  }catch(e){console.error(e);notice(e.message||"تعذر إرسال طلب الصيانة.",true)}
 }
+
 function sendMessage(){
  if(!current)return;let text=$("messageText").value.trim();if(!text){notice("اكتب الرسالة",true);return}
- let ms=arr(MSG);ms.unshift({id:"MSG-"+Date.now(),customerId:cid(current),customerName:cname(current),type:$("messageType").value,orderId:$("messageOrder").value.trim(),message:text,status:"جديدة",createdAt:new Date().toISOString()});save(MSG,ms);$("messageText").value="";notice("تم إرسال الرسالة إلى المركز")
+ C.saveCustomerMessage({customerId:cid(current),customerName:cname(current),type:$("messageType").value,orderId:$("messageOrder").value.trim(),message:text,status:"جديدة"},portalActor());$("messageText").value="";notice("تم إرسال الرسالة إلى المركز")
 }
 function saveProfile(){
  if(!current||!settings().allowProfileEdit){notice("تعديل البيانات غير مسموح من إعدادات البوابة",true);return}
  let all=arr(CUSTOMER),i=all.findIndex(x=>String(cid(x))===String(cid(current)));if(i<0)return;
- all[i].name=$("profileName").value.trim()||all[i].name;all[i].address=$("profileAddress").value.trim();all[i].notes=$("profileNotes").value.trim();save(CUSTOMER,all);current=all[i];notice("تم تحديث بياناتك");renderPortal()
+ const updated=C.saveCustomer({id:all[i].id,name:$("profileName").value.trim()||all[i].name,address:$("profileAddress").value.trim(),notes:$("profileNotes").value.trim(),phone:all[i].phone||all[i].mobile||all[i].phoneNumber},portalActor());current=updated;notice("تم تحديث بياناتك");renderPortal()
 }
 function renderFAQ(){let fs=arr(FAQ);if(!fs.length)fs=[{q:"كيف أطلب الخدمة؟",a:"سجل الدخول ثم املأ نموذج طلب الصيانة وأرسل الطلب."},{q:"ما مدة الضمان؟",a:"تختلف حسب نوع الخدمة والضمان المسجل على الفاتورة."},{q:"ما طرق الدفع؟",a:"تُحدد طرق الدفع المتاحة من إدارة المركز."},{q:"ما مناطق التغطية؟",a:"يتم تحديد مناطق الخدمة من إدارة المركز."},{q:"ما مواعيد العمل؟",a:"تُحدد مواعيد العمل من إعدادات المركز."}];$("faq").innerHTML=fs.map(x=>'<div class="faq"><b>❓ '+esc(x.q)+'</b>'+esc(x.a)+'</div>').join("")}
 function renderBlog(){let bs=arr(BLOG);$("blog").innerHTML=bs.length?bs.slice(0,20).map(x=>'<div class="item"><h3>📰 '+esc(x.title||"مقال")+'</h3><small>'+esc(x.category||"عام")+'</small><p>'+esc(x.excerpt||x.content||"")+'</p></div>').join(""):'<div class="empty">لا توجد مقالات أو عروض منشورة حاليًا.</div>'}
+function renderDeviceSelect(){
+ if(!current||!$("deviceSelect"))return;
+ const ds=myDevices();
+ $("deviceSelect").innerHTML='<option value="">جهاز جديد</option>'+ds.map(d=>'<option value="'+esc(d.id||d.deviceId||"")+'">'+esc([d.id,d.type,d.brand,d.subtype].filter(Boolean).join(" — "))+'</option>').join("");
+}
 function renderPortal(){
  if(!current)return;$("portal").classList.remove("hidden");let os=myOrders(),ds=myDevices(),is=myInvoices(),ws=myWarranties(),cs=myContracts();$("myOrders").textContent=os.length;$("myDevices").textContent=ds.length;$("myInvoices").textContent=is.length;$("myWarranties").textContent=ws.length;$("myContracts").textContent=cs.length;
  $("profileName").value=cname(current);$("profilePhone").value=cphone(current);$("profileAddress").value=current.address||"";$("profileNotes").value=current.notes||"";
  renderOrders();renderDevices();renderInvoices();renderWarranties();renderContracts();renderRating()
 }
 $("login").onclick=login;$("logout").onclick=logout;$("saveSettings").onclick=saveSettings;$("submitRequest").onclick=submitRequest;$("sendMessage").onclick=sendMessage;$("saveProfile").onclick=saveProfile;$("orderSearch").oninput=renderOrders;$("orderFilter").onchange=renderOrders;
-$("ratingOrder").onclick=e=>{let b=e.target.closest("[data-rate]");let star=e.target.closest(".star");if(star){let box=star.parentElement, v=Number(star.dataset.v);box.dataset.value=v;box.querySelectorAll(".star").forEach(s=>s.classList.toggle("selected",Number(s.dataset.v)<=v));return}if(b){let box=b.parentElement.querySelector("[data-stars]"),v=Number(box?.dataset.value||0);if(!v){notice("اختر تقييمًا من 1 إلى 5",true);return}let rs=arr(RAT),os=myOrders(),o=os.find(x=>String(x.id)===String(b.dataset.rate));rs.unshift({id:"RAT-"+Date.now(),customerId:cid(current),customerName:cname(current),orderId:o.id,quality:v,technician:v,speed:v,repair:v,communication:v,satisfaction:v,comment:$("comment-"+o.id).value.trim(),date:new Date().toISOString()});save(RAT,rs);notice("تم إرسال التقييم");renderRating()}};
+$("ratingOrder").onclick=e=>{let b=e.target.closest("[data-rate]");let star=e.target.closest(".star");if(star){let box=star.parentElement, v=Number(star.dataset.v);box.dataset.value=v;box.querySelectorAll(".star").forEach(s=>s.classList.toggle("selected",Number(s.dataset.v)<=v));return}if(b){let box=b.parentElement.querySelector("[data-stars]"),v=Number(box?.dataset.value||0);if(!v){notice("اختر تقييمًا من 1 إلى 5",true);return}let os=myOrders(),o=os.find(x=>String(x.id)===String(b.dataset.rate));try{C.saveRating({customerId:cid(current),customerName:cname(current),requestId:o.id,rating:v,quality:v,technician:v,speed:v,repair:v,communication:v,satisfaction:v,comment:$("comment-"+o.id).value.trim()},portalActor());notice("تم إرسال التقييم");renderRating()}catch(e){notice(e.message||"تعذر إرسال التقييم",true)}}};
 loadSettings();renderFAQ();renderBlog();restore();
 </script>
 </body>
