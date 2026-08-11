@@ -1,13 +1,13 @@
 /* =========================================================
-   الورشة الفنية - TWMS Core V3.10.0 Regression Gated
-   المرجع الموحد للبيانات والعلاقات وقواعد العمل - Core V3.10.0.
+   الورشة الفنية - TWMS Core V4.7.0 Unified Regression Gated
+   المرجع الموحد للبيانات والعلاقات وقواعد العمل - Core V4.7.0.
    ملاحظة أمنية: localStorage مناسب للنسخة المحلية/التجريبية فقط.
    الصلاحيات والأمان الحقيقيان يحتاجان Backend عند الإنتاج.
    ========================================================= */
 (function(window){
 "use strict";
 
-const CORE_VERSION="3.13.0-customer-device-integrated";
+const CORE_VERSION="4.7.0-unified";
 
 const KEYS={
  deviceImages:"deviceImages",deviceLog:"deviceLog",deviceTypes:"deviceTypes",deviceQr:"deviceQr",deviceKnowledge:"deviceKnowledge",
@@ -17,7 +17,11 @@ const KEYS={
  suppliers:"suppliers", purchaseOrders:"purchaseOrders", purchaseReceipts:"purchaseReceipts", purchaseReturns:"purchaseReturns", invoices:"invoices", payments:"payments",
  warranties:"warranties", contracts:"contracts", notifications:"notifications",
  loyaltyAccounts:"loyaltyAccounts", loyaltyTransactions:"loyaltyTransactions",
- technicalLibrary:"technicalLibrary", users:"users", approvals:"workOrderApprovals",
+ technicalLibrary:"technicalLibrary", users:"users",
+ supplierRatings:"supplierRatings", purchaseInvoices:"purchaseInvoices", warrantyClaims:"warrantyClaims",
+ portalSettings:"portalSettings", notificationSettings:"notificationSettings", contractSettings:"contractSettings", securitySettings:"securitySettings",
+ customerMessages:"customerMessages", faqItems:"faqItems", blogPosts:"blogPosts",
+ approvals:"workOrderApprovals",
  diagnoses:"workOrderDiagnoses", assignments:"workOrderAssignments", statusHistory:"workOrderStatusHistory",
  complaints:"complaints", ratings:"customerRatings",
 customerMergeRequests:"customerMergeRequests"
@@ -162,6 +166,40 @@ function publicWriteBlocked(){
  throw new Error("الكتابة المباشرة لبيانات النظام ممنوعة. استخدم واجهات WorkshopCore المعتمدة.");
 }
 
+// Compatibility boundary for legacy UI modules. Pages read/write only through
+// this Core adapter so every module uses the same storage source and key aliases.
+const LEGACY_KEY_ALIASES={
+ inventoryParts:KEYS.inventory,
+ auditLogs:KEYS.audit,
+ inventory_transactions:KEYS.inventoryTransactions,
+ maintenanceRequests:KEYS.requests,
+ supplierRatings:KEYS.supplierRatings,
+ purchaseInvoices:KEYS.purchaseInvoices,
+ warrantyClaims:KEYS.warrantyClaims,
+ portalSettings:KEYS.portalSettings,
+ notificationSettings:KEYS.notificationSettings,
+ contractSettings:KEYS.contractSettings,
+ securitySettings:KEYS.securitySettings,
+ customerMessages:KEYS.customerMessages,
+ faqItems:KEYS.faqItems,
+ blogPosts:KEYS.blogPosts
+};
+function canonicalKey(key){return LEGACY_KEY_ALIASES[String(key)]||String(key);}
+function legacyList(key){return list(canonicalKey(key));}
+function legacyWrite(key,value,actor){
+ const k=canonicalKey(key);
+ assert(Array.isArray(value),"بيانات السجل يجب أن تكون قائمة.");
+ const before=list(k);
+ coreWrite(k,clone(value));
+ auditImmutable("تحديث بيانات","التوافق المركزي",k,"تحديث بيانات من وحدة واجهة قديمة عبر Core",actor||"النظام",{before,after:value,source:"legacy-adapter"});
+ return value;
+}
+function legacyRemove(key,id,actor){
+ const k=canonicalKey(key),rows=list(k),next=rows.filter(x=>String(idOf(x))!==String(id));
+ if(next.length===rows.length)return false;
+ legacyWrite(k,next,actor);return true;
+}
+
 
 function auditImmutable(action,module,recordId,description,user,meta){
  const logs=list(KEYS.audit),a=actorInfo(user),m=meta&&typeof meta==="object"?meta:{};
@@ -171,7 +209,7 @@ function auditImmutable(action,module,recordId,description,user,meta){
   correlationId:m.correlationId||"",
   user:a.name||settings().adminName||"النظام",userId:a.id||"",role:a.role||"",
   module:module||"النظام",action:action||"أخرى",recordId:recordId||"",
-  description:clean(description,2000),date:now(),source:"core-v3.7.9",
+  description:clean(description,2000),date:now(),source:"core-v4.7.0",
   result:m.result||"success",before:m.before===undefined?null:m.before,
   after:m.after===undefined?null:m.after,
   changedFields:Array.isArray(m.changedFields)?m.changedFields:[],
@@ -208,6 +246,10 @@ function getPermissionRegistry(){
  if(configured&&typeof configured==="object")return clone(configured);
  return {
   create:["manager","technician","موظف","فني","admin","owner"],
+  customerRequest:["customer","عميل"],
+  customerMessage:["customer","عميل","manager","موظف","admin","owner"],
+  customerDevice:["customer","عميل"],
+  customerProfile:["customer","عميل"],
   update:["manager","technician","موظف","فني","admin","owner"],
   delete:["manager","admin","owner"],
   archive:["manager","admin","owner"],
@@ -223,7 +265,7 @@ customerMerge:["manager","admin","owner"],
   workOrderUpdate:["manager","موظف","فني","admin","owner"],
   diagnosis:["manager","technician","فني","admin","owner"],
   complaint:["manager","موظف","admin","owner"],
-  rating:["manager","موظف","admin","owner"],
+  rating:["customer","عميل","manager","موظف","admin","owner"],
   library:["manager","technician","موظف","فني","admin","owner"],
   route:["manager","موظف","admin","owner"],
   supplierManage:["manager","storekeeper","مخزن","admin","owner"],
@@ -465,7 +507,11 @@ function customerPhoneExists(phone,excludeId){
 }
 
 function saveCustomer(input,actor){
- requirePermission(input.id||input.customerId?"customerUpdate":"create",actor);
+ const aa=actorInfo(actor);
+ if(String(aa.role||"").toLowerCase()==="customer" || String(aa.role||"")==="عميل") {
+  requirePermission("customerProfile",actor);
+  assert(String(aa.id||"")===String(input.id||input.customerId||""),"لا يمكنك تعديل بيانات عميل آخر.");
+ } else requirePermission(input.id||input.customerId?"customerUpdate":"create",actor);
  const d=Object.assign({},input), oldId=clean(d.id||d.customerId,80);
  assert(clean(d.name||d.fullName,200),"اسم العميل مطلوب.");
  d.name=clean(d.name||d.fullName,200); d.phone=clean(d.phone||d.mobile,50);
@@ -934,7 +980,11 @@ function device360(did,actor){
 }
 
 function saveDevice(input,actor){
- requirePermission(input.id||input.deviceId?"deviceUpdate":"create",actor);
+ const aa=actorInfo(actor);
+ if(String(aa.role||"").toLowerCase()==="customer" || String(aa.role||"")==="عميل") {
+  requirePermission(input.id||input.deviceId?"deviceUpdate":"customerDevice",actor);
+  assert(String(aa.id||"")===String(input.customerId||input.clientId||""),"لا يمكنك تسجيل جهاز لعميل آخر.");
+ } else requirePermission(input.id||input.deviceId?"deviceUpdate":"create",actor);
  const existing=input.id?list(KEYS.devices).find(x=>String(idOf(x))===String(input.id)):null;
  if(existing && input.customerId!==undefined && String(existing.customerId||existing.clientId||"")!==String(input.customerId)){
   const operational=list(KEYS.requests).some(r=>String(requestDeviceId(r))===String(input.id)) ||
@@ -956,7 +1006,7 @@ function saveDevice(input,actor){
  d.manufacturerSerialKey=normalizeSerialNumber(d.manufacturerSerial);
  d.workshopSerial=normalizeWorkshopSerial(d.workshopSerial||existing?.workshopSerial||"");
  if(!d.workshopSerial)d.workshopSerial=nextWorkshopSerial();
- assert(!workshopSerialExists(d.workshopSerial,oldId),"رقم الورشة مستخدم بالفعل؛ لا يمكن تكراره.");
+ if(workshopSerialExists(d.workshopSerial,oldId)){ const err=new Error("رقم الجهاز بالورشة مستخدم بالفعل؛ لا يمكن تكراره."); err.code="DUPLICATE_WORKSHOP_SERIAL"; err.deviceId=idOf(findDeviceByWorkshopSerial(d.workshopSerial)); throw err; }
  const legacySerial=clean(d.manufacturerSerial||d.serialNumber||d.serial,150);
  if(legacySerial){
   const legacyHit=findDeviceByLegacySerial(legacySerial);
@@ -1016,7 +1066,9 @@ function deleteDevice(did,actor){
 }
 
 function saveRequest(input,actor){
- requirePermission(input.id||input.requestId?"workOrderUpdate":"create",actor);
+ const aa=actorInfo(actor);
+ if(String(aa.role||"").toLowerCase()==="customer" || String(aa.role||"")==="عميل") requirePermission(input.id||input.requestId?"workOrderUpdate":"customerRequest",actor);
+ else requirePermission(input.id||input.requestId?"workOrderUpdate":"create",actor);
  const data=Object.assign({},input);
  const oldId=clean(data.id||data.requestId,80);
  data.customerId=clean(data.customerId||data.clientId,80);
@@ -1359,6 +1411,26 @@ function returnPurchase(purchaseOrderId,returnItems,reason,actor){
  const a=list(KEYS.purchaseReturns),id=nextId("RET-",KEYS.purchaseReturns,6),ret={id,purchaseOrderId,supplierId:order.supplierId,items:clone(returnItems),reason:clean(reason,1000),createdAt:now(),userId:actorInfo(actor).id||"",user:actorInfo(actor).name||"النظام"};
  a.unshift(ret);coreWrite(KEYS.purchaseReturns,a);audit("مرتجع شراء","طلبات الشراء",id,"إرجاع أصناف إلى المورد",actor);return ret;
 }
+function deleteRoute(id,actor){
+ requirePermission("delete",actor);const x=find(KEYS.routes,id);assert(x,"المسار غير موجود.");assert(!["جاري التنفيذ","مكتمل"].includes(String(x.status||"")),"لا يمكن حذف مسار بدأ التنفيذ.");
+ const visits=list(KEYS.visits);visits.forEach(v=>{if(String(v.routeId||"")===String(id)){delete v.routeId;delete v.routeOrder;v.updatedAt=now();}});coreWrite(KEYS.visits,visits);
+ coreWrite(KEYS.routes,list(KEYS.routes).filter(v=>String(idOf(v))!==String(id)));audit("حذف","المسارات",id,"حذف مسار",actor);return true;
+}
+
+function saveRoute(data,actor){
+ requirePermission("visitManage",actor);
+ assert(data&&clean(data.date,30),"تاريخ المسار مطلوب.");
+ assert(data.technicianId&&exists(KEYS.technicians,data.technicianId),"الفني غير موجود.");
+ assert(Array.isArray(data.stops)&&data.stops.length>0,"يجب أن يحتوي المسار على زيارة واحدة على الأقل.");
+ data.stops.forEach(x=>assert(x.visitId&&exists(KEYS.visits,x.visitId),"الزيارة المحددة للمسار غير موجودة."));
+ const a=list(KEYS.routes),id=clean(data.id,80)||nextId("ROUTE-",KEYS.routes,5);
+ const item=Object.assign({},data,{id,stops:clone(data.stops),updatedAt:now(),createdAt:data.createdAt||now()});
+ const i=a.findIndex(x=>String(idOf(x))===id);if(i>=0)a[i]=Object.assign({},a[i],item);else a.push(item);
+ coreWrite(KEYS.routes,a);
+ const visits=list(KEYS.visits);visits.forEach(v=>{const st=item.stops.find(z=>String(z.visitId)===String(idOf(v)));if(st){v.routeId=id;v.routeOrder=st.order;v.updatedAt=now();}else if(String(v.routeId||"")===String(id)){delete v.routeId;delete v.routeOrder;v.updatedAt=now();}});
+ coreWrite(KEYS.visits,visits);audit(i>=0?"تعديل":"إضافة","المسارات",id,"حفظ مسار وربط الزيارات",actor);syncRelations();return item;
+}
+
 function saveTechnician(data,actor){
  requirePermission("technicianManage",actor);assert(data&&clean(data.name||data.fullName||data.technicianName,200),"اسم الفني مطلوب.");
  const a=list(KEYS.technicians),id=clean(data.id,80)||nextId("TECH-",KEYS.technicians,5);
@@ -1403,6 +1475,17 @@ function saveInventoryItem(data,actor){
  const item=Object.assign({},data,{id,name:clean(data.name,200),quantity:qty,reservedQuantity:0,updatedAt:now(),createdAt:data.createdAt||now()});
  a.push(item);coreWrite(KEYS.inventory,a);audit("إضافة","المخزون",id,"إنشاء صنف مخزون",actor);return item;
 }
+function archiveInventoryItem(id,actor){
+ requirePermission("archive",actor);const a=list(KEYS.inventory),i=a.findIndex(x=>String(idOf(x))===String(id));assert(i>=0,"الصنف غير موجود.");
+ a[i]=Object.assign({},a[i],{status:"مؤرشف",archived:true,archivedAt:now(),updatedAt:now()});coreWrite(KEYS.inventory,a);audit("أرشفة","المخزون",id,"أرشفة صنف",actor);return a[i];
+}
+function deleteInventoryItem(id,actor){
+ requirePermission("delete",actor);const x=inventoryItem(id);assert(x,"الصنف غير موجود.");
+ const operational=list(KEYS.inventoryTransactions).some(t=>String(t.itemId)===String(id))||list(KEYS.purchaseOrders).some(po=>(po.items||[]).some(l=>String(l.itemId)===String(id)));
+ assert(!operational,"لا يمكن حذف صنف مرتبط بحركات تشغيلية؛ استخدم الأرشفة.");
+ const a=list(KEYS.inventory).filter(v=>String(idOf(v))!==String(id));coreWrite(KEYS.inventory,a);audit("حذف","المخزون",id,"حذف صنف نهائيًا",actor);return true;
+}
+
 function saveInvoice(data,actor){
  const a=list(KEYS.invoices);
  const id=clean(data&&data.id,80)||nextId("INV-",KEYS.invoices,6);
@@ -1539,6 +1622,27 @@ function saveContract(data,actor){
  const i=a.findIndex(x=>String(idOf(x))===id);if(i>=0)a[i]=Object.assign({},a[i],item);else a.push(item);
  coreWrite(KEYS.contracts,a);audit(i>=0?"تعديل":"إضافة","العقود",id,"عقد مرتبط بالعميل والأجهزة",actor);return item;
 }
+function saveCustomerMessage(data,actor){
+ const aa=actorInfo(actor);
+ if(String(aa.role||"").toLowerCase()==="customer" || String(aa.role||"")==="عميل") requirePermission("customerMessage",actor);
+ else requirePermission("customerMessage",actor);
+ assert(data&&data.customerId&&exists(KEYS.customers,data.customerId),"العميل غير موجود.");
+ if(["customer","عميل"].includes(String(aa.role||"").toLowerCase())) assert(String(aa.id)===String(data.customerId),"لا يمكنك إرسال رسالة باسم عميل آخر.");
+ const a=list(KEYS.customerMessages),id=clean(data.id,100)||nextId("MSG-",KEYS.customerMessages,8);
+ const item=Object.assign({},data,{id,updatedAt:now(),createdAt:data.createdAt||now()});
+ const i=a.findIndex(x=>String(idOf(x))===String(id)); if(i>=0)a[i]=item; else a.unshift(item);
+ coreWrite(KEYS.customerMessages,a); audit(i>=0?"تعديل":"إضافة","رسائل العملاء",id,"رسالة من/إلى العميل",actor); return item;
+}
+function saveUser(data,actor){
+ requirePermission("settings",actor); assert(data&&clean(data.name,200),"اسم المستخدم مطلوب."); assert(data&&clean(data.username,120),"اسم المستخدم مطلوب.");
+ const a=list(KEYS.users),id=clean(data.id,80)||nextId("USR-",KEYS.users,6);
+ const dup=a.find(x=>String(x.id)!==String(id)&&String(x.username||"").toLowerCase()===String(data.username).toLowerCase()); assert(!dup,"اسم المستخدم مستخدم بالفعل.");
+ const existing=a.find(x=>String(x.id)===String(id)); const item=Object.assign({},existing||{},data,{id,updatedAt:now(),createdAt:(existing&&existing.createdAt)||data.createdAt||now()});
+ const i=a.findIndex(x=>String(x.id)===String(id)); if(i>=0)a[i]=item; else a.unshift(item); coreWrite(KEYS.users,a); audit(i>=0?"تعديل":"إضافة","المستخدمون",id,"حفظ مستخدم وصلاحيات",actor); return item;
+}
+function setUserStatus(id,status,actor){ requirePermission("settings",actor); const a=list(KEYS.users),i=a.findIndex(x=>String(x.id)===String(id)); assert(i>=0,"المستخدم غير موجود."); a[i]=Object.assign({},a[i],{status,updatedAt:now()}); coreWrite(KEYS.users,a); audit("تعديل","المستخدمون",id,"تغيير حالة المستخدم",actor,{status}); return a[i]; }
+function deleteUser(id,actor){ requirePermission("settings",actor); const a=list(KEYS.users),u=a.find(x=>String(x.id)===String(id)); assert(u,"المستخدم غير موجود."); assert(!(u.role==="مدير النظام"&&u.status==="نشط"&&a.filter(x=>x.role==="مدير النظام"&&x.status==="نشط").length<=1),"لا يمكن حذف آخر مدير نشط."); coreWrite(KEYS.users,a.filter(x=>String(x.id)!==String(id))); audit("حذف","المستخدمون",id,"حذف مستخدم",actor); return true; }
+
 function saveComplaint(data,actor){
  requirePermission("complaint",actor);
  assert(data&&data.customerId&&exists(KEYS.customers,data.customerId),"العميل غير موجود.");
@@ -1598,6 +1702,48 @@ function migrateWorkOrdersToCanonical(){
  });
  if(changed){coreWrite(canonicalKey,canonical);audit("ترحيل","النظام","", "تم دمج أوامر الشغل القديمة في المصدر الموحد","النظام");}
 }
+
+
+function saveNotification(data,actor){
+ requirePermission("notifications",actor);
+ assert(data&&clean(data.title,300),"عنوان الإشعار مطلوب.");
+ assert(data&&clean(data.message,4000),"محتوى الإشعار مطلوب.");
+ const a=list(KEYS.notifications),id=clean(data.id,100)||nextId("NTF-",KEYS.notifications,8);
+ const existing=a.find(x=>String(idOf(x))===String(id));
+ const item=Object.assign({},existing||{},data,{id,updatedAt:now(),createdAt:(existing&&existing.createdAt)||data.createdAt||now()});
+ const i=a.findIndex(x=>String(idOf(x))===id);if(i>=0)a[i]=item;else a.unshift(item);
+ coreWrite(KEYS.notifications,a);audit(i>=0?"تعديل":"إضافة","الإشعارات",id,"حفظ إشعار",actor);return item;
+}
+function updateNotification(id,patch,actor){
+ requirePermission("notifications",actor);const a=list(KEYS.notifications),i=a.findIndex(x=>String(idOf(x))===String(id));assert(i>=0,"الإشعار غير موجود.");
+ a[i]=Object.assign({},a[i],patch||{},{id:a[i].id,updatedAt:now()});coreWrite(KEYS.notifications,a);audit("تعديل","الإشعارات",id,"تحديث حالة الإشعار",actor);return a[i];
+}
+function saveTechnicalLibrary(data,actor){
+ requirePermission("library",actor);assert(data&&clean(data.title,300),"عنوان المرجع مطلوب.");assert(data&&clean(data.content,20000),"محتوى المرجع مطلوب.");
+ const a=list(KEYS.technicalLibrary),id=clean(data.id,100)||nextId("LIB-",KEYS.technicalLibrary,5),existing=a.find(x=>String(idOf(x))===id);
+ const item=Object.assign({},existing||{},data,{id,updatedAt:now(),createdAt:(existing&&existing.createdAt)||data.createdAt||now()});
+ const i=a.findIndex(x=>String(idOf(x))===id);if(i>=0)a[i]=item;else a.unshift(item);coreWrite(KEYS.technicalLibrary,a);audit(i>=0?"تعديل":"إضافة","المكتبة الفنية",id,"حفظ مرجع فني",actor);return item;
+}
+function deleteTechnicalLibrary(id,actor){requirePermission("delete",actor);const a=list(KEYS.technicalLibrary),i=a.findIndex(x=>String(idOf(x))===String(id));assert(i>=0,"المرجع غير موجود.");a.splice(i,1);coreWrite(KEYS.technicalLibrary,a);audit("حذف","المكتبة الفنية",id,"حذف مرجع فني",actor);return true;}
+function saveLoyaltySettings(data,actor){requirePermission("settings",actor);const merged=Object.assign({},settings(),data||{});return saveSettings(merged,actor);}
+function saveNotificationSettings(data,actor){requirePermission("settings",actor);const a=Object.assign({},read(KEYS.notificationSettings,{}),data||{}, {updatedAt:now()});coreWrite(KEYS.notificationSettings,a);audit("تعديل","الإشعارات","","تعديل إعدادات الإشعارات",actor);return a;}
+function saveInventoryTransaction(data,actor){
+ requirePermission("stock",actor);assert(data&&data.itemId&&exists(KEYS.inventory,data.itemId),"الصنف غير موجود.");
+ const type=clean(data.type,100)||"إضافة",qty=Number(data.qty??data.quantity);assert(Number.isFinite(qty)&&qty>0,"الكمية غير صحيحة.");
+ if(["صرف لفني","صرف","استخدام","تركيب","تلف"].includes(type)) return consumeInventory(data.itemId,qty,type,data.requestId||data.workOrderId||data.reference||"",data.notes||"",actor);
+ if(type==="تعديل جرد") return adjustInventoryCount(data.itemId,Number(data.actualQuantity),data.notes||"",actor);
+ return addInventoryTransactionInternal(data.itemId,qty,type,data.reference||data.requestId||"",data.notes||"",actor);
+}
+function adjustInventoryCount(id,actual,notes,actor){
+ requirePermission("stock",actor);const a=list(KEYS.inventory),i=a.findIndex(x=>String(idOf(x))===String(id));assert(i>=0,"الصنف غير موجود.");const n=Number(actual);assert(Number.isFinite(n)&&n>=0,"الرصيد الفعلي غير صحيح.");
+ const before=Number(a[i].quantity||0),diff=n-before;if(diff===0)return a[i];
+ a[i]=Object.assign({},a[i],{quantity:n,available:Math.max(0,n-Number(a[i].reservedQuantity||0)),updatedAt:now()});coreWrite(KEYS.inventory,a);
+ const tr=list(KEYS.inventoryTransactions);tr.unshift({id:nextId("TR-",KEYS.inventoryTransactions,7),itemId:id,itemName:a[i].name||"",type:"تعديل جرد",qty:Math.abs(diff),difference:diff,before,after:n,notes:notes||"",userId:actorInfo(actor).id||"",user:actorInfo(actor).name||"النظام",date:now()});coreWrite(KEYS.inventoryTransactions,tr);audit("تعديل جرد","المخزون",id,"تسجيل فرق الجرد",actor);return a[i];
+}
+function deletePurchaseOrder(id,actor){requirePermission("delete",actor);const x=find(KEYS.purchaseOrders,id);assert(x,"طلب الشراء غير موجود.");assert(!list(KEYS.purchaseReceipts).some(r=>String(r.purchaseOrderId)===String(id)),"لا يمكن حذف طلب شراء بدأ استلامه؛ استخدم الأرشفة أو الإلغاء.");const a=list(KEYS.purchaseOrders).filter(v=>String(idOf(v))!==String(id));coreWrite(KEYS.purchaseOrders,a);audit("حذف","طلبات الشراء",id,"حذف طلب شراء",actor);return true;}
+function saveAuditManual(data,actor){requirePermission("audit",actor);assert(data&&clean(data.description,2000),"وصف العملية مطلوب.");return audit(data.action||"أخرى",data.module||"النظام",data.recordId||"",data.description,actor,{result:"success"});}
+function exportBackup(actor){requirePermission("settings",actor);const data={exportedAt:now(),version:CORE_VERSION,settings:settings(),data:{}};Object.keys(KEYS).forEach(k=>{const key=KEYS[k];data.data[key]=read(key,Array.isArray(read(key,null))?[]:{});});audit("تصدير نسخة احتياطية","الإعدادات","","تصدير نسخة احتياطية",actor);return data;}
+function importBackup(data,actor){requirePermission("settings",actor);assert(data&&typeof data==="object","ملف النسخة الاحتياطية غير صالح.");if(data.settings)saveSettings(data.settings,actor);if(data.data&&typeof data.data==="object"){Object.entries(data.data).forEach(([key,value])=>{if(Object.values(KEYS).includes(key))coreWrite(key,clone(value));});}syncRelations();const result=validateIntegrity();audit("استيراد نسخة احتياطية","الإعدادات","",result.ok?"تم استيراد نسخة احتياطية":"تم الاستيراد مع وجود مشاكل في العلاقات",actor,{result:result.ok?"success":"warning"});return result;}
 
 function moduleContract(){
  return {
@@ -1666,7 +1812,7 @@ findPossibleCustomerMatches,findCustomerRelationshipSuggestions,customerRelation
  requestPayments,requestWarranties,technicianVisits,invoiceTotal,paymentsForInvoice,invoicePaid,invoiceRefunded,
  invoiceBalance,inventoryItem,inventoryQuantity,addInventoryTransaction,consumeInventory,getOrCreateLoyalty,
  loyaltyPoints,changeLoyalty,audit,syncRelations,validateIntegrity,validateCustomerDevice,validateRequestRefs,
- saveRequest,updateRequestStatus,deleteRequest,addVisit,updateVisit,cancelVisit,requestWorkOrder,customerFinancialSummary,customer360,systemSummary,moduleContract,mutationPolicy,runIntegrityCheck,regressionSelfTest,log,hasPermission,requirePermission,requireAnyPermission,saveCustomer,archiveCustomer,deleteCustomer,saveDevice,findDuplicateDevice,findDeviceByWorkshopSerial,findDeviceByLegacySerial,deviceFingerprint,isStaffActor,device360,deviceWorkOrders,deviceVisits,deviceInvoices,deviceWarranties,deviceContracts,archiveDevice,deleteDevice,deriveDeviceCondition,syncDeviceConditions,deviceTypeList,deviceSubtypeOptions,saveDeviceType,addDeviceAttachment,deviceAttachments,deviceHistory,appendDeviceHistory,setDeviceQr,getDeviceQr,setDeviceKnowledge,getDeviceKnowledge,deviceLifecycle,deviceSearch,saveTechnician,archiveTechnician,saveSupplier,savePurchaseOrder,approvePurchaseOrder,receivePurchaseOrder,saveInventoryItem,saveInvoice,savePayment,cancelPayment,refundPayment,saveApproval,saveDiagnosis,assignTechnician,saveWarranty,saveContract,saveComplaint,saveRating,reserveInventory,releaseInventoryReservation,returnPurchase,decrementInventoryForPurchaseReturn,archiveRating
+ saveRequest,updateRequestStatus,deleteRequest,addVisit,updateVisit,cancelVisit,requestWorkOrder,customerFinancialSummary,customer360,systemSummary,moduleContract,mutationPolicy,runIntegrityCheck,regressionSelfTest,log,hasPermission,requirePermission,requireAnyPermission,legacyList,legacyWrite,legacyRemove,canonicalKey,saveCustomer,archiveCustomer,deleteCustomer,saveDevice,findDuplicateDevice,findDeviceByWorkshopSerial,findDeviceByLegacySerial,deviceFingerprint,isStaffActor,device360,deviceWorkOrders,deviceVisits,deviceInvoices,deviceWarranties,deviceContracts,archiveDevice,deleteDevice,deriveDeviceCondition,syncDeviceConditions,deviceTypeList,deviceSubtypeOptions,saveDeviceType,addDeviceAttachment,deviceAttachments,deviceHistory,appendDeviceHistory,setDeviceQr,getDeviceQr,setDeviceKnowledge,getDeviceKnowledge,deviceLifecycle,deviceSearch,saveTechnician,archiveTechnician,saveSupplier,saveRoute,deleteRoute,savePurchaseOrder,approvePurchaseOrder,receivePurchaseOrder,saveInventoryItem,archiveInventoryItem,deleteInventoryItem,saveInvoice,savePayment,cancelPayment,refundPayment,saveApproval,saveDiagnosis,assignTechnician,saveWarranty,saveContract,saveComplaint,saveRating,reserveInventory,releaseInventoryReservation,returnPurchase,decrementInventoryForPurchaseReturn,archiveRating,saveNotification,updateNotification,saveCustomerMessage,saveUser,setUserStatus,deleteUser,saveTechnicalLibrary,deleteTechnicalLibrary,saveLoyaltySettings,saveNotificationSettings,saveInventoryTransaction,adjustInventoryCount,deletePurchaseOrder,saveAuditManual,exportBackup,importBackup
 };
 try{
  migrateWorkOrdersToCanonical();
