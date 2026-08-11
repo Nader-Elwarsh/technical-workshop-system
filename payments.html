@@ -18,6 +18,8 @@ button{border:0;border-radius:10px;padding:11px 15px;font:inherit;cursor:pointer
 .back{display:block;text-align:center;background:#333;color:#fff;text-decoration:none;padding:14px;border-radius:10px}.hidden{display:none!important}
 @media(max-width:700px){.grid,.filters{grid-template-columns:1fr}.full{grid-column:auto}.stats{grid-template-columns:repeat(2,1fr)}.actions{flex-direction:column}}
 </style>
+
+<script src="app-core.js?v=4.7.0-unified"></script><script src="twms-ui.js?v=4.7.0"></script><script>window.TWMS_ACTOR=window.TWMS_ACTOR||{id:"LOCAL-ADMIN",name:"المدير",role:"admin"};window.C=window.WorkshopCore;</script>
 </head>
 <body>
 <header><h1>💳 المدفوعات والتحصيل</h1><p>الورشة الفنية لصيانة الأجهزة المنزلية والتكييف</p></header>
@@ -59,12 +61,13 @@ button{border:0;border-radius:10px;padding:11px 15px;font:inherit;cursor:pointer
 <a class="back" href="index.html">🏠 العودة إلى الرئيسية</a>
 </div>
 
+
 <script>
 const KEY="payments",CUSTOMERS="customers",INV="invoices",REQ="maintenanceRequests";
 let editing=null;
 const $=id=>document.getElementById(id);
-const arr=k=>{try{let x=JSON.parse(localStorage.getItem(k)||"[]");return Array.isArray(x)?x:[]}catch(e){return[]}};
-const save=(k,v)=>localStorage.setItem(k,JSON.stringify(v));
+const arr=k=>window.WorkshopCore.legacyList(k);
+const save=(k,v)=>window.WorkshopCore.legacyWrite(k,v,"المستخدم الحالي");
 const esc=v=>String(v??"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&#039;");
 const today=()=>new Date().toISOString().slice(0,10);
 function notice(t,b=false){$("notice").textContent=t;$("notice").className="notice "+(b?"error":"good");$("notice").style.display="block";setTimeout(()=>$("notice").style.display="none",3200)}
@@ -87,14 +90,14 @@ function savePayment(){
  let c=$("customer").value,a=Number($("amount").value||0);if(!c){notice("اختر العميل",true);return}if(a<=0){notice("أدخل مبلغًا صحيحًا",true);return}
  let all=arr(KEY),old=editing?all.find(x=>String(x.id)===String(editing)):null,cu=arr(CUSTOMERS).find(x=>String(cid(x))===String(c)),now=new Date().toISOString();
  let p={id:editing||nextId(),customerId:c,customerName:cname(cu||{}),invoiceId:$("invoice").value,requestId:$("request").value,type:$("type").value,amount:a,method:$("method").value,date:$("date").value||today(),reference:$("reference").value.trim(),status:$("status").value,notes:$("notes").value.trim(),createdAt:old?.createdAt||now,updatedAt:now};
- let i=all.findIndex(x=>String(x.id)===String(p.id));if(i>=0)all[i]=p;else all.unshift(p);save(KEY,all);notice(editing?"تم تعديل الدفعة":"تم تسجيل الدفعة");reset();renderAll()
+ let i=all.findIndex(x=>String(x.id)===String(p.id));if(i>=0)all[i]=p;else all.unshift(p);C.savePayment(p,window.TWMS_ACTOR);notice(editing?"تم تعديل الدفعة":"تم تسجيل الدفعة"); if(window.TWMSUI&&TWMSUI.afterSave)TWMSUI.afterSave(editing?"تم تعديل الدفعة":"تم تسجيل الدفعة", "record.html?type=payments&id="+encodeURIComponent(p.id)); else {reset();renderAll()}
 }
 function editPayment(id){
  let p=arr(KEY).find(x=>String(x.id)===String(id));if(!p)return;if(p.status==="ملغاة"){notice("لا يمكن تعديل عملية ملغاة",true);return}
  editing=p.id;$("formTitle").textContent="✏️ تعديل الدفعة";$("save").textContent="💾 حفظ التعديل";$("cancel").classList.remove("hidden");$("id").value=p.id;loadCustomers(p.customerId);$("invoice").value=p.invoiceId||"";$("request").value=p.requestId||"";$("type").value=p.type||"دفعة";$("amount").value=p.amount||0;$("method").value=p.method||"نقدي";$("date").value=p.date||today();$("reference").value=p.reference||"";$("status").value=p.status||"مؤكدة";$("notes").value=p.notes||"";scrollTo({top:0,behavior:"smooth"})
 }
 function cancelPayment(id){
- let all=arr(KEY),p=all.find(x=>String(x.id)===String(id));if(!p)return;if(!confirm("إلغاء عملية الدفع؟"))return;p.status="ملغاة";p.updatedAt=new Date().toISOString();save(KEY,all);renderAll();notice("تم إلغاء العملية")
+ let p=arr(KEY).find(x=>String(x.id)===String(id));if(!p)return;if(!confirm("إلغاء عملية الدفع؟"))return;C.cancelPayment(id,"إلغاء من شاشة المدفوعات",window.TWMS_ACTOR);renderAll();notice("تم إلغاء العملية")
 }
 function renderList(){
  let q=$("search").value.trim().toLowerCase(),m=$("filterMethod").value,s=$("filterStatus").value,a=arr(KEY).filter(x=>[x.id,x.customerName,x.reference,x.invoiceId,x.requestId].join(" ").toLowerCase().includes(q)&&(!m||x.method===m)&&(!s||x.status===s));
@@ -114,5 +117,6 @@ $("customer").onchange=()=>{loadInvoices();loadRequests()};$("save").onclick=sav
 $("list").onclick=e=>{let b=e.target.closest("button[data-a]");if(!b)return;if(b.dataset.a==="edit")editPayment(b.dataset.id);else cancelPayment(b.dataset.id)};
 reset();renderAll();
 </script>
+
 </body>
 </html>
