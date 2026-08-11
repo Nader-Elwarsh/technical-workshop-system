@@ -89,6 +89,8 @@ hr{border:0;border-top:1px solid #e4e8ef;margin:16px 0}
 .identity-match .candidate .signals{font-size:12px;opacity:.9;margin-top:5px}.identity-match button{margin-top:8px}
 .merge-note{font-size:12px;color:#d9e2ff;margin-top:6px}
 </style>
+
+<script src="app-core.js?v=4.7.0-unified"></script><script src="twms-ui.js?v=4.7.0"></script><script>window.TWMS_ACTOR=window.TWMS_ACTOR||{id:"LOCAL-ADMIN",name:"المدير",role:"admin"};window.C=window.WorkshopCore;</script>
 </head>
 <body>
 <header>
@@ -223,7 +225,8 @@ customerManagementCards is selected-customer-only UI.
 </div>
 </div>
 
-<script src="app-core.js?v=3.13.0-customer-device-integrated-fix1"></script>
+
+
 <script>
 (function(){
 "use strict";
@@ -250,7 +253,7 @@ function clearSaveFeedback(){
 function show(msg,error=false){$("notice").textContent=msg;$("notice").className="notice "+(error?"bad":"good");$("notice").style.display="block";clearTimeout(show.t);show.t=setTimeout(()=>$("notice").style.display="none",3500)}
 function requireCore(){
  if(!C||typeof C.saveCustomer!=="function")throw new Error("Core غير متاح.");
- if(String(C.VERSION)!=="3.13.0-customer-device-integrated")throw new Error("هذه الوحدة تعتمد Core V3.13.0-customer-device-integrated؛ لا تُشغّلها على نسخة Core أقدم أو مختلفة.");
+ if(String(C.VERSION)!=="4.8.0-unified")throw new Error("هذه الوحدة تعتمد Core V4.8.0-unified؛ لا تُشغّلها على نسخة Core أقدم أو مختلفة.");
 }
 function customers(){
  try{
@@ -655,7 +658,10 @@ function renderDetailDevices(dev){
  const el=$("deviceList"); if(!el)return;
  el.innerHTML=dev.length?dev.map(d=>{const brand=d.brand==="أخرى"?d.brandCustom:d.brand;return `<div class="link-item"><span><b>${esc(C.idOf(d))} — ${esc(d.type||"")}</b><br><span class="mini">${esc(d.subtype||"")} · ${esc(brand||"")} · رقم الورشة: ${esc(d.workshopSerial||C.idOf(d))} · الحالة: ${esc(d.condition||d.currentCondition||"يعمل")}</span></span><span class="badge bb"><button type="button" class="blue" style="padding:6px 9px" onclick="location.href='devices.html#device=${encodeURIComponent(C.idOf(d))}'">👁️ ملف الجهاز</button></span></div>`}).join(""):'<div class="detail-empty">لا يوجد جهاز مسجل لهذا العميل. يمكنك تسجيل أول جهاز الآن.</div>';
 }
+let deviceCustomerSaveBusy=false;
 function saveDeviceForCustomer(customerId){
+ if(deviceCustomerSaveBusy)return;
+ deviceCustomerSaveBusy=true;
  try{
   requireCore();
   const type=$("devType").value.trim(),subtype=$("devSubtype").value.trim(),brand=$("devBrand").value.trim(),brandCustom=$("devBrandCustom").value.trim();
@@ -670,7 +676,7 @@ function saveDeviceForCustomer(customerId){
  }catch(e){
   if(e&&e.code==="DUPLICATE_DEVICE"&&e.deviceId){const ok=confirm("هذا الجهاز يبدو مسجلًا بالفعل في ملف العميل. هل تريد فتح الجهاز الموجود بدل إنشاء نسخة جديدة؟");if(ok)location.href='devices.html#device='+encodeURIComponent(e.deviceId);else show(e.message,true);return}
   show(e.message||"تعذر تسجيل الجهاز.",true);
- }
+ } finally { deviceCustomerSaveBusy=false; }
 }
 
 function refreshAddressSelectors(){
