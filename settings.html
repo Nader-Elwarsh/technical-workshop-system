@@ -16,6 +16,8 @@ button{border:0;border-radius:10px;padding:11px 15px;font:inherit;cursor:pointer
 .back{display:block;text-align:center;background:#333;color:#fff;text-decoration:none;padding:14px;border-radius:10px}.empty{text-align:center;color:#777;padding:20px}
 @media(max-width:700px){.grid{grid-template-columns:1fr}.full{grid-column:auto}.actions{flex-direction:column}.row{display:block}}
 </style>
+
+<script src="app-core.js?v=4.7.0-unified"></script><script src="twms-ui.js?v=4.7.0"></script><script>window.TWMS_ACTOR=window.TWMS_ACTOR||{id:"LOCAL-ADMIN",name:"المدير",role:"admin"};window.C=window.WorkshopCore;</script>
 </head>
 <body>
 <header><h1>⚙️ إعدادات النظام</h1><p>الإعدادات المركزية للورشة الفنية</p></header>
@@ -111,6 +113,7 @@ button{border:0;border-radius:10px;padding:11px 15px;font:inherit;cursor:pointer
 <a class="back" href="index.html">🏠 العودة إلى الرئيسية</a>
 </div>
 
+
 <script>
 const KEY="systemSettings";
 const defaults={
@@ -124,8 +127,8 @@ adminName:"مدير النظام",sessionMinutes:60,audit:"on",language:"ar"
 };
 const $=id=>document.getElementById(id);
 const esc=v=>String(v??"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&#039;");
-function get(){try{return {...defaults,...JSON.parse(localStorage.getItem(KEY)||"{}")}}catch(e){return {...defaults}}}
-function save(v){localStorage.setItem(KEY,JSON.stringify(v))}
+function get(){try{return {...defaults,...window.WorkshopCore.read(KEY,{})}}catch(e){return {...defaults}}}
+function save(v){return window.WorkshopCore.saveSettings(v,window.TWMS_ACTOR)}
 function notice(t,b=false){$("notice").textContent=t;$("notice").className="notice "+(b?"error":"good");$("notice").style.display="block";setTimeout(()=>$("notice").style.display="none",3000)}
 function fill(){
  let s=get();Object.keys(defaults).forEach(k=>{if($(k))$(k).value=s[k]});
@@ -137,15 +140,14 @@ function renderStatus(){
  let s=get();$("status").innerHTML='<div class="row"><b>اسم الورشة</b><span>'+esc(s.workshopName)+'</span></div><div class="row"><b>العملة</b><span>'+esc(s.currency)+'</span></div><div class="row"><b>قيمة النقطة</b><span>'+Number(s.pointValue).toFixed(2)+' '+esc(s.currency)+'</span></div><div class="row"><b>VIP</b><span>'+esc(s.vipPoints)+' نقطة</span></div><div class="row"><b>سجل المراجعة</b><span class="badge '+(s.audit==="on"?"on":"off")+'">'+(s.audit==="on"?"مفعل":"موقوف")+'</span></div><div class="row"><b>آخر تحديث</b><span>'+esc(s.updatedAt||"لم يتم الحفظ بعد")+'</span></div>'
 }
 function exportData(){
- let data={exportedAt:new Date().toISOString(),version:"1.0",settings:get()};
- Object.keys(localStorage).forEach(k=>{if(k!==KEY)data.data=data.data||{},data.data[k]=localStorage.getItem(k)});
- let blob=new Blob([JSON.stringify(data,null,2)],{type:"application/json"}),url=URL.createObjectURL(blob),a=document.createElement("a");a.href=url;a.download="workshop-backup-"+new Date().toISOString().slice(0,10)+".json";a.click();URL.revokeObjectURL(url);notice("تم إنشاء النسخة الاحتياطية")
+ let data=window.WorkshopCore.exportBackup(window.TWMS_ACTOR);let blob=new Blob([JSON.stringify(data,null,2)],{type:"application/json"}),url=URL.createObjectURL(blob),a=document.createElement("a");a.href=url;a.download="workshop-backup-"+new Date().toISOString().slice(0,10)+".json";a.click();URL.revokeObjectURL(url);notice("تم إنشاء النسخة الاحتياطية")
 }
 $("importBtn").onclick=()=>$("file").click();
 $("file").onchange=async e=>{
- let f=e.target.files[0];if(!f)return;try{let d=JSON.parse(await f.text());if(d.settings)save({...defaults,...d.settings});if(d.data)Object.entries(d.data).forEach(([k,v])=>localStorage.setItem(k,v));fill();notice("تم استيراد النسخة الاحتياطية")}catch(err){notice("ملف النسخة الاحتياطية غير صالح",true)}e.target.value=""
+ let f=e.target.files[0];if(!f)return;try{let d=JSON.parse(await f.text());let r=window.WorkshopCore.importBackup(d,window.TWMS_ACTOR);fill();notice(r.ok?"تم استيراد النسخة الاحتياطية":"تم الاستيراد مع وجود مشاكل في العلاقات",!r.ok)}catch(err){notice(err.message||"ملف النسخة الاحتياطية غير صالح",true)}e.target.value=""
 };
 $("reset").onclick=()=>{if(!confirm("إعادة إعدادات النظام للوضع الافتراضي؟"))return;save({...defaults,updatedAt:new Date().toISOString()});fill();notice("تمت إعادة الإعدادات الافتراضية")};
 $("save").onclick=saveSettings;fill();
 </script>
+
 </body></html>
