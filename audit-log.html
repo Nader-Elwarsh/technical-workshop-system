@@ -19,6 +19,8 @@ table{width:100%;border-collapse:collapse}th,td{padding:9px;border-bottom:1px so
 .back{display:block;text-align:center;background:#333;color:#fff;text-decoration:none;padding:14px;border-radius:10px}
 @media(max-width:700px){.grid,.filters{grid-template-columns:1fr}.full{grid-column:auto}.stats{grid-template-columns:repeat(2,1fr)}.actions{flex-direction:column}}
 </style>
+
+<script src="app-core.js?v=4.7.0-unified"></script><script src="twms-ui.js?v=4.7.0"></script><script>window.TWMS_ACTOR=window.TWMS_ACTOR||{id:"LOCAL-ADMIN",name:"المدير",role:"admin"};window.C=window.WorkshopCore;</script>
 </head>
 <body>
 <header><h1>🔐 سجل النظام والمراجعة</h1><p>Audit Log — متابعة العمليات والتغييرات داخل النظام</p></header>
@@ -61,17 +63,18 @@ table{width:100%;border-collapse:collapse}th,td{padding:9px;border-bottom:1px so
 <a class="back" href="index.html">🏠 العودة إلى الرئيسية</a>
 </div>
 
+
 <script>
 const KEY="auditLog";const $=id=>document.getElementById(id);
-const arr=k=>{try{let x=JSON.parse(localStorage.getItem(k)||"[]");return Array.isArray(x)?x:[]}catch(e){return[]}};
-const save=(k,v)=>localStorage.setItem(k,JSON.stringify(v));
+const arr=k=>window.WorkshopCore.legacyList(k);
+const save=(k,v)=>window.WorkshopCore.legacyWrite(k,v,"المستخدم الحالي");
 const esc=v=>String(v??"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&#039;");
 const today=()=>new Date().toISOString().slice(0,10);
 function notice(t,b=false){$("notice").textContent=t;$("notice").className="notice "+(b?"error":"good");$("notice").style.display="block";setTimeout(()=>$("notice").style.display="none",3000)}
 function nextId(){let n=0;arr(KEY).forEach(x=>{let m=String(x.id||"").match(/^AUD-(\d+)$/);if(m)n=Math.max(n,+m[1])});return"AUD-"+String(n+1).padStart(6,"0")}
 function saveLog(){
  let u=$("user").value.trim()||"مدير النظام",desc=$("description").value.trim();if(!desc){notice("اكتب وصف العملية",true);return}
- let a=arr(KEY);a.unshift({id:nextId(),user:u,module:$("module").value,action:$("action").value,recordId:$("recordId").value.trim(),description:desc,date:new Date().toISOString(),source:"manual"});save(KEY,a);
+ C.saveAuditManual({module:$("module").value,action:$("action").value,recordId:$("recordId").value.trim(),description:desc},window.TWMS_ACTOR);
  $("description").value="";$("recordId").value="";notice("تم تسجيل العملية");renderAll()
 }
 function seedAutoLogs(){
@@ -79,7 +82,7 @@ function seedAutoLogs(){
  let a=arr(KEY),known=new Set(a.map(x=>x.sourceKey)),items=[];
  const sources=[["customers","العملاء"],["visits","الزيارات"],["routes","المسارات"],["payments","المدفوعات"],["loyaltyTransactions","الولاء"],["technicalLibrary","المكتبة الفنية"],["purchaseOrders","طلبات الشراء"]];
  sources.forEach(([key,module])=>arr(key).slice(0,30).forEach(x=>{let k=key+":"+String(x.id||JSON.stringify(x).slice(0,50));if(!known.has(k))items.push({id:nextId(),user:"النظام",module,action:"مزامنة",recordId:x.id||"",description:"سجل موجود في الوحدة وتمت مزامنته مع سجل المراجعة.",date:x.updatedAt||x.createdAt||new Date().toISOString(),source:"auto",sourceKey:k})}));
- if(items.length){save(KEY,items.concat(a))}
+ if(items.length){items.forEach(x=>C.saveAuditManual({module:x.module,action:x.action,recordId:x.recordId,description:x.description},"النظام"))}
 }
 function details(id){let x=arr(KEY).find(a=>String(a.id)===String(id));if(!x)return;$("details").innerHTML='<div class="item"><h3>🔐 '+esc(x.id)+'</h3><p><b>المستخدم:</b> '+esc(x.user)+'<br><b>الوحدة:</b> '+esc(x.module)+'<br><b>العملية:</b> '+esc(x.action)+'<br><b>معرّف السجل:</b> '+esc(x.recordId||"غير موجود")+'<br><b>التاريخ:</b> '+esc(x.date)+'</p><div class="code">'+esc(x.description)+'</div></div>';$("details").scrollIntoView({behavior:"smooth"})}
 function renderList(){
@@ -96,4 +99,5 @@ $("save").onclick=saveLog;$("search").oninput=renderList;$("filterModule").oncha
 $("list").onclick=e=>{let b=e.target.closest("button[data-id]");if(b)details(b.dataset.id)};
 renderAll();
 </script>
+
 </body></html>
