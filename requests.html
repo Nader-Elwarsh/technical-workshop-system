@@ -25,6 +25,8 @@ table{width:100%;border-collapse:collapse}th,td{padding:9px;border-bottom:1px so
 .modal{position:fixed;inset:0;background:rgba(0,0,0,.55);display:none;align-items:flex-start;justify-content:center;padding:30px 12px;overflow:auto;z-index:20}.modal.open{display:flex}.modalbox{background:#fff;border-radius:16px;width:min(900px,100%);padding:18px}
 @media(max-width:700px){.grid,.subgrid,.filters{grid-template-columns:1fr}.full{grid-column:auto}.wrap{padding:10px}h1{font-size:24px}}
 </style>
+
+<script src="app-core.js?v=4.7.0-unified"></script><script src="twms-ui.js?v=4.7.0"></script><script>window.TWMS_ACTOR=window.TWMS_ACTOR||{id:"LOCAL-ADMIN",name:"المدير",role:"admin"};window.C=window.WorkshopCore;</script>
 </head>
 <body>
 <header><div class="wrap">
@@ -98,11 +100,7 @@ table{width:100%;border-collapse:collapse}th,td{padding:9px;border-bottom:1px so
 <div><label>الإجراءات المنفذة</label><textarea id="actionsDone" placeholder="ما تم فحصه أو تنفيذه"></textarea></div>
 <div><label>القطع المطلوبة</label><textarea id="partsRequired" placeholder="القطع المطلوبة قبل الاعتماد"></textarea></div>
 <div><label>التكلفة التقديرية</label><input id="estimatedCost" type="number" min="0" step="0.01"></div>
-<div>
-<label>صور قبل الإصلاح</label>
-<input id="beforePhotos" type="file" accept="image/*" multiple>
-<div id="beforePhotosPreview" class="info muted">لم يتم اختيار صور.</div>
-</div>
+<div><label>صور قبل الإصلاح</label><input id="beforePhotos" type="text" placeholder="روابط/معرفات الملفات لاحقًا"></div>
 <div><label>ملاحظات فنية</label><textarea id="technicalNotes"></textarea></div>
 </div>
 </div>
@@ -171,7 +169,7 @@ table{width:100%;border-collapse:collapse}th,td{padding:9px;border-bottom:1px so
 </div>
 </div>
 
-<script src="app-core.js"></script>
+
 <script>
 (function(){
 "use strict";
@@ -179,7 +177,7 @@ const C=window.WorkshopCore;
 if(!C){document.body.innerHTML='<div style="padding:30px;font-family:Arial">❌ app-core.js غير محمل.</div>';return;}
 
 const $=id=>document.getElementById(id);
-let editingId=null;let beforePhotoItems=[];
+let editingId=null;
 
 function esc(v){return String(v??"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&#039;")}
 function show(msg,type="ok"){const n=$("notice");n.textContent=msg;n.className="notice "+type;window.scrollTo({top:0,behavior:"smooth"});setTimeout(()=>{n.className="notice"},5000)}
@@ -189,11 +187,7 @@ function displayDate(v){if(!v)return"غير محدد";const d=new Date(v);return
 function setOptions(id,arr,placeholder){
  const el=$(id);el.innerHTML=(placeholder!==undefined?'<option value="">'+esc(placeholder)+'</option>':"")+arr.map(x=>'<option value="'+esc(x)+'">'+esc(x)+'</option>').join("");
 }
-function customerName(value){
- const c=(value&&typeof value==="object")?value:C.findCustomer(value);
- if(!c)return "عميل غير معروف";
- return c.name||c.fullName||c.customerName||c.nickname||c.nickName||c.clientName||c.customer_name||c.full_name||("عميل "+C.idOf(c));
-}
+function customerName(id){const c=C.findCustomer(id);return c?C.customerName(c):"غير معروف"}
 function deviceName(id){const d=C.findDevice(id);return d?(d.name||d.deviceName||[d.type,d.brand,d.model].filter(Boolean).join(" ")||id):"غير معروف"}
 function technicianName(id){const t=C.findTechnician(id);return t?C.technicianName(t):"غير مسند"}
 
@@ -210,7 +204,7 @@ function loadCustomerContext(){
  $("deviceId").innerHTML='<option value="">اختر الجهاز</option>'+devices.map(d=>'<option value="'+esc(C.idOf(d))+'">'+esc(d.name||d.deviceName||[d.type,d.brand,d.model].filter(Boolean).join(" ")||"جهاز")+' — '+esc(C.idOf(d))+'</option>').join("");
  const address=c.address||(c.addresses&&c.addresses[0]&&[c.addresses[0].governorate,c.addresses[0].center,c.addresses[0].city,c.addresses[0].street].filter(Boolean).join(" - "))||"";
  $("customerInfo").innerHTML='<div class="info"><b>👤 '+esc(customerName(cid))+'</b> — '+esc(cid)+'<br>📞 '+esc(c.phone||c.mobile||"غير مسجل")+'<br>📍 '+esc(address||"العنوان غير مسجل")+'<br>📱 عدد أجهزة العميل: '+devices.length+'</div>';
- if(address)$("address").value=address; else $("address").value="";
+ if(address&&!val("address"))$("address").value=address;
 }
 function loadTechnicians(selected){
  const ts=C.list(C.KEYS.technicians);
@@ -229,45 +223,9 @@ function initLists(){
  loadCustomers();loadTechnicians();
  $("priority").value="عادية";$("status").value="جديد";
 }
-
-function renderBeforePhotosPreview(){
- const box=$("beforePhotosPreview");if(!box)return;
- if(!beforePhotoItems.length){box.textContent="لم يتم اختيار صور.";return;}
- box.innerHTML=beforePhotoItems.map((p,i)=>'<div style="display:flex;gap:8px;align-items:center;margin:6px 0"><img src="'+esc(p.dataUrl)+'" alt="" style="width:58px;height:58px;object-fit:cover;border-radius:8px;border:1px solid #ddd"><span style="flex:1">'+esc(p.name||("صورة "+(i+1)))+'</span><button type="button" class="danger" data-remove-photo="'+i+'">حذف</button></div>').join("");
-}
-function compressImage(file){
- return new Promise((resolve,reject)=>{
-  if(!file.type.startsWith("image/")){reject(new Error("الملف ليس صورة."));return;}
-  const reader=new FileReader();
-  reader.onerror=()=>reject(new Error("تعذر قراءة الصورة."));
-  reader.onload=()=>{
-   const img=new Image();
-   img.onerror=()=>reject(new Error("تعذر معالجة الصورة."));
-   img.onload=()=>{
-    const max=1280,scale=Math.min(1,max/Math.max(img.width,img.height));
-    const canvas=document.createElement("canvas");
-    canvas.width=Math.max(1,Math.round(img.width*scale));canvas.height=Math.max(1,Math.round(img.height*scale));
-    const ctx=canvas.getContext("2d");ctx.drawImage(img,0,0,canvas.width,canvas.height);
-    resolve({name:file.name,dataUrl:canvas.toDataURL("image/jpeg",0.78)});
-   };
-   img.src=reader.result;
-  };
-  reader.readAsDataURL(file);
- });
-}
-async function handleBeforePhotos(files){
- const chosen=Array.from(files||[]);
- if(chosen.length>6)throw new Error("الحد الأقصى 6 صور قبل الإصلاح.");
- const totalBytes=chosen.reduce((n,f)=>n+f.size,0);
- if(totalBytes>20*1024*1024)throw new Error("حجم الصور الأصلي كبير جدًا. اختر صورًا أقل أو أصغر.");
- const items=[];
- for(const f of chosen)items.push(await compressImage(f));
- beforePhotoItems=items;renderBeforePhotosPreview();
-}
-
 function resetForm(){
  editingId=null;$("formTitle").textContent="➕ إنشاء أمر شغل";$("saveBtn").textContent="💾 حفظ أمر الشغل";$("cancelBtn").classList.add("hidden");
- ["customerId","deviceId","type","source","priority","technicianId","scheduledAt","address","problem","diagnosis","actionsDone","partsRequired","estimatedCost","technicalNotes","approvalStatus","approvalAt","approvalNotes","status","notes"].forEach(id=>{if($(id))$(id).value=""});beforePhotoItems=[];if($("beforePhotos"))$("beforePhotos").value="";renderBeforePhotosPreview();
+ ["customerId","deviceId","type","source","priority","technicianId","scheduledAt","address","problem","diagnosis","actionsDone","partsRequired","estimatedCost","beforePhotos","technicalNotes","approvalStatus","approvalAt","approvalNotes","status","notes"].forEach(id=>{if($(id))$(id).value=""});
  $("deviceId").disabled=true;$("customerInfo").innerHTML="";$("approvalStatus").value="غير مطلوبة";$("priority").value="عادية";$("status").value="جديد";
 }
 function validateForm(){
@@ -296,19 +254,17 @@ function buildData(){
   address:val("address"),problem:val("problem"),faultDescription:val("problem"),
   diagnosis:val("diagnosis"),cause:val("diagnosis"),actionsDone:val("actionsDone"),
   partsRequired:val("partsRequired"),estimatedCost:Number(val("estimatedCost")||0),
-  beforePhotos:beforePhotoItems.slice(),technicalNotes:val("technicalNotes"),
+  beforePhotos:val("beforePhotos"),technicalNotes:val("technicalNotes"),
   approvalStatus:val("approvalStatus"),approvalAt:localDate($("approvalAt").value),
   approvalNotes:val("approvalNotes"),notes:val("notes")
  };
 }
 function save(){
  try{
-  const integrityCheck=C.validateIntegrity();
-  if(!integrityCheck.ok) throw new Error("توجد بيانات مترابطة غير سليمة. أصلح سلامة البيانات أولًا قبل إنشاء أمر شغل جديد.");
   validateForm();
-  const item=C.saveRequest(buildData(),"مدير/مستخدم الشاشة");
+  const item=C.saveRequest(buildData(),ACTOR);
   show(editingId?"تم تحديث أمر الشغل "+item.id:"تم إنشاء أمر الشغل "+item.id);
-  resetForm();render();integrity();
+  if(window.TWMSUI&&TWMSUI.afterSave)TWMSUI.afterSave(editingId?"تم تحديث أمر الشغل":"تم إنشاء أمر الشغل", "record.html?type=requests&id="+encodeURIComponent(item.id)); else {resetForm();render();integrity();}
  }catch(e){console.error(e);show(e.message||"تعذر الحفظ.","err")}
 }
 function edit(id){
@@ -320,10 +276,7 @@ function edit(id){
  $("scheduledAt").value=r.scheduledAt?new Date(r.scheduledAt).toISOString().slice(0,16):(r.visitDate?new Date(r.visitDate).toISOString().slice(0,16):"");
  $("address").value=r.address||"";$("problem").value=r.problem||r.faultDescription||"";$("diagnosis").value=r.diagnosis||r.cause||"";
  $("actionsDone").value=r.actionsDone||"";$("partsRequired").value=r.partsRequired||"";$("estimatedCost").value=r.estimatedCost||"";
- beforePhotoItems=Array.isArray(r.beforePhotos)?r.beforePhotos.slice():[];
- renderBeforePhotosPreview();
- $("beforePhotos").value="";
- $("technicalNotes").value=r.technicalNotes||"";$("approvalStatus").value=r.approvalStatus||"غير مطلوبة";
+ $("beforePhotos").value=r.beforePhotos||"";$("technicalNotes").value=r.technicalNotes||"";$("approvalStatus").value=r.approvalStatus||"غير مطلوبة";
  $("approvalAt").value=r.approvalAt?new Date(r.approvalAt).toISOString().slice(0,16):"";$("approvalNotes").value=r.approvalNotes||"";$("notes").value=r.notes||"";
  window.scrollTo({top:0,behavior:"smooth"});
 }
@@ -369,7 +322,7 @@ function card(r){
  '<button class="blue" data-act="view" data-id="'+esc(id)+'">👁️ التفاصيل</button>'+
  '<button class="gray" data-act="edit" data-id="'+esc(id)+'">✏️ تعديل</button>'+
  '<button class="amber" data-act="next" data-id="'+esc(id)+'">🔄 تغيير الحالة</button>'+
- '<button class="danger" data-act="delete" data-id="'+esc(id)+'">🗑️ حذف</button>'+
+ (C.canDeleteRequest?'<button class="danger" data-act="delete" data-id="'+esc(id)+'">🗑️ حذف</button>':"")+
  '</div></article>';
 }
 function showDetails(id){
@@ -397,8 +350,6 @@ function integrity(){
 }
 
 $("customerId").addEventListener("change",loadCustomerContext);
-$("beforePhotos").addEventListener("change",async e=>{try{await handleBeforePhotos(e.target.files)}catch(err){e.target.value="";show(err.message||"تعذر تحميل الصور.","err")}});
-$("beforePhotosPreview").addEventListener("click",e=>{const b=e.target.closest("[data-remove-photo]");if(!b)return;beforePhotoItems.splice(Number(b.dataset.removePhoto),1);renderBeforePhotosPreview()});
 $("saveBtn").addEventListener("click",save);
 $("cancelBtn").addEventListener("click",resetForm);
 $("resetBtn").addEventListener("click",resetForm);
@@ -417,5 +368,6 @@ $("detailsModal").addEventListener("click",e=>{
 initLists();render();integrity();
 })();
 </script>
+
 </body>
 </html>
