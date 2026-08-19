@@ -2,6 +2,7 @@
 <html lang="ar" dir="rtl">
 <head>
 <meta charset="UTF-8">
+<link rel="manifest" href="manifest.json">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="theme-color" content="#07152f">
 <title>المخزون وقطع الغيار - الورشة الفنية</title>
@@ -36,8 +37,6 @@ button{border:0;border-radius:10px;padding:11px 15px;font:inherit;cursor:pointer
 <div class="stat"><b id="total">0</b><small>إجمالي الأصناف</small></div>
 <div class="stat"><b id="low">0</b><small>تحت الحد الأدنى</small></div>
 <div class="stat"><b id="reserved">0</b><small>كمية محجوزة</small></div>
-<div class="stat"><b id="value">0</b><small>قيمة الشراء</small></div>
-<div class="stat"><b id="moves">0</b><small>حركات المخزون</small></div>
 </div>
 </div>
 
@@ -135,7 +134,7 @@ function count(){
 }
 function render(){
  const ps=arr(KEY),q=$("search").value.trim().toLowerCase(),cf=$("catFilter").value,sf=$("stockFilter").value;
- $("total").textContent=ps.length;$("low").textContent=ps.filter(p=>p.status!=="مؤرشف"&&Number(p.quantity)<=Number(p.min)).length;$("reserved").textContent=ps.reduce((n,p)=>n+Number(p.reservedQty||0),0);$("value").textContent=ps.reduce((n,p)=>n+Number(p.quantity||0)*Number(p.purchase||0),0).toFixed(2);$("moves").textContent=arr(MOVES).length;
+ $("total").textContent=ps.length;$("low").textContent=ps.filter(p=>p.status!=="مؤرشف"&&Number(p.quantity)<=Number(p.min)).length;$("reserved").textContent=ps.reduce((n,p)=>n+Number(p.reservedQty||0),0);
  const cats=[...new Set(ps.map(p=>p.category).filter(Boolean))];let old=$("catFilter").value;$("catFilter").innerHTML='<option value="">كل التصنيفات</option>'+cats.map(c=>'<option>'+esc(c)+'</option>').join("");$("catFilter").value=old;
  const list=ps.filter(p=>{let hay=[p.id,p.name,p.partNumber,p.code,p.brand,p.description,p.category,p.location].join(" ").toLowerCase();return hay.includes(q)&&(!cf||p.category===cf)&&(!sf||(sf==="low"?p.quantity<=p.min:sf==="out"?p.quantity<=0:sf==="active"?p.status==="نشط":sf==="archived"?p.status==="مؤرشف":true))});
  $("list").innerHTML=list.length?list.map(p=>{const low=Number(p.quantity)<=Number(p.min),avail=Number(p.available||0);return '<div class="part"><h3>🔩 '+esc(p.name)+' <span class="badge">'+esc(p.id)+'</span></h3><span class="badge '+(low?"low":"ok")+'">'+(low?"⚠️ تحت الحد الأدنى":"✅ المخزون جيد")+'</span><span class="badge">'+esc(p.category)+'</span><span class="badge">📍 '+esc(p.location||"غير محدد")+'</span><p>🔢 رقم القطعة: '+esc(p.partNumber||"غير مسجل")+' | الشركة: '+esc(p.brand||"غير محددة")+'<br>📦 الحالي: <b>'+esc(p.quantity)+' '+esc(p.unit)+'</b> | 🔒 محجوز: <b>'+esc(p.reservedQty)+'</b> | 🟢 متاح: <b>'+esc(avail)+'</b><br>💰 شراء: '+esc(p.purchase)+' | بيع: '+esc(p.selling)+' | الحد الأدنى: '+esc(p.min)+' | الأقصى: '+esc(p.max)+'</p><div class="actions"><button class="blue" data-a="move" data-id="'+esc(p.id)+'">🔄 حركة</button><button class="gray" data-a="edit" data-id="'+esc(p.id)+'">✏️ تعديل</button><button class="gray" data-a="archive" data-id="'+esc(p.id)+'">📦 أرشفة</button><button class="danger" data-a="delete" data-id="'+esc(p.id)+'">🗑️ حذف</button></div></div>'}).join(""):'<div class="empty">لا توجد أصناف مطابقة 🔎</div>';
@@ -147,5 +146,7 @@ $("list").onclick=e=>{let b=e.target.closest("button[data-a]");if(!b)return;let 
 reset();render();
 </script>
 
+
+<script>if("serviceWorker" in navigator){window.addEventListener("load",()=>navigator.serviceWorker.register("sw.js").catch(()=>{}));}</script>
 </body>
 </html>

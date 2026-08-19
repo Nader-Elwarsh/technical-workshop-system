@@ -2,6 +2,7 @@
 <html lang="ar" dir="rtl">
 <head>
 <meta charset="UTF-8">
+<link rel="manifest" href="manifest.json">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="theme-color" content="#07152f">
 <title>الفواتير والمدفوعات - الورشة الفنية</title>
@@ -133,13 +134,13 @@ function render(){
 }
 function printInvoice(id){
  const x=arr(IK).find(i=>String(i.id)===String(id));if(!x)return;const p=recalc(x);
- const w=window.open("","_blank");w.document.write('<html lang="ar" dir="rtl"><head><title>'+esc(x.id)+'</title><style>body{font-family:Arial;padding:30px}table{width:100%;border-collapse:collapse}td,th{border:1px solid #ccc;padding:9px;text-align:right}</style></head><body><h1>الورشة الفنية</h1><h2>فاتورة رقم '+esc(x.id)+'</h2><p>العميل: '+esc(x.customerName)+' | الهاتف: '+esc(x.customerPhone)+'</p><p>أمر الشغل: '+esc(x.workOrderId)+' | التاريخ: '+esc(x.issueDate)+'</p><table><tr><th>البند</th><th>القيمة</th></tr><tr><td>الكشف</td><td>'+money(x.inspection)+'</td></tr><tr><td>الإصلاح</td><td>'+money(x.repair)+'</td></tr><tr><td>قطع الغيار</td><td>'+money(x.parts)+'</td></tr><tr><td>العمالة</td><td>'+money(x.labor)+'</td></tr><tr><td>الخصم</td><td>'+money(x.discount)+'</td></tr><tr><th>الإجمالي</th><th>'+money(x.total)+'</th></tr><tr><th>المدفوع</th><th>'+money(p.paid)+'</th></tr><tr><th>المتبقي</th><th>'+money(p.remaining)+'</th></tr></table><script>window.print()<\/script>
-</body></html>');w.document.close()
+ const w=window.open("","_blank");w.document.write('<html lang="ar" dir="rtl"><head><title>'+esc(x.id)+'</title><style>body{font-family:Arial;padding:30px}table{width:100%;border-collapse:collapse}td,th{border:1px solid #ccc;padding:9px;text-align:right}</style></head><body><h1>الورشة الفنية</h1><h2>فاتورة رقم '+esc(x.id)+'</h2><p>العميل: '+esc(x.customerName)+' | الهاتف: '+esc(x.customerPhone)+'</p><p>أمر الشغل: '+esc(x.workOrderId)+' | التاريخ: '+esc(x.issueDate)+'</p><table><tr><th>البند</th><th>القيمة</th></tr><tr><td>الكشف</td><td>'+money(x.inspection)+'</td></tr><tr><td>الإصلاح</td><td>'+money(x.repair)+'</td></tr><tr><td>قطع الغيار</td><td>'+money(x.parts)+'</td></tr><tr><td>العمالة</td><td>'+money(x.labor)+'</td></tr><tr><td>الخصم</td><td>'+money(x.discount)+'</td></tr><tr><th>الإجمالي</th><th>'+money(x.total)+'</th></tr><tr><th>المدفوع</th><th>'+money(p.paid)+'</th></tr><tr><th>المتبقي</th><th>'+money(p.remaining)+'</th></tr></table></body></html>');w.document.close();w.print()
 }
 $("order").onchange=orderInfo;["inspection","repair","parts","labor","discount"].forEach(x=>$(x).oninput=updateTotal);$("save").onclick=saveInvoice;$("cancel").onclick=reset;$("addPayment").onclick=addPayment;$("search").oninput=render;$("filter").onchange=render;
 $("list").onclick=e=>{const b=e.target.closest("button[data-a]");if(!b)return;if(b.dataset.a==="edit")edit(b.dataset.id);if(b.dataset.a==="pay"){$("payInvoice").value=b.dataset.id;window.scrollTo({top:document.body.scrollHeight,behavior:"smooth"})}if(b.dataset.a==="print")printInvoice(b.dataset.id)};
 loadOrders();$("payDate").value=new Date().toISOString().slice(0,16);reset();render();
 </script>
 
+<script>if("serviceWorker" in navigator){window.addEventListener("load",()=>navigator.serviceWorker.register("sw.js").catch(()=>{}));}</script>
 </body>
 </html>

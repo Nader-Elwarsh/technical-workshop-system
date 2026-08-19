@@ -16,7 +16,7 @@ const KEYS={
  visits:"visits", routes:"routes", inventory:"inventory", inventoryTransactions:"inventory_transactions",
  suppliers:"suppliers", purchaseOrders:"purchaseOrders", purchaseReceipts:"purchaseReceipts", purchaseReturns:"purchaseReturns", invoices:"invoices", payments:"payments",
  warranties:"warranties", contracts:"contracts", notifications:"notifications",
- loyaltyAccounts:"loyaltyAccounts", loyaltyTransactions:"loyaltyTransactions",
+ loyaltyAccounts:"loyaltyAccounts", loyaltyTransactions:"loyaltyTransactions", referrals:"referrals", charityFund:"charityFund", promotions:"promotions", promotionUsages:"promotionUsages",
  technicalLibrary:"technicalLibrary", users:"users",
  supplierRatings:"supplierRatings", purchaseInvoices:"purchaseInvoices", warrantyClaims:"warrantyClaims",
  portalSettings:"portalSettings", notificationSettings:"notificationSettings", contractSettings:"contractSettings", securitySettings:"securitySettings",
@@ -41,7 +41,7 @@ const STATUSES=[
 const DEFAULT_SETTINGS={
  workshopName:"الورشة الفنية لصيانة الأجهزة المنزلية والتكييف",
  shortName:"الورشة الفنية",currency:"جنيه",invoicePrefix:"INV-",
- pointValue:1,vipPoints:1000,warrantyDays:30,notifications:"on",
+ pointValue:1,referralRewardPoints:100,vipPoints:1000,charityEnabled:"on",charityPointValue:1,warrantyDays:30,notifications:"on",
  defaultWarehouse:"المخزن الرئيسي",negativeStock:"no",
  autoTechnicianAssignment:"off",requireCustomerApproval:"off",
  allowReopen:"yes",allowDeleteApproved:"no",
@@ -262,7 +262,7 @@ function getPermissionRegistry(){
   customerUpdate:["manager","موظف","admin","owner"],
 customerMerge:["manager","admin","owner"],
   deviceUpdate:["manager","موظف","فني","admin","owner"],
-  workOrderUpdate:["manager","موظف","فني","admin","owner"],
+  workOrderUpdate:["manager","technician","موظف","فني","admin","owner"],
   diagnosis:["manager","technician","فني","admin","owner"],
   complaint:["manager","موظف","admin","owner"],
   rating:["customer","عميل","manager","موظف","admin","owner"],
@@ -428,6 +428,11 @@ function deviceHasOperationalData(did){
   list(KEYS.contracts).some(x=>Array.isArray(x.deviceIds)&&x.deviceIds.map(String).includes(String(did)));
 }
 
+
+function vipEligibleByPoints(cid){
+ const threshold=Math.max(0,Number(settings().vipPoints||0)), pts=loyaltyPoints(cid);
+ return threshold>0 && pts>=threshold;
+}
 function customerClassification(cid){
  const c=findCustomer(cid); if(!c)return null;
  const req=customerRequests(cid),visits=customerVisits(cid),inv=customerInvoices(cid);
@@ -448,6 +453,10 @@ function customerClassification(cid){
 
  // No TWMS work order yet = new to the system, even if known to the workshop.
  if(req.length===0){
+  if(vipEligibleByPoints(cid)) return {tier:"VIP",score:0,reason:"رصيد نقاط الولاء تجاوز حد VIP المحدد.",metrics:{
+   requests:0,closedRequests:0,visits:visits.length,ratings:ratings.length,avgRating:0,
+   complaints:complaints.length,totalInvoices,loyaltyPoints:loyalty,lastActivity,daysSince
+  }};
   return {tier:"جديد",score:0,reason:"لا يوجد أمر شغل مسجل للعميل داخل النظام حتى الآن.",metrics:{
    requests:0,closedRequests:0,visits:visits.length,ratings:ratings.length,avgRating:0,
    complaints:complaints.length,totalInvoices,loyaltyPoints:loyalty,lastActivity,daysSince
@@ -472,7 +481,7 @@ function customerClassification(cid){
  score=Math.max(0,score);
 
  let tier="عادي";
- if(score>=25)tier="VIP";
+ if(vipEligibleByPoints(cid) || score>=25)tier="VIP";
  else if(score>=15)tier="مميز";
  else if(score>=6)tier="نشط";
 
@@ -1065,6 +1074,143 @@ function deleteDevice(did,actor){
  return true;
 }
 
+
+
+function donateLoyaltyPoints(cid,points,actor,reference,notes){
+ requirePermission("customerUpdate",actor); const n=Math.floor(Number(points));
+ assert(Number.isFinite(n)&&n>0,"عدد نقاط التبرع غير صحيح.");
+ assert(settings().charityEnabled!=="off","التبرع بالنقاط غير مفعل.");
+ const acc=getOrCreateLoyalty(cid,actor); assert(Number(acc.points||0)>=n,"رصيد النقاط غير كافٍ.");
+ const before=Number(acc.points||0), after=before-n;
+ const accounts=list(KEYS.loyaltyAccounts),i=accounts.findIndex(x=>String(x.customerId)===String(cid));
+ accounts[i]=Object.assign({},accounts[i],{points:after,updatedAt:now()});coreWrite(KEYS.loyaltyAccounts,accounts);
+ const txs=list(KEYS.loyaltyTransactions),ref=reference||("charity:"+cid+":"+Date.now());
+ const tx={id:nextId("LP-",KEYS.loyaltyTransactions,6),customerId:cid,customerName:accounts[i].customerName||customerName(findCustomer(cid)),
+  type:"donation",source:"charity",points:n,before,after,reference:ref,notes:notes||"تبرع بالنقاط لصندوق الخير",
+  userId:actorInfo(actor).id||"",user:actorInfo(actor).name||"النظام",date:now()};
+ txs.unshift(tx);coreWrite(KEYS.loyaltyTransactions,txs);
+ const fund=read(KEYS.charityFund,{points:0,operations:0,updatedAt:null});
+ fund.points=Number(fund.points||0)+n;fund.operations=Number(fund.operations||0)+1;fund.updatedAt=now();coreWrite(KEYS.charityFund,fund);
+ audit("تبرع بالنقاط","صندوق الخير",tx.id,"تبرع العميل بالنقاط",actor,{customerId:cid,points:n,reference:ref});
+ recalculateCustomerClassification(cid,actor); return {account:accounts[i],transaction:tx,fund};
+}
+function charityFundSummary(){
+ const fund=read(KEYS.charityFund,{points:0,operations:0,updatedAt:null});
+ const donations=list(KEYS.loyaltyTransactions).filter(t=>t.source==="charity"||t.type==="donation");
+ return {points:Number(fund.points||0),operations:Number(fund.operations||0),transactions:donations.length,updatedAt:fund.updatedAt||null};
+}
+function savePromotion(data,actor){
+ requirePermission("settings",actor); const a=list(KEYS.promotions);
+ const item=Object.assign({id:nextId("PROM-",a,6),status:"active",createdAt:now()},clone(data||{}));
+ assert(String(item.name||"").trim(),"اسم العرض مطلوب.");
+ assert(Number(item.bonusPoints||0)>=0,"نقاط العرض غير صحيحة.");
+ a.push(item);coreWrite(KEYS.promotions,a);audit("إضافة","العروض",item.id,"إنشاء عرض",actor);return item;
+}
+function listPromotions(filters){
+ const f=filters||{},today=String(f.today||now()).slice(0,10);
+ return list(KEYS.promotions).filter(p=>{
+  if(p.status==="cancelled")return false;
+  if(p.startDate&&today<p.startDate)return false;
+  if(p.endDate&&today>p.endDate)return false;
+  return true;
+ });
+}
+function applyPromotionToInvoice(invoiceId,promotionId,actor){
+ requirePermission("invoiceCreate",actor);
+ const inv=findInvoice(invoiceId),p=list(KEYS.promotions).find(x=>String(x.id)===String(promotionId));
+ assert(inv,"الفاتورة غير موجودة.");assert(p,"العرض غير موجود.");
+ assert(["draft","مسودة","approved","معتمدة","paid","مدفوعة"].includes(String(inv.status||"")),"الفاتورة غير مؤهلة للعرض.");
+ const usages=list(KEYS.promotionUsages);
+ assert(!usages.some(u=>String(u.invoiceId)===String(invoiceId)&&String(u.promotionId)===String(promotionId)),"تم تطبيق هذا العرض على الفاتورة مسبقًا.");
+ const usage={id:nextId("PU-",usages,6),invoiceId:String(invoiceId),promotionId:String(promotionId),customerId:String(inv.customerId||inv.clientId||""),bonusPoints:Math.floor(Number(p.bonusPoints||0)),discount:Number(p.discount||0),createdAt:now()};
+ usages.push(usage);coreWrite(KEYS.promotionUsages,usages);
+ if(usage.discount>0){
+  const updated=Object.assign({},inv,{discount:Number(inv.discount||0)+usage.discount});
+  saveInvoice(updated,actor);
+ }
+ if(usage.bonusPoints>0 && usage.customerId){
+  changeLoyalty(usage.customerId,usage.bonusPoints,"earn","promotion:"+usage.id,"نقاط إضافية من عرض: "+String(p.name),actor);
+ }
+ audit("تطبيق عرض","العروض",usage.id,"تطبيق العرض على فاتورة",actor,{invoiceId,promotionId});
+ return usage;
+}
+function promotionUsages(invoiceId){
+ return list(KEYS.promotionUsages).filter(x=>!invoiceId||String(x.invoiceId)===String(invoiceId));
+}
+function referralCodeForCustomer(customerId){
+ const cid=String(customerId||"").trim(); assert(cid&&exists(KEYS.customers,cid),"العميل غير موجود.");
+ const existing=list(KEYS.referrals).find(x=>String(x.referrerCustomerId)===cid&&x.kind==="code");
+ if(existing&&existing.code)return existing.code;
+ const base="REF-"+cid.replace(/[^A-Za-z0-9]/gi,"").slice(-8).toUpperCase();
+ let code=base||("REF-"+String(cid).slice(-8).toUpperCase());
+ let n=1;
+ while(list(KEYS.referrals).some(x=>String(x.code||"").toUpperCase()===code.toUpperCase())) code=base+"-"+(n++);
+ return code;
+}
+function ensureReferralCode(customerId,actor){
+ const cid=String(customerId||"").trim(); assert(cid&&exists(KEYS.customers,cid),"العميل غير موجود.");
+ const a=list(KEYS.referrals);
+ let x=a.find(v=>String(v.referrerCustomerId)===cid&&v.kind==="code");
+ if(x&&x.code)return x;
+ const item={id:nextId("REFC-",a,6),kind:"code",code:referralCodeForCustomer(cid),referrerCustomerId:cid,status:"active",createdAt:now()};
+ a.push(item);coreWrite(KEYS.referrals,a);audit("إضافة","الإحالات",item.id,"إنشاء كود إحالة للعميل",actor);return item;
+}
+function findReferralByCode(code){
+ const c=String(code||"").trim().toUpperCase(); if(!c)return null;
+ return list(KEYS.referrals).find(x=>x.kind==="code"&&String(x.code||"").toUpperCase()===c)||null;
+}
+function registerReferral(referredCustomerId,code,actor){
+ const rid=String(referredCustomerId||"").trim(); assert(rid&&exists(KEYS.customers,rid),"العميل المُحال غير موجود.");
+ const ref=findReferralByCode(code); assert(ref,"كود الإحالة غير صحيح.");
+ const owner=String(ref.referrerCustomerId);
+ assert(owner!==rid,"لا يمكن للعميل إحالة نفسه.");
+ const a=list(KEYS.referrals);
+ const existing=a.find(x=>x.kind==="referral"&&String(x.referredCustomerId)===rid);
+ if(existing)return existing;
+ const item={id:nextId("REF-",a,6),kind:"referral",code:ref.code,referrerCustomerId:owner,referredCustomerId:rid,status:"registered",rewarded:false,createdAt:now()};
+ a.push(item);coreWrite(KEYS.referrals,a);audit("إضافة","الإحالات",item.id,"تسجيل إحالة عميل",actor);return item;
+}
+function referralsForCustomer(customerId){
+ const cid=String(customerId||"");
+ return list(KEYS.referrals).filter(x=>x.kind==="referral"&&(String(x.referrerCustomerId)===cid||String(x.referredCustomerId)===cid));
+}
+function referralRewardPoints(){
+ const n=Number(settings().referralRewardPoints||100);
+ return Number.isFinite(n)&&n>0?Math.floor(n):0;
+}
+function rewardReferralForSuccessfulService(requestOrId,actor){
+ const req=typeof requestOrId==="object"?requestOrId:findRequest(requestOrId);
+ if(!req)return {rewarded:false,reason:"أمر الشغل غير موجود."};
+ const referredId=String(req.customerId||req.clientId||"");
+ if(!referredId)return {rewarded:false,reason:"لا يوجد عميل مرتبط بأمر الشغل."};
+ const a=list(KEYS.referrals);
+ const ref=a.find(x=>x.kind==="referral"&&String(x.referredCustomerId)===referredId);
+ if(!ref)return {rewarded:false,reason:"لا توجد إحالة لهذا العميل."};
+ if(ref.rewarded===true||ref.status==="rewarded")return {rewarded:false,reason:"تمت مكافأة الإحالة مسبقًا.",referral:ref};
+ // First successful completed service only: no cancelled/archived requests.
+ const successful=["مكتمل","مغلق"].includes(String(req.status||""));
+ if(!successful)return {rewarded:false,reason:"لم تكتمل أول خدمة للعميل الجديد بعد.",referral:ref};
+ const prior=list(KEYS.requests).filter(r=>String(r.customerId||r.clientId)===referredId&&["مكتمل","مغلق"].includes(String(r.status||""))&&String(r.idOf||r.id)!==String(req.id));
+ if(prior.length)return {rewarded:false,reason:"هذا ليس أول إكمال خدمة للعميل الجديد.",referral:ref};
+ const points=referralRewardPoints(); if(points<=0)return {rewarded:false,reason:"مكافأة الإحالة غير مفعلة.",referral:ref};
+ const reference="referral:"+String(ref.id);
+ const txs=list(KEYS.loyaltyTransactions);
+ if(txs.some(t=>String(t.reference||"")===reference&&String(t.type||"")==="earn")){
+   ref.rewarded=true;ref.status="rewarded";ref.rewardedAt=now();ref.rewardTransactionReference=reference;
+   coreWrite(KEYS.referrals,a);return {rewarded:false,reason:"تم تسجيل المكافأة مسبقًا.",referral:ref};
+ }
+ const account=getOrCreateLoyalty(ref.referrerCustomerId,actor);
+ const accounts=list(KEYS.loyaltyAccounts),ai=accounts.findIndex(x=>String(x.customerId)===String(ref.referrerCustomerId));
+ const before=Number(account.points||0),after=before+points;
+ accounts[ai]=Object.assign({},accounts[ai],{points:after,updatedAt:now()});coreWrite(KEYS.loyaltyAccounts,accounts);
+ const tx={id:nextId("LP-",txs,6),customerId:ref.referrerCustomerId,customerName:accounts[ai].customerName||customerName(findCustomer(ref.referrerCustomerId)),type:"earn",source:"referral",points,before,after,reference,referralId:ref.id,referredCustomerId:referredId,requestId:String(req.id),notes:"مكافأة إحالة بعد أول خدمة ناجحة",userId:actorInfo(actor).id||"",user:actorInfo(actor).name||"النظام",date:now()};
+ txs.unshift(tx);coreWrite(KEYS.loyaltyTransactions,txs);
+ ref.rewarded=true;ref.status="rewarded";ref.rewardedAt=now();ref.rewardTransactionId=tx.id;
+ coreWrite(KEYS.referrals,a);
+ audit("مكافأة إحالة","الإحالات",ref.id,"مكافأة بعد أول خدمة ناجحة",actor,{requestId:req.id,points,transactionId:tx.id});
+ recalculateCustomerClassification(ref.referrerCustomerId,actor);
+ return {rewarded:true,points,transaction:tx,referral:ref};
+}
 function saveRequest(input,actor){
  const aa=actorInfo(actor);
  if(String(aa.role||"").toLowerCase()==="customer" || String(aa.role||"")==="عميل") requirePermission(input.id||input.requestId?"workOrderUpdate":"customerRequest",actor);
@@ -1091,12 +1237,12 @@ function saveRequest(input,actor){
    recordStatusChange(oldId,old.status,data.status,actor);
   }
   arr[i]=Object.assign({},old,data,{id:oldId,updatedAt:now()});
-  coreWrite(KEYS.requests,arr);syncRelations();audit("تعديل","أوامر الشغل",oldId,"تم تعديل أمر الشغل",actor);recalculateCustomerClassification(data.customerId,actor);return findRequest(oldId);
+  coreWrite(KEYS.requests,arr);syncRelations();audit("تعديل","أوامر الشغل",oldId,"تم تعديل أمر الشغل",actor);recalculateCustomerClassification(data.customerId,actor);rewardReferralForSuccessfulService(findRequest(oldId),actor);return findRequest(oldId);
  }
  const id=nextId("WO-",KEYS.requests,6);
  const item=Object.assign({id,createdAt:now(),approved:false},data);
  arr.push(item);coreWrite(KEYS.requests,arr);
- recordStatusChange(id,"",item.status,actor);audit("إضافة","أوامر الشغل",id,"تم إنشاء أمر شغل",actor);syncRelations();recalculateCustomerClassification(item.customerId,actor);return findRequest(id);
+ recordStatusChange(id,"",item.status,actor);audit("إضافة","أوامر الشغل",id,"تم إنشاء أمر شغل",actor);syncRelations();recalculateCustomerClassification(item.customerId,actor);rewardReferralForSuccessfulService(findRequest(id),actor);return findRequest(id);
 }
 function requestClosureReadiness(r){
  assert(r,"أمر الشغل غير موجود.");
@@ -1126,8 +1272,28 @@ function updateRequestStatus(id,status,actor){
  syncDeviceConditions();
  recordStatusChange(id,old.status,status,actor);audit("تغيير حالة","أوامر الشغل",id,old.status+" ← "+status,actor);recalculateCustomerClassification(requestCustomerId(arr[i]),actor);return findRequest(id);
 }
+
+function createSystemNotification(data){
+ const title=clean(data&&data.title,300),message=clean(data&&data.message,4000);
+ if(String(settings().notifications||"on").toLowerCase()==="off")return null;
+ if(!title||!message)return null;
+ const a=list(KEYS.notifications),id=clean(data.id,100)||nextId("NTF-",KEYS.notifications,8);
+ const existing=a.find(x=>String(idOf(x))===id);
+ const item=Object.assign({},existing||{},data,{id,title,message,updatedAt:now(),createdAt:(existing&&existing.createdAt)||data.createdAt||now(),read:false});
+ const i=a.findIndex(x=>String(idOf(x))===id);if(i>=0)a[i]=item;else a.unshift(item);
+ coreWrite(KEYS.notifications,a);return item;
+}
 function recordStatusChange(id,from,to,actor){
  const a=list(KEYS.statusHistory);a.unshift({id:nextId("ST-",KEYS.statusHistory,7),requestId:id,fromStatus:from||"",toStatus:to||"",user:actorInfo(actor).name||"النظام",userId:actorInfo(actor).id||"",role:actorInfo(actor).role||"",date:now()});coreWrite(KEYS.statusHistory,a);
+ const req=findRequest(id),cid=requestCustomerId(req);
+ if(cid){
+  createSystemNotification({
+   customerId:cid,requestId:id,type:"تحديث حالة أمر شغل",
+   title:"تحديث حالة طلب الصيانة",
+   message:"تم تحديث حالة طلبك إلى: "+String(to||""),
+   relatedId:id
+  });
+ }
 }
 function deleteRequest(id,actor){
  requirePermission("delete",actor);
@@ -1250,7 +1416,32 @@ function getOrCreateLoyalty(cid,actor){
 function loyaltyPoints(cid){
  const x=list(KEYS.loyaltyAccounts).find(v=>String(v.customerId)===String(cid));return Number(x&&x.points||0);
 }
+function awardInvoiceLoyalty(invoice,actor){
+ const inv=invoice||{};
+ const cid=String(inv.customerId||inv.clientId||((inv.requestId||inv.workOrderId)&&requestCustomerId(findRequest(inv.requestId||inv.workOrderId)))||"");
+ if(!cid)return {awarded:false,points:0,reason:"لا يوجد عميل مرتبط بالفاتورة."};
+ const total=invoiceTotal(inv);
+ const pointValue=Number(settings().pointValue);
+ if(!Number.isFinite(total)||total<=0||!Number.isFinite(pointValue)||pointValue<=0)return {awarded:false,points:0,reason:"سياسة الولاء لا تنتج نقاطًا لهذه الفاتورة."};
+ const reference="invoice:"+String(idOf(inv));
+ const txs=list(KEYS.loyaltyTransactions);
+ if(txs.some(t=>String(t.reference||"")===reference && String(t.type||"")==="earn" && String(t.source||"")==="invoice"))return {awarded:false,points:0,reason:"تم منح نقاط هذه الفاتورة مسبقًا."};
+ const points=Math.floor(total/pointValue);
+ if(points<=0)return {awarded:false,points:0,reason:"قيمة الفاتورة أقل من قيمة النقطة."};
+ const account=getOrCreateLoyalty(cid,actor);
+ const before=Number(account.points||0),after=before+points;
+ const a=list(KEYS.loyaltyAccounts),ai=a.findIndex(x=>String(x.customerId)===cid);
+ a[ai]=Object.assign({},a[ai],{points:after,updatedAt:now()});
+ coreWrite(KEYS.loyaltyAccounts,a);
+ const tx={id:nextId("LP-",KEYS.loyaltyTransactions,6),customerId:cid,customerName:a[ai].customerName||customerName(findCustomer(cid)),type:"earn",source:"invoice",points,before,after,reference,invoiceId:String(idOf(inv)),notes:"نقاط مستحقة من الفاتورة النهائية",userId:actorInfo(actor).id||"",user:actorInfo(actor).name||"النظام",date:now()};
+ txs.unshift(tx);coreWrite(KEYS.loyaltyTransactions,txs);
+ audit("إضافة نقاط فاتورة","الولاء",cid,"منح نقاط تلقائيًا بعد اعتماد الفاتورة النهائية",actor,{invoiceId:String(idOf(inv)),points,reference});
+ recalculateCustomerClassification(cid,actor);
+ return {awarded:true,points,transaction:tx,account:a[ai]};
+}
+
 function changeLoyalty(cid,points,type,reference,notes,actor){
+ if(String(type||"") === "donation") return donateLoyaltyPoints(cid,points,actor,reference,notes);
  requirePermission("customerUpdate",actor);assert(exists(KEYS.customers,cid),"العميل غير موجود.");
  const n=Number(points);assert(Number.isFinite(n)&&n!==0,"عدد النقاط غير صحيح.");const a=list(KEYS.loyaltyAccounts);let i=a.findIndex(x=>String(x.customerId)===String(cid));
  if(i<0){getOrCreateLoyalty(cid,actor);return changeLoyalty(cid,n,type,reference,notes,actor);}
@@ -1335,6 +1526,10 @@ function saveSupplier(data,actor){
  const i=a.findIndex(x=>String(idOf(x))===id);if(i>=0)a[i]=Object.assign({},a[i],item);else a.push(item);
  coreWrite(KEYS.suppliers,a);audit(i>=0?"تعديل":"إضافة","الموردين",id,"حفظ بيانات المورد",actor);return item;
 }
+function receivePurchase(data,actor){
+ assert(data&&data.purchaseOrderId,"طلب الشراء مطلوب.");
+ const result=receivePurchaseOrder(data.purchaseOrderId,data.items,actor); return result.purchaseOrder;
+}
 function savePurchaseOrder(data,actor){
  requirePermission("purchaseManage",actor);
  assert(data&&data.supplierId&&exists(KEYS.suppliers,data.supplierId),"المورد غير موجود.");
@@ -1407,7 +1602,7 @@ function returnPurchase(purchaseOrderId,returnItems,reason,actor){
   assert(q+Number(returned[x.itemId]||0)<=Number(received[x.itemId]||0),"كمية المرتجع تتجاوز الكمية المستلمة.");
   assert(q<=inventoryQuantity(x.itemId),"كمية المرتجع أكبر من رصيد المخزون.");
  });
- returnItems.forEach(x=>consumeInventory(x.itemId,Number(x.qty),"مرتجع شراء",purchaseOrderId,reason||"مرتجع إلى المورد",actor));
+ returnItems.forEach(x=>decrementInventoryForPurchaseReturn(x.itemId,Number(x.qty),purchaseOrderId,reason||"مرتجع إلى المورد",actor));
  const a=list(KEYS.purchaseReturns),id=nextId("RET-",KEYS.purchaseReturns,6),ret={id,purchaseOrderId,supplierId:order.supplierId,items:clone(returnItems),reason:clean(reason,1000),createdAt:now(),userId:actorInfo(actor).id||"",user:actorInfo(actor).name||"النظام"};
  a.unshift(ret);coreWrite(KEYS.purchaseReturns,a);audit("مرتجع شراء","طلبات الشراء",id,"إرجاع أصناف إلى المورد",actor);return ret;
 }
@@ -1445,8 +1640,14 @@ function archiveTechnician(id,actor){
 }
 function updateVisit(id,data,actor){
  requirePermission("workOrderUpdate",actor);
+ const actorData=actorInfo(actor);
+ const actorRole=String(actorData.role||"").toLowerCase();
  const a=list(KEYS.visits),i=a.findIndex(x=>String(idOf(x))===String(id));assert(i>=0,"الزيارة غير موجودة.");
- const old=a[i],rid=data.requestId||data.workOrderId||old.requestId||old.workOrderId;
+ const old=a[i];
+ if(["technician","فني"].includes(actorRole)){
+  assert(String(old.technicianId||"")===String(actorData.id||""),"الفني لا يستطيع تعديل زيارة غير مسندة إليه.");
+ }
+ const rid=data.requestId||data.workOrderId||old.requestId||old.workOrderId;
  assert(exists(KEYS.requests,rid),"أمر الشغل غير موجود.");
  const normalized=Object.assign({},old,data,{id:old.id,requestId:rid,technicianId:data.technicianId||old.technicianId});
  const visitCheck=validateVisitAssignment(normalized,actor);
@@ -1501,7 +1702,12 @@ function saveInvoice(data,actor){
   assert(costApproved(r),"لا تصدر الفاتورة النهائية قبل اعتماد التكلفة.");
  }
  const i=a.findIndex(x=>String(idOf(x))===String(id));if(i>=0)a[i]=item;else a.push(item);
- coreWrite(KEYS.invoices,a);audit(i>=0?"تعديل":"إضافة","الفواتير",id,"حفظ فاتورة",actor);syncRelations();const invReq=findRequest(item.requestId||item.workOrderId),invCid=item.customerId||item.clientId||(invReq&&requestCustomerId(invReq));if(invCid)recalculateCustomerClassification(invCid,actor);return item;
+ coreWrite(KEYS.invoices,a);audit(i>=0?"تعديل":"إضافة","الفواتير",id,"حفظ فاتورة",actor);
+ const invReq=findRequest(item.requestId||item.workOrderId),invCid=item.customerId||item.clientId||(invReq&&requestCustomerId(invReq));
+ if(invCid)recalculateCustomerClassification(invCid,actor);
+ if(isFinalInvoice(item)) awardInvoiceLoyalty(item,actor);
+ syncRelations();
+ return item;
 }
 function savePayment(data,actor){
  requirePermission("finance",actor);
@@ -1609,6 +1815,17 @@ function saveWarranty(data,actor){
  const warrantyStatus=clean(data.status||"ساري",50);
  assert(["ساري","منتهي","معلق","ملغي","قيد المراجعة","مغلق"].includes(warrantyStatus),"حالة الضمان غير معتمدة.");
  if(manual)requirePermission("warranty",actor);
+ const existing=list(KEYS.warranties).filter(w=>{
+   if(String(idOf(w))===String(data.id||"")) return false;
+   const sameInvoice=data.invoiceId&&w.invoiceId&&String(w.invoiceId)===String(data.invoiceId);
+   const sameWorkOrder=(data.workOrderId||data.requestId)&&
+     (w.workOrderId||w.requestId)&&
+     String(w.workOrderId||w.requestId)===String(data.workOrderId||data.requestId);
+   const sameDevice=data.deviceId&&w.deviceId&&String(w.deviceId)===String(data.deviceId);
+   const active=!["منتهي","ملغي","مغلق"].includes(String(w.status||""));
+   return active && (sameInvoice || sameWorkOrder || (sameDevice&&sameInvoice));
+ });
+ assert(!existing.length,"يوجد ضمان فعال بالفعل لنفس الفاتورة/أمر الشغل. استخدم حالة ضمان أو أمر شغل ضمان جديد بدل إنشاء ضمان جديد.");
  const a=list(KEYS.warranties),id=clean(data.id,80)||nextId("WAR-",KEYS.warranties,6);
  const item=Object.assign({},data,{id,updatedAt:now(),createdAt:data.createdAt||now()});
  const i=a.findIndex(x=>String(idOf(x))===id);if(i>=0)a[i]=Object.assign({},a[i],item);else a.push(item);
@@ -1801,6 +2018,13 @@ function systemSummary(){
  notifications:list(KEYS.notifications).length,users:list(KEYS.users).length};
 }
 
+window.TWMSUI=window.TWMSUI||{};
+window.TWMSUI.afterSave=function(message,nextUrl){
+ try{sessionStorage.setItem("TWMS_LAST_SAVE",JSON.stringify({message:String(message||"تم الحفظ"),at:new Date().toISOString()}));}catch(e){}
+ if(nextUrl){window.location.assign(nextUrl);return true;}
+ return false;
+};
+
 window.WorkshopCore={
  VERSION:CORE_VERSION,KEYS,DEFAULT_SETTINGS,WORK_ORDER_TYPES,PRIORITIES,STATUSES,
  getPermissionRegistry,setPermissionRegistry,getWorkflowPolicy,setWorkflowPolicy,allowedWorkflowTransition,assertWorkflowTransition,
@@ -1810,9 +2034,9 @@ window.WorkshopCore={
 findPossibleCustomerMatches,findCustomerRelationshipSuggestions,customerRelationships,linkCustomerRelationship,addCustomerPhone,requestCustomerMerge,mergeCustomers,resolveCustomerId,findCustomerByPhone,
  customerDevices,customerRequests,customerVisits,customerInvoices,customerPayments,customerClassification,recalculateCustomerClassification,customerPhoneExists,requestVisits,requestInvoices,
  requestPayments,requestWarranties,technicianVisits,invoiceTotal,paymentsForInvoice,invoicePaid,invoiceRefunded,
- invoiceBalance,inventoryItem,inventoryQuantity,addInventoryTransaction,consumeInventory,getOrCreateLoyalty,
- loyaltyPoints,changeLoyalty,audit,syncRelations,validateIntegrity,validateCustomerDevice,validateRequestRefs,
- saveRequest,updateRequestStatus,deleteRequest,addVisit,updateVisit,cancelVisit,requestWorkOrder,customerFinancialSummary,customer360,systemSummary,moduleContract,mutationPolicy,runIntegrityCheck,regressionSelfTest,log,hasPermission,requirePermission,requireAnyPermission,legacyList,legacyWrite,legacyRemove,canonicalKey,saveCustomer,archiveCustomer,deleteCustomer,saveDevice,findDuplicateDevice,findDeviceByWorkshopSerial,findDeviceByLegacySerial,deviceFingerprint,isStaffActor,device360,deviceWorkOrders,deviceVisits,deviceInvoices,deviceWarranties,deviceContracts,archiveDevice,deleteDevice,deriveDeviceCondition,syncDeviceConditions,deviceTypeList,deviceSubtypeOptions,saveDeviceType,addDeviceAttachment,deviceAttachments,deviceHistory,appendDeviceHistory,setDeviceQr,getDeviceQr,setDeviceKnowledge,getDeviceKnowledge,deviceLifecycle,deviceSearch,saveTechnician,archiveTechnician,saveSupplier,saveRoute,deleteRoute,savePurchaseOrder,approvePurchaseOrder,receivePurchaseOrder,saveInventoryItem,archiveInventoryItem,deleteInventoryItem,saveInvoice,savePayment,cancelPayment,refundPayment,saveApproval,saveDiagnosis,assignTechnician,saveWarranty,saveContract,saveComplaint,saveRating,reserveInventory,releaseInventoryReservation,returnPurchase,decrementInventoryForPurchaseReturn,archiveRating,saveNotification,updateNotification,saveCustomerMessage,saveUser,setUserStatus,deleteUser,saveTechnicalLibrary,deleteTechnicalLibrary,saveLoyaltySettings,saveNotificationSettings,saveInventoryTransaction,adjustInventoryCount,deletePurchaseOrder,saveAuditManual,exportBackup,importBackup
+ invoiceBalance,inventoryItem,inventoryQuantity,addInventoryTransaction,consumeInventory,getOrCreateLoyalty,donateLoyaltyPoints,charityFundSummary,savePromotion,listPromotions,applyPromotionToInvoice,promotionUsages,referralCodeForCustomer,ensureReferralCode,findReferralByCode,registerReferral,referralsForCustomer,rewardReferralForSuccessfulService,
+ loyaltyPoints,changeLoyalty,awardInvoiceLoyalty,audit,syncRelations,validateIntegrity,validateCustomerDevice,validateRequestRefs,
+ saveRequest,updateRequestStatus,deleteRequest,addVisit,updateVisit,cancelVisit,requestWorkOrder,customerFinancialSummary,customer360,systemSummary,moduleContract,mutationPolicy,runIntegrityCheck,regressionSelfTest,log,hasPermission,requirePermission,requireAnyPermission,legacyList,legacyWrite,legacyRemove,canonicalKey,saveCustomer,archiveCustomer,deleteCustomer,saveDevice,findDuplicateDevice,findDeviceByWorkshopSerial,findDeviceByLegacySerial,deviceFingerprint,isStaffActor,device360,deviceWorkOrders,deviceVisits,deviceInvoices,deviceWarranties,deviceContracts,archiveDevice,deleteDevice,deriveDeviceCondition,syncDeviceConditions,deviceTypeList,deviceSubtypeOptions,saveDeviceType,addDeviceAttachment,deviceAttachments,deviceHistory,appendDeviceHistory,setDeviceQr,getDeviceQr,setDeviceKnowledge,getDeviceKnowledge,deviceLifecycle,deviceSearch,saveTechnician,archiveTechnician,saveSupplier,saveRoute,deleteRoute,savePurchaseOrder,receivePurchase,approvePurchaseOrder,receivePurchaseOrder,saveInventoryItem,archiveInventoryItem,deleteInventoryItem,saveInvoice,savePayment,cancelPayment,refundPayment,saveApproval,saveDiagnosis,assignTechnician,saveWarranty,saveContract,saveComplaint,saveRating,reserveInventory,releaseInventoryReservation,returnPurchase,decrementInventoryForPurchaseReturn,archiveRating,saveNotification,updateNotification,saveCustomerMessage,saveUser,setUserStatus,deleteUser,saveTechnicalLibrary,deleteTechnicalLibrary,saveLoyaltySettings,saveNotificationSettings,saveInventoryTransaction,adjustInventoryCount,deletePurchaseOrder,saveAuditManual,exportBackup,importBackup
 };
 try{
  migrateWorkOrdersToCanonical();

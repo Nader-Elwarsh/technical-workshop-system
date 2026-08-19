@@ -2,6 +2,7 @@
 <html lang="ar" dir="rtl">
 <head>
 <meta charset="UTF-8">
+<link rel="manifest" href="manifest.json">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="theme-color" content="#07152f">
 <title>إدارة العقود - الورشة الفنية</title>
@@ -209,5 +210,7 @@ $("actionsList").onclick=e=>{let b=e.target.closest("button[data-r]");if(b)renew
 loadSettings();loadTypes();reset();renderAll();
 </script>
 
+
+<script>if("serviceWorker" in navigator){window.addEventListener("load",()=>navigator.serviceWorker.register("sw.js").catch(()=>{}));}</script>
 </body>
 </html>

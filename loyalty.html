@@ -1,7 +1,8 @@
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
-<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta charset="UTF-8"><link rel="manifest" href="manifest.json">
+<meta name="viewport" content="width=device-width,initial-scale=1">
 <title>برنامج الولاء - الورشة الفنية</title>
 <style>
 *{box-sizing:border-box}body{margin:0;font-family:Arial,Tahoma,sans-serif;background:#f4f6f8;color:#172033}
@@ -46,6 +47,43 @@ table{width:100%;border-collapse:collapse}th,td{padding:9px;border-bottom:1px so
 </div>
 </div>
 
+
+<div class="card">
+ <h2>👥 الإحالات</h2>
+ <div class="grid">
+  <div><label>عميل مُحيل</label><select id="referrerCustomer"><option value="">اختر العميل</option></select></div>
+  <div><label>كود الإحالة</label><input id="referralCode" readonly></div>
+  <div><label>عميل جديد</label><select id="referredCustomer"><option value="">اختر العميل</option></select></div>
+  <div><label>إدخال كود الإحالة</label><input id="referralInput" placeholder="REF-..."></div>
+ </div>
+ <div class="actions">
+  <button class="blue" id="generateReferralBtn">إنشاء/عرض الكود</button>
+  <button class="primary" id="registerReferralBtn">تسجيل الإحالة</button>
+ </div>
+ <div id="referralSummary" class="info">لا توجد إحالة محددة.</div>
+</div>
+
+<div class="card">
+ <h2>🎁 العروض</h2>
+ <div class="grid">
+  <div><label>اسم العرض *</label><input id="promotionName"></div>
+  <div><label>نقاط إضافية</label><input id="promotionBonus" type="number" min="0" value="0"></div>
+  <div><label>الخصم</label><input id="promotionDiscount" type="number" min="0" value="0"></div>
+  <div><label>من</label><input id="promotionStart" type="date"></div>
+  <div><label>إلى</label><input id="promotionEnd" type="date"></div>
+ </div>
+ <button class="primary" id="savePromotionBtn">💾 إنشاء العرض</button>
+ <div id="promotionList" class="list"></div>
+</div>
+
+<div class="card">
+ <h2>❤️ صندوق الخير</h2>
+ <div class="stats">
+  <div class="stat"><b id="fundPoints">0</b> نقاط الصندوق</div>
+  <div class="stat"><b id="fundOperations">0</b> عمليات التبرع</div>
+ </div>
+ <div class="info">يمكن للعميل التبرع بجزء من نقاطه، وتظهر حصيلة الصندوق هنا كملخص تشغيلي.</div>
+</div>
 <div class="card"><h2>🎁 استبدال النقاط</h2>
 <div class="grid">
 <div><label>العميل</label><select id="redeemCustomer"><option value="">اختر العميل</option></select></div>
@@ -99,6 +137,8 @@ $("save").onclick=()=>{
  if((type==="redeem"||type==="charity")&&p>balance(id)){notice("الرصيد غير كافٍ",true);return}
  if(type==="adjust"&&p<0){notice("التسوية يجب ألا تكون سالبة",true);return}
  transaction(id,type,p,$("reference").value.trim(),$("notes").value.trim());notice("تم تسجيل عملية النقاط");
+ const next="record.html?type=customers&id="+encodeURIComponent(id);
+ if(window.TWMSUI&&TWMSUI.afterSave){TWMSUI.afterSave("تم تسجيل عملية النقاط",next);return;}
  $("pointsInput").value="";$("reference").value="";$("notes").value="";renderAll()
 };
 $("redeemCustomer").onchange=()=>{$("available").value=balance($("redeemCustomer").value);$("discount").value=(Number($("redeemPoints").value||0)*POINT_VALUE).toFixed(2)};
@@ -122,4 +162,49 @@ function renderAll(){
 $("date").value=today();loadCustomers();renderAll();
 </script>
 
+
+<script>
+(function(){
+ const C=window.WorkshopCore;
+ const actor=window.TWMS_CURRENT_USER||{id:"admin-ui",name:"مدير النظام",role:"admin"};
+ const $=id=>document.getElementById(id);
+ function customers(){
+   return C.list(C.KEYS.customers).filter(x=>!x.archived);
+ }
+ function fill(id){
+   const el=$(id); if(!el)return;
+   el.innerHTML='<option value="">اختر العميل</option>'+customers().map(c=>'<option value="'+String(c.id).replace(/"/g,'&quot;')+'">'+String(c.name||c.fullName||c.id).replace(/</g,'&lt;')+'</option>').join('');
+ }
+ function refreshRef(){
+   fill("referrerCustomer");fill("referredCustomer");
+   const cid=$("referrerCustomer")&&$("referrerCustomer").value;
+   if(cid){ const x=C.ensureReferralCode(cid,actor); $("referralCode").value=x.code; }
+   const fund=C.charityFundSummary(); $("fundPoints").textContent=fund.points; $("fundOperations").textContent=fund.operations;
+ }
+ function renderPromos(){
+   const box=$("promotionList"); if(!box)return;
+   const ps=C.listPromotions({today:new Date().toISOString().slice(0,10)});
+   box.innerHTML=ps.length?ps.map(p=>'<div class="row"><b>'+String(p.name)+'</b><span>+'+Number(p.bonusPoints||0)+' نقطة | خصم '+Number(p.discount||0)+'</span></div>').join(""):'<div class="info">لا توجد عروض فعالة.</div>';
+ }
+ $("generateReferralBtn")?.addEventListener("click",()=>{
+   const cid=$("referrerCustomer").value;if(!cid)return alert("اختر العميل المُحيل.");
+   const x=C.ensureReferralCode(cid,actor);$("referralCode").value=x.code;
+ });
+ $("registerReferralBtn")?.addEventListener("click",()=>{
+   const rid=$("referredCustomer").value,code=$("referralInput").value.trim();
+   if(!rid||!code)return alert("اختر العميل الجديد وأدخل الكود.");
+   try{const x=C.registerReferral(rid,code,actor);$("referralSummary").textContent="تم تسجيل الإحالة: "+x.id+" — الحالة: "+x.status;refreshRef();}
+   catch(e){alert(e.message);}
+ });
+ $("savePromotionBtn")?.addEventListener("click",()=>{
+   try{
+     const p=C.savePromotion({name:$("promotionName").value,bonusPoints:Number($("promotionBonus").value||0),discount:Number($("promotionDiscount").value||0),startDate:$("promotionStart").value,endDate:$("promotionEnd").value,status:"active"},actor);
+     $("promotionName").value="";renderPromos();alert("تم إنشاء العرض "+p.name);
+   }catch(e){alert(e.message);}
+ });
+ refreshRef();renderPromos();
+})();
+</script>
+
+<script>if("serviceWorker" in navigator){window.addEventListener("load",()=>navigator.serviceWorker.register("sw.js").catch(()=>{}));}</script>
 </body></html>

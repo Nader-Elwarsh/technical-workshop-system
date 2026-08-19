@@ -1,7 +1,8 @@
 <!doctype html>
 <html lang="ar" dir="rtl">
 <head>
-<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta charset="utf-8"><link rel="manifest" href="manifest.json">
+<meta name="viewport" content="width=device-width,initial-scale=1">
 <title>إدارة الأجهزة - الورشة الفنية</title>
 <style>
 *{box-sizing:border-box}body{margin:0;background:#f4f6f8;color:#172033;font-family:Arial,Tahoma,sans-serif}
@@ -126,5 +127,7 @@ function openHash(){const h=new URLSearchParams(String(location.hash||"").replac
 window.openDetail=openDetail;window.edit=edit;window.permanentDelete=permanentDelete;window.back=back;
 try{check();loadTypes();loadBrands();loadCustomers();render();$("openRegister").onclick=()=>openRegister();$("cancel").onclick=closeRegister;$("save").onclick=save;$("customer").onchange=showCustomer;$("type").onchange=loadSubtypes;$("brand").onchange=toggleBrandCustom;["qDevice","qCustomer","qType","qSubtype","qBrand","qCondition","qOrder","qInvoice"].forEach(i=>$(i).oninput=render);openHash();}catch(e){alert(e.message||"تعذر تشغيل وحدة الأجهزة.");console.error(e)}
 </script>
+
+<script>if("serviceWorker" in navigator){window.addEventListener("load",()=>navigator.serviceWorker.register("sw.js").catch(()=>{}));}</script>
 </body>
 </html>

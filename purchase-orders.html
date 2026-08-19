@@ -2,6 +2,7 @@
 <html lang="ar" dir="rtl">
 <head>
 <meta charset="UTF-8">
+<link rel="manifest" href="manifest.json">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="theme-color" content="#07152f">
 <title>طلبات الشراء - الورشة الفنية</title>
@@ -37,7 +38,6 @@ table{width:100%;border-collapse:collapse}th,td{padding:9px;border-bottom:1px so
 <div class="stat"><b id="pending">0</b>معلقة</div>
 <div class="stat"><b id="approved">0</b>معتمدة</div>
 <div class="stat"><b id="receiving">0</b>قيد الاستلام</div>
-<div class="stat"><b id="spent">0</b>إجمالي القيمة</div>
 </div>
 </div>
 
@@ -157,7 +157,7 @@ function renderList(){
 }
 function renderHistory(){let t=arr(TR).filter(x=>String(x.type).includes("شراء")).slice(0,80);$("history").innerHTML=t.length?'<table><thead><tr><th>التاريخ</th><th>الصنف</th><th>الكمية</th><th>قبل</th><th>بعد</th><th>المرجع</th></tr></thead><tbody>'+t.map(x=>'<tr><td>'+esc(x.date)+'</td><td>'+esc(x.itemName||x.itemId)+'</td><td>'+esc(x.qty)+'</td><td>'+esc(x.before)+'</td><td>'+esc(x.after)+'</td><td>'+esc(x.ref||"")+'</td></tr>').join("")+'</tbody></table>':'<div class="empty">لا توجد عمليات استلام.</div>'}
 function renderAll(){
- let a=arr(KEY);$("total").textContent=a.length;$("pending").textContent=a.filter(x=>["مسودة","معلقة"].includes(x.status)).length;$("approved").textContent=a.filter(x=>x.status==="معتمدة").length;$("receiving").textContent=a.filter(x=>["قيد الاستلام","مستلمة جزئيًا"].includes(x.status)).length;$("spent").textContent=a.reduce((n,x)=>n+total(x),0).toFixed(2);
+ let a=arr(KEY);$("total").textContent=a.length;$("pending").textContent=a.filter(x=>["مسودة","معلقة"].includes(x.status)).length;$("approved").textContent=a.filter(x=>x.status==="معتمدة").length;$("receiving").textContent=a.filter(x=>["قيد الاستلام","مستلمة جزئيًا"].includes(x.status)).length;
  loadSuppliers();$("receiveOrder").innerHTML='<option value="">اختر الطلب</option>'+a.filter(x=>["معتمدة","قيد الاستلام","مستلمة جزئيًا"].includes(x.status)).map(x=>'<option value="'+esc(x.id)+'">'+esc(x.id)+' — '+esc(x.supplierName)+'</option>').join("");renderList();renderReceiveLines();renderHistory()
 }
 $("addLine").onclick=()=>addLine();$("save").onclick=saveOrder;$("cancel").onclick=reset;$("search").oninput=renderList;$("filterStatus").onchange=renderList;$("filterSupplier").onchange=renderList;$("receiveOrder").onchange=renderReceiveLines;$("receive").onclick=receive;
@@ -165,5 +165,37 @@ $("list").onclick=e=>{let b=e.target.closest("button[data-a]");if(!b)return;let 
 $("date").value=today();$("receiveDate").value=today();reset();renderAll();
 </script>
 
+
+<div class="card" id="purchaseReceivingCard">
+<h2>📥 استلام ومرتجع المشتريات</h2>
+<div class="grid">
+<div><label>رقم طلب الشراء</label><input id="purchaseReceiveOrderId" placeholder="PO-000001"></div>
+<div><label>الصنف</label><input id="purchaseReceiveItemId" placeholder="ITM-000001"></div>
+<div><label>الكمية</label><input id="purchaseReceiveQty" type="number" min="0.01" step="0.01"></div>
+<div><label>ملاحظات</label><input id="purchaseReceiveNotes"></div>
+</div>
+<div class="actions">
+<button class="primary" id="receivePurchaseBtn">📥 تسجيل الاستلام</button>
+<button class="danger" id="returnPurchaseBtn">↩️ مرتجع للمورد</button>
+</div>
+<div id="purchaseReceiveMessage" class="info">يجب اعتماد طلب الشراء قبل الاستلام.</div>
+</div>
+<script>
+(function(){
+ const C=window.WorkshopCore,A=window.TWMS_ACTOR||{id:"LOCAL-ADMIN",name:"المدير",role:"admin"};
+ const vals=()=>({purchaseOrderId:document.getElementById("purchaseReceiveOrderId").value.trim(),itemId:document.getElementById("purchaseReceiveItemId").value.trim(),qty:Number(document.getElementById("purchaseReceiveQty").value),notes:document.getElementById("purchaseReceiveNotes").value});
+ function show(x){document.getElementById("purchaseReceiveMessage").textContent=x;}
+ document.getElementById("receivePurchaseBtn")?.addEventListener("click",()=>{
+  try{const v=vals(),po=C.receivePurchase({purchaseOrderId:v.purchaseOrderId,items:[{itemId:v.itemId,qty:v.qty}],notes:v.notes},A);show("تم الاستلام. حالة الطلب: "+po.status);}
+  catch(e){show("❌ "+e.message);}
+ });
+ document.getElementById("returnPurchaseBtn")?.addEventListener("click",()=>{
+  try{const v=vals(),ret=C.returnPurchase(v.purchaseOrderId,[{itemId:v.itemId,qty:v.qty}],v.notes,A);show("تم تسجيل المرتجع: "+ret.id);}
+  catch(e){show("❌ "+e.message);}
+ });
+})();
+</script>
+
+<script>if("serviceWorker" in navigator){window.addEventListener("load",()=>navigator.serviceWorker.register("sw.js").catch(()=>{}));}</script>
 </body>
 </html>

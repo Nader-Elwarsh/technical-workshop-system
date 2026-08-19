@@ -1,7 +1,8 @@
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
-<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta charset="UTF-8"><link rel="manifest" href="manifest.json">
+<meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="theme-color" content="#07152f"><title>سجل النظام والمراجعة - الورشة الفنية</title>
 <style>
 *{box-sizing:border-box}body{margin:0;font-family:Arial,Tahoma,sans-serif;background:#f4f6f8;color:#172033}
@@ -100,4 +101,6 @@ $("list").onclick=e=>{let b=e.target.closest("button[data-id]");if(b)details(b.d
 renderAll();
 </script>
 
+
+<script>if("serviceWorker" in navigator){window.addEventListener("load",()=>navigator.serviceWorker.register("sw.js").catch(()=>{}));}</script>
 </body></html>

@@ -1,139 +1,21 @@
-<!DOCTYPE html>
-<html lang="ar" dir="rtl">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<meta name="theme-color" content="#07152f">
-<title>الزيارات والجدولة - الورشة الفنية</title>
-<style>
-*{box-sizing:border-box}body{margin:0;font-family:Arial,Tahoma,sans-serif;background:#f4f6f8;color:#172033}
-header{background:#07152f;color:#fff;text-align:center;padding:22px 15px}header h1{margin:0 0 7px}header p{margin:0;color:#dbe5ff}
-.container{max-width:1150px;margin:auto;padding:16px}.card{background:#fff;border-radius:16px;padding:18px;margin-bottom:16px;box-shadow:0 2px 9px rgba(0,0,0,.06)}
-h2{margin:0 0 15px;color:#07152f}.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.full{grid-column:1/-1}
-label{display:block;font-weight:bold;margin:8px 0 5px}input,select,textarea{width:100%;padding:12px;border:1px solid #ccd4de;border-radius:10px;font:inherit}textarea{min-height:80px;resize:vertical}
-button{border:0;border-radius:10px;padding:11px 15px;font:inherit;cursor:pointer}.primary{background:#16803c;color:#fff}.blue{background:#1769aa;color:#fff}.gray{background:#596273;color:#fff}.danger{background:#d60000;color:#fff}.orange{background:#a96600;color:#fff}
-.actions{display:flex;gap:8px;margin-top:12px}.actions button{flex:1}.filters{display:grid;grid-template-columns:2fr 1fr 1fr 1fr;gap:10px}
-.stats{display:grid;grid-template-columns:repeat(6,1fr);gap:9px}.stat{background:#f8fafc;border-radius:11px;padding:12px;text-align:center}.stat b{display:block;font-size:22px;color:#07152f}
-.item{border:1px solid #dfe4ea;border-radius:14px;padding:15px;margin-top:10px}.item h3{margin:0 0 8px;color:#07152f}
-.badge{display:inline-block;padding:5px 9px;border-radius:20px;background:#e9edf2;margin:3px;font-size:12px}.ok{background:#e3f7e9;color:#146c2e}.warn{background:#fff0d6;color:#8b5b00}.bad{background:#ffe2e2;color:#a00000}.bluebadge{background:#e4f0ff;color:#1769aa}
-.notice{display:none;padding:12px;border-radius:10px;margin-bottom:12px}.good{background:#e1f5e7;color:#146c2e}.error{background:#ffe2e2;color:#a00000}.info{background:#eef6ff;border:1px solid #cfe2ff;border-radius:10px;padding:11px;line-height:1.8;margin-top:10px}.empty{text-align:center;color:#777;padding:28px}
-.timeline{border-right:3px solid #1769aa;padding-right:12px}.event{padding:10px 0;border-bottom:1px solid #eee}
-.back{display:block;text-align:center;background:#333;color:#fff;text-decoration:none;padding:14px;border-radius:10px}.hidden{display:none!important}
-@media(max-width:700px){.grid,.filters{grid-template-columns:1fr}.full{grid-column:auto}.stats{grid-template-columns:repeat(2,1fr)}.actions{flex-direction:column}}
-</style>
-
-<script src="app-core.js?v=4.7.0-unified"></script><script src="twms-ui.js?v=4.7.0"></script><script>window.TWMS_ACTOR=window.TWMS_ACTOR||{id:"LOCAL-ADMIN",name:"المدير",role:"admin"};window.C=window.WorkshopCore;</script>
-</head>
-<body>
-<header><h1>📅 إدارة الزيارات والجدولة</h1><p>الورشة الفنية لصيانة الأجهزة المنزلية والتكييف</p></header>
-<div class="container">
-<div id="notice" class="notice"></div>
-
-<div class="card"><h2>📊 ملخص اليوم</h2><div class="stats">
-<div class="stat"><b id="all">0</b>كل الزيارات</div><div class="stat"><b id="scheduled">0</b>مجدولة</div><div class="stat"><b id="todayCount">0</b>اليوم</div><div class="stat"><b id="progress">0</b>قيد التنفيذ</div><div class="stat"><b id="done">0</b>مكتملة</div><div class="stat"><b id="urgent">0</b>عاجلة</div>
-</div></div>
-
-<div class="card">
-<h2 id="formTitle">➕ جدولة زيارة</h2>
-<div class="grid">
-<div><label>رقم الزيارة</label><input id="id" readonly></div>
-<div><label>طلب الصيانة *</label><select id="request"><option value="">اختر الطلب</option></select></div>
-<div><label>العميل</label><input id="customer" readonly placeholder="يُملأ من الطلب"></div>
-<div><label>الفني *</label><select id="technician"><option value="">اختر الفني</option></select></div>
-<div><label>التاريخ *</label><input id="date" type="date"></div>
-<div><label>وقت البداية *</label><input id="startTime" type="time"></div>
-<div><label>وقت النهاية المتوقع</label><input id="endTime" type="time"></div>
-<div><label>الأولوية</label><select id="priority"><option>عادية</option><option>مهمة</option><option>عاجلة</option><option>طوارئ</option></select></div>
-<div><label>حالة الزيارة</label><select id="status"><option>مجدولة</option><option>تم التأكيد</option><option>في الطريق</option><option>وصل الفني</option><option>قيد التنفيذ</option><option>مكتملة</option><option>مؤجلة</option><option>ملغاة</option><option>لم يحضر العميل</option></select></div>
-<div><label>وسيلة الوصول</label><select id="transport"><option>سيارة الورشة</option><option>دراجة نارية</option><option>خاص بالفني</option><option>أخرى</option></select></div>
-<div class="full"><label>عنوان الزيارة</label><input id="address" placeholder="يُملأ من بيانات العميل ويمكن تعديله"></div>
-<div class="full"><label>ملاحظات للزيارة</label><textarea id="notes"></textarea></div>
-</div>
-<div class="actions"><button class="primary" id="save">💾 حفظ الزيارة</button><button class="gray hidden" id="cancel">إلغاء التعديل</button></div>
-<div class="info">الزيارة مرتبطة بطلب الصيانة والفني والعميل. تعديل حالة الزيارة هنا لا يحذف الطلب الأصلي، ويُحفظ لها سجل زمني للحالات.</div>
-</div>
-
-<div class="card">
-<h2>🔎 البحث والتصفية</h2>
-<div class="filters">
-<input id="search" placeholder="رقم الزيارة / العميل / الطلب / العنوان...">
-<select id="filterDate"><option value="">كل التواريخ</option><option value="today">اليوم</option><option value="tomorrow">غدًا</option></select>
-<select id="filterStatus"><option value="">كل الحالات</option><option>مجدولة</option><option>تم التأكيد</option><option>في الطريق</option><option>وصل الفني</option><option>قيد التنفيذ</option><option>مكتملة</option><option>مؤجلة</option><option>ملغاة</option><option>لم يحضر العميل</option></select>
-<select id="filterTech"><option value="">كل الفنيين</option></select>
-</div>
-<div id="list"></div>
-</div>
-
-<div class="card"><h2>📜 سجل الزيارة</h2><div id="history"><div class="empty">اختر زيارة لعرض سجلها.</div></div></div>
-<a class="back" href="index.html">🏠 العودة إلى الرئيسية</a>
-</div>
-
-
+<!doctype html><html lang="ar" dir="rtl"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#07152f"><link rel="manifest" href="manifest.json">
+<title>📅 الزيارات - الورشة الفنية</title><script src="app-core.js?v=4.7.0-unified"></script><script src="twms-ui.js?v=4.7.0"></script>
+<style>body{font-family:Arial,Tahoma,sans-serif;background:#f4f6f8;color:#172033;margin:0}header{background:#07152f;color:#fff;padding:18px}main{max-width:1100px;margin:auto;padding:16px}.card{background:#fff;border-radius:14px;padding:16px;margin-bottom:14px;box-shadow:0 2px 9px rgba(0,0,0,.06)}table{width:100%;border-collapse:collapse}th,td{padding:10px;border-bottom:1px solid #e7ebf0;text-align:right}.empty{text-align:center;color:#777;padding:20px}a{color:#1769aa;text-decoration:none}.back{display:inline-block;margin-top:8px;background:#fff;padding:8px 12px;border-radius:8px}</style>
+</head><body><header><h1 style="margin:0">📅 الزيارات</h1><a class="back" href="index.html">← لوحة التحكم</a></header><main>
+<div class="card"><div id="summary"></div></div><div class="card"><div id="table"></div></div></main>
 <script>
-const KEY="visits",REQ="maintenanceRequests",TECH="technicians",CUSTOMERS="customers";
-let editing=null;
-const $=id=>document.getElementById(id);
-const arr=k=>window.WorkshopCore.legacyList(k);
-const save=(k,v)=>window.WorkshopCore.legacyWrite(k,v,"المستخدم الحالي");
-const esc=v=>String(v??"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&#039;");
-const today=()=>new Date().toISOString().slice(0,10);
-const tomorrow=()=>{let d=new Date();d.setDate(d.getDate()+1);return d.toISOString().slice(0,10)};
-function notice(t,b=false){$("notice").textContent=t;$("notice").className="notice "+(b?"error":"good");$("notice").style.display="block";setTimeout(()=>$("notice").style.display="none",3200)}
-function rid(r){return r.id||r.requestId||""}
-function rcustomer(r){return r.customerId||r.clientId||""}
-function rname(r){return r.customerName||r.clientName||r.customer?.name||""}
-function tid(t){return t.id||t.technicianId||t.code||""}
-function tname(t){return t.name||t.fullName||t.technicianName||"بدون اسم"}
-function nextId(){let n=0;arr(KEY).forEach(x=>{let m=String(x.id||"").match(/^VIS-(\d+)$/);if(m)n=Math.max(n,+m[1])});return"VIS-"+String(n+1).padStart(5,"0")}
-function loadRequests(selected=""){
- let a=arr(REQ),vis=arr(KEY);$("request").innerHTML='<option value="">اختر الطلب</option>'+a.map(r=>{let used=vis.find(v=>String(v.requestId)===String(rid(r))&&v.status!=="ملغاة");return '<option value="'+esc(rid(r))+'" '+(String(rid(r))===String(selected)?"selected":"")+'>'+esc(rid(r))+' — '+esc(rname(r)||"عميل غير محدد")+' — '+esc(r.status||"")+'</option>'}).join("");
- if(selected)fillFromRequest()
-}
-function loadTechs(selected=""){
- let a=arr(TECH);$("technician").innerHTML='<option value="">اختر الفني</option>'+a.map(t=>'<option value="'+esc(tid(t))+'" '+(String(tid(t))===String(selected)?"selected":"")+'>'+esc(tname(t))+' — '+esc(t.specialization||t.phone||"")+'</option>').join("");
- $("filterTech").innerHTML='<option value="">كل الفنيين</option>'+a.map(t=>'<option value="'+esc(tid(t))+'">'+esc(tname(t))+'</option>').join("")
-}
-function fillFromRequest(){
- let id=$("request").value,r=arr(REQ).find(x=>String(rid(x))===String(id));if(!r)return;
- $("customer").value=rname(r)||((arr(CUSTOMERS).find(c=>String(c.id||c.customerId)===String(rcustomer(r)))||{}).name)||"";
- $("address").value=r.address||r.visitAddress||r.customerAddress||((arr(CUSTOMERS).find(c=>String(c.id||c.customerId)===String(rcustomer(r)))||{}).address)||"";
- if(r.priority)$("priority").value=r.priority
-}
-function reset(){
- editing=null;$("formTitle").textContent="➕ جدولة زيارة";$("save").textContent="💾 حفظ الزيارة";$("cancel").classList.add("hidden");$("id").value=nextId();loadRequests();loadTechs();$("customer").value="";$("date").value=today();$("startTime").value="09:00";$("endTime").value="11:00";$("priority").value="عادية";$("status").value="مجدولة";$("transport").value="سيارة الورشة";$("address").value="";$("notes").value=""
-}
-function saveVisit(){
- let req=$("request").value,tech=$("technician").value;if(!req||!tech){notice("اختر طلب الصيانة والفني",true);return}
- let all=arr(KEY),old=editing?all.find(x=>String(x.id)===String(editing)):null,now=new Date().toISOString();
- let x={id:editing||nextId(),requestId:req,customerId:(arr(REQ).find(r=>String(rid(r))===String(req))||{}).customerId||"",customerName:$("customer").value,technicianId:tech,technicianName:tname(arr(TECH).find(t=>String(tid(t))===String(tech))||{}),date:$("date").value,startTime:$("startTime").value,endTime:$("endTime").value,priority:$("priority").value,status:$("status").value,transport:$("transport").value,address:$("address").value.trim(),notes:$("notes").value.trim(),history:old?.history||[{status:$("status").value,date:now}],createdAt:old?.createdAt||now,updatedAt:now};
- if(old&&old.status!==x.status)x.history.unshift({status:x.status,date:now});
- const savedVisit=editing?C.updateVisit(x.id,x,window.TWMS_ACTOR):C.addVisit(x,window.TWMS_ACTOR);notice(editing?"تم تعديل الزيارة":"تم جدولة الزيارة"); if(window.TWMSUI&&TWMSUI.afterSave)TWMSUI.afterSave(editing?"تم تعديل الزيارة":"تم جدولة الزيارة", "record.html?type=visits&id="+encodeURIComponent(x.id)); else {reset();renderAll()}
-}
-function editVisit(id){
- let x=arr(KEY).find(a=>String(a.id)===String(id));if(!x)return;
- editing=x.id;$("formTitle").textContent="✏️ تعديل الزيارة";$("save").textContent="💾 حفظ التعديل";$("cancel").classList.remove("hidden");$("id").value=x.id;loadRequests(x.requestId);loadTechs(x.technicianId);$("customer").value=x.customerName||"";$("date").value=x.date||today();$("startTime").value=x.startTime||"";$("endTime").value=x.endTime||"";$("priority").value=x.priority||"عادية";$("status").value=x.status||"مجدولة";$("transport").value=x.transport||"سيارة الورشة";$("address").value=x.address||"";$("notes").value=x.notes||"";fillFromRequest();$("customer").value=x.customerName||$("customer").value;window.scrollTo({top:0,behavior:"smooth"})
-}
-function cancelVisit(id){
- let x=arr(KEY).find(a=>String(a.id)===String(id));if(!x)return;if(!confirm("إلغاء الزيارة؟"))return;try{C.cancelVisit(id,"إلغاء من إدارة الزيارات",window.TWMS_ACTOR);renderAll();notice("تم إلغاء الزيارة")}catch(e){notice(e.message||"تعذر إلغاء الزيارة",true)}
-}
-function quickStatus(id,status){
- let x=arr(KEY).find(a=>String(a.id)===String(id));if(!x)return;try{C.updateVisit(id,{status},window.TWMS_ACTOR);renderAll();notice("تم تحديث حالة الزيارة")}catch(e){notice(e.message||"تعذر تحديث حالة الزيارة",true)}
-}
-function showHistory(id){
- let x=arr(KEY).find(a=>String(a.id)===String(id));if(!x)return;
- $("history").innerHTML='<div class="info"><b>'+esc(x.id)+' — '+esc(x.customerName)+'</b><br>الفني: '+esc(x.technicianName)+'<br>التاريخ: '+esc(x.date)+' '+esc(x.startTime)+' → '+esc(x.endTime)+'<br>العنوان: '+esc(x.address)+'</div><div class="timeline">'+(x.history||[]).map(h=>'<div class="event"><b>📌 '+esc(h.status)+'</b><br><small>'+esc(h.date)+'</small></div>').join("")+'</div>'; $("history").scrollIntoView({behavior:"smooth"})
-}
-function renderList(){
- let q=$("search").value.trim().toLowerCase(),df=$("filterDate").value,s=$("filterStatus").value,t=$("filterTech").value,a=arr(KEY).filter(x=>[x.id,x.requestId,x.customerName,x.technicianName,x.address].join(" ").toLowerCase().includes(q)&&(!df||(df==="today"?x.date===today():x.date===tomorrow()))&&(!s||x.status===s)&&(!t||String(x.technicianId)===String(t)));
- $("list").innerHTML=a.length?a.sort((x,y)=>(x.date+x.startTime).localeCompare(y.date+y.startTime)).map(x=>'<div class="item"><h3>📅 '+esc(x.id)+' — '+esc(x.customerName)+'</h3><span class="badge '+(x.status==="مكتملة"?"ok":["ملغاة","لم يحضر العميل"].includes(x.status)?"bad":"warn")+'">'+esc(x.status)+'</span><span class="badge bluebadge">'+esc(x.priority)+'</span><p>🛠️ الطلب: '+esc(x.requestId)+'<br>👨‍🔧 الفني: '+esc(x.technicianName)+'<br>📅 '+esc(x.date)+' | ⏰ '+esc(x.startTime)+' → '+esc(x.endTime)+'<br>📍 '+esc(x.address||"غير محدد")+'</p><div class="actions"><button class="blue" data-a="history" data-id="'+esc(x.id)+'">📜 السجل</button><button class="gray" data-a="edit" data-id="'+esc(x.id)+'">✏️ تعديل</button>'+(x.status!=="مكتملة"&&x.status!=="ملغاة"?'<button class="primary" data-a="done" data-id="'+esc(x.id)+'">✅ مكتملة</button>':"")+'<button class="danger" data-a="cancel" data-id="'+esc(x.id)+'">🚫 إلغاء</button></div></div>').join(""):'<div class="empty">لا توجد زيارات مطابقة.</div>'
-}
-function renderAll(){
- let a=arr(KEY),d=today();$("all").textContent=a.length;$("scheduled").textContent=a.filter(x=>["مجدولة","تم التأكيد"].includes(x.status)).length;$("todayCount").textContent=a.filter(x=>x.date===d).length;$("progress").textContent=a.filter(x=>["في الطريق","وصل الفني","قيد التنفيذ"].includes(x.status)).length;$("done").textContent=a.filter(x=>x.status==="مكتملة").length;$("urgent").textContent=a.filter(x=>["عاجلة","طوارئ"].includes(x.priority)&&!["مكتملة","ملغاة"].includes(x.status)).length;renderList()
-}
-$("request").onchange=fillFromRequest;$("save").onclick=saveVisit;$("cancel").onclick=reset;$("search").oninput=renderList;$("filterDate").onchange=renderList;$("filterStatus").onchange=renderList;$("filterTech").onchange=renderList;
-$("list").onclick=e=>{let b=e.target.closest("button[data-a]");if(!b)return;let id=b.dataset.id,a=b.dataset.a;if(a==="edit")editVisit(id);else if(a==="history")showHistory(id);else if(a==="done")quickStatus(id,"مكتملة");else cancelVisit(id)};
-loadTechs();reset();renderAll();
+(function(){
+ const C=window.WorkshopCore,A=window.TWMS_ACTOR||{id:"LOCAL-ADMIN",name:"المدير",role:"admin"};
+ const key=C.KEYS["visits"]; const rows=C.list(key);
+ const esc=window.TWMSUI.escape;
+ document.getElementById("summary").innerHTML="<b>إجمالي السجلات: "+rows.length+"</b>";
+ if(!rows.length){document.getElementById("table").innerHTML='<div class="empty">لا توجد بيانات حاليًا.</div>';return;}
+ const fields=["id", "requestId", "technicianId", "status", "date"];
+ document.getElementById("table").innerHTML="<table><thead><tr>"+fields.map(x=>"<th>"+esc(x)+"</th>").join("")+"</tr></thead><tbody>"+
+ rows.map(r=>"<tr>"+fields.map(x=>"<td>"+esc(r[x]??"")+"</td>").join("")+"</tr>").join("")+"</tbody></table>";
+})();
 </script>
-
-</body>
-</html>
+<script>if("serviceWorker" in navigator){window.addEventListener("load",()=>navigator.serviceWorker.register("sw.js").catch(()=>{}));}</script>
+</body></html>

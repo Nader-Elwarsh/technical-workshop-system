@@ -2,6 +2,7 @@
 <html lang="ar" dir="rtl">
 <head>
 <meta charset="UTF-8">
+<link rel="manifest" href="manifest.json">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="theme-color" content="#07152f">
 <title>بوابة العميل والموقع - الورشة الفنية</title>
@@ -259,5 +260,7 @@ $("login").onclick=login;$("logout").onclick=logout;$("saveSettings").onclick=sa
 $("ratingOrder").onclick=e=>{let b=e.target.closest("[data-rate]");let star=e.target.closest(".star");if(star){let box=star.parentElement, v=Number(star.dataset.v);box.dataset.value=v;box.querySelectorAll(".star").forEach(s=>s.classList.toggle("selected",Number(s.dataset.v)<=v));return}if(b){let box=b.parentElement.querySelector("[data-stars]"),v=Number(box?.dataset.value||0);if(!v){notice("اختر تقييمًا من 1 إلى 5",true);return}let os=myOrders(),o=os.find(x=>String(x.id)===String(b.dataset.rate));try{C.saveRating({customerId:cid(current),customerName:cname(current),requestId:o.id,rating:v,quality:v,technician:v,speed:v,repair:v,communication:v,satisfaction:v,comment:$("comment-"+o.id).value.trim()},portalActor());notice("تم إرسال التقييم");renderRating()}catch(e){notice(e.message||"تعذر إرسال التقييم",true)}}};
 loadSettings();renderFAQ();renderBlog();restore();
 </script>
+
+<script>if("serviceWorker" in navigator){window.addEventListener("load",()=>navigator.serviceWorker.register("sw.js").catch(()=>{}));}</script>
 </body>
 </html>

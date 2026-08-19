@@ -2,6 +2,7 @@
 <html lang="ar" dir="rtl">
 <head>
 <meta charset="UTF-8">
+<link rel="manifest" href="manifest.json">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="theme-color" content="#07152f">
 <title>إدارة العملاء V10.2 — الورشة الفنية</title>
@@ -926,5 +927,7 @@ function openCustomerHash(){try{const h=new URLSearchParams(String(location.hash
 try{requireCore();refreshGovernorates();refreshAddressSelectors();render();renderAddressTools();renderContacts();C.syncRelations();hideRegistration();closeCustomerDetail();openCustomerHash()}catch(e){show(e.message||"تعذر تشغيل وحدة العملاء.",true);console.error(e)}
 })();
 </script>
+
+<script>if("serviceWorker" in navigator){window.addEventListener("load",()=>navigator.serviceWorker.register("sw.js").catch(()=>{}));}</script>
 </body>
 </html>

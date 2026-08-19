@@ -2,6 +2,7 @@
 <html lang="ar" dir="rtl">
 <head>
 <meta charset="UTF-8">
+<link rel="manifest" href="manifest.json">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="theme-color" content="#07152f">
 <title>لوحة التحكم - الورشة الفنية</title>
@@ -127,17 +128,11 @@ function renderStats(){
  const s=C.systemSummary();
  document.getElementById("stats").innerHTML=
   stat("العملاء",s.customers)+
-  stat("الأجهزة",s.devices)+
   stat("طلبات الصيانة",s.requests)+
-  stat("الفنيون",s.technicians)+
-  stat("الزيارات",s.visits)+
-  stat("المسارات",s.routes)+
-  stat("أصناف المخزون",s.inventory)+
-  stat("الفواتير",s.invoices)+
-  stat("المدفوعات",s.payments)+
-  stat("الضمانات",s.warranties)+
-  stat("العقود",s.contracts)+
-  stat("الموردون",s.suppliers);
+  stat("زيارات اليوم",list(C.KEYS.visits).filter(v=>String(v.date||"").slice(0,10)===C.today()).length)+
+  stat("مخزون منخفض",list(C.KEYS.inventory).filter(i=>Number(i.minQuantity??i.minimumQuantity??i.reorderLevel??0)>0 && Number(i.quantity||0)<=Number(i.minQuantity??i.minimumQuantity??i.reorderLevel??0)).length)+
+  stat("فواتير غير مكتملة",list(C.KEYS.invoices).filter(i=>!['مدفوعة','ملغاة','مغلقة','مكتملة'].includes(String(i.status||""))).length)+
+  stat("ضمانات سارية",list(C.KEYS.warranties).filter(w=>!['منتهى','منتهية','ملغى','مغلقة'].includes(String(w.status||""))).length);
 }
 
 function renderAlerts(){
@@ -230,5 +225,7 @@ try{
 
 })();
 </script>
+
+<script>if("serviceWorker" in navigator){window.addEventListener("load",()=>navigator.serviceWorker.register("sw.js").catch(()=>{}));}</script>
 </body>
 </html>

@@ -2,6 +2,7 @@
 <html lang="ar" dir="rtl">
 <head>
 <meta charset="UTF-8">
+<link rel="manifest" href="manifest.json">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="theme-color" content="#07152f">
 <title>الإشعارات والتنبيهات - الورشة الفنية</title>
@@ -36,7 +37,6 @@ button{border:0;border-radius:10px;padding:11px 15px;font:inherit;cursor:pointer
 <div class="stat"><b id="unread">0</b>غير مقروءة</div>
 <div class="stat"><b id="high">0</b>عالية الأولوية</div>
 <div class="stat"><b id="today">0</b>اليوم</div>
-<div class="stat"><b id="users">0</b>مستخدمون مستهدفون</div>
 </div>
 </div>
 
@@ -167,7 +167,7 @@ function scan(){
  $("scanResult").classList.remove("hidden");$("scanResult").textContent="تم فحص النظام وإنشاء "+count+" إشعار جديد. الإشعارات المكررة تم تجاهلها.";renderAll()
 }
 function renderAll(){
- let all=arr(KEY).filter(n=>!n.deleted),now=today();$("total").textContent=all.length;$("unread").textContent=all.filter(n=>!n.read).length;$("high").textContent=all.filter(n=>n.priority==="high").length;$("today").textContent=all.filter(n=>String(n.createdAt).slice(0,10)===now).length;$("users").textContent=new Set(all.map(n=>n.targetId).filter(Boolean)).size;
+ let all=arr(KEY).filter(n=>!n.deleted),now=today();$("total").textContent=all.length;$("unread").textContent=all.filter(n=>!n.read).length;$("high").textContent=all.filter(n=>n.priority==="high").length;$("today").textContent=all.filter(n=>String(n.createdAt).slice(0,10)===now).length;
  $("filterType").innerHTML='<option value="">كل الأنواع</option>'+types().map(x=>'<option>'+esc(x)+'</option>').join("");
  renderList()
 }
@@ -176,5 +176,7 @@ $("list").onclick=e=>{let b=e.target.closest("button[data-a]");if(!b)return;if(b
 loadSettings();loadTargets();renderAll();
 </script>
 
+
+<script>if("serviceWorker" in navigator){window.addEventListener("load",()=>navigator.serviceWorker.register("sw.js").catch(()=>{}));}</script>
 </body>
 </html>
