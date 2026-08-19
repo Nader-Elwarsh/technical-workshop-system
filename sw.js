@@ -1,4 +1,4 @@
-const CACHE="twms-v5-release";
+const CACHE="twms-v5-release-fixed-2";
 const SHELL=[
 "./","index.html","app-core.js","twms-ui.js","manifest.json",
 "customers.html","devices.html","requests.html","record.html","invoices.html","payments.html",
