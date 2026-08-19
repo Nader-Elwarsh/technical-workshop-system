@@ -1,21 +1,118 @@
-<!doctype html><html lang="ar" dir="rtl"><head>
-<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<meta name="theme-color" content="#07152f"><link rel="manifest" href="manifest.json">
-<title>👨‍🔧 الفنيون - الورشة الفنية</title><script src="app-core.js?v=4.7.0-unified"></script><script src="twms-ui.js?v=4.7.0"></script>
-<style>body{font-family:Arial,Tahoma,sans-serif;background:#f4f6f8;color:#172033;margin:0}header{background:#07152f;color:#fff;padding:18px}main{max-width:1100px;margin:auto;padding:16px}.card{background:#fff;border-radius:14px;padding:16px;margin-bottom:14px;box-shadow:0 2px 9px rgba(0,0,0,.06)}table{width:100%;border-collapse:collapse}th,td{padding:10px;border-bottom:1px solid #e7ebf0;text-align:right}.empty{text-align:center;color:#777;padding:20px}a{color:#1769aa;text-decoration:none}.back{display:inline-block;margin-top:8px;background:#fff;padding:8px 12px;border-radius:8px}</style>
-</head><body><header><h1 style="margin:0">👨‍🔧 الفنيون</h1><a class="back" href="index.html">← لوحة التحكم</a></header><main>
-<div class="card"><div id="summary"></div></div><div class="card"><div id="table"></div></div></main>
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#07152f">
+<link rel="manifest" href="manifest.json">
+<title>👨‍🔧 الفنيون - الورشة الفنية</title>
+<script src="app-core.js?v=4.7.0-unified"></script>
+<script src="twms-ui.js?v=4.7.0"></script>
+<style>
+*{box-sizing:border-box}body{font-family:Arial,Tahoma,sans-serif;background:#f4f6f8;color:#172033;margin:0}
+header{background:#07152f;color:#fff;padding:22px 16px}header h1{margin:0 0 8px;font-size:30px}
+header p{margin:0;color:#dbe6ff;font-size:16px}.back{display:inline-block;margin-top:14px;background:#fff;color:#1769aa;padding:10px 14px;border-radius:9px;text-decoration:none}
+main{max-width:1100px;margin:auto;padding:16px}.card{background:#fff;border-radius:16px;padding:16px;margin-bottom:16px;box-shadow:0 2px 10px rgba(0,0,0,.07)}
+.toolbar{display:flex;gap:10px;flex-wrap:wrap;align-items:center}.toolbar input{flex:1;min-width:220px}
+.toolbar button{min-width:150px}label{display:block;font-weight:bold;margin:10px 0 6px}
+input,select,textarea{width:100%;padding:12px;border:1px solid #ccd3dc;border-radius:10px;font-size:16px;background:#fff;color:#172033}
+textarea{min-height:90px;resize:vertical}button{border:0;border-radius:10px;padding:12px 16px;font-size:16px;cursor:pointer;background:#1769aa;color:#fff}
+.btn-green{background:#16833b}.btn-gray{background:#687383}.btn-small{padding:8px 10px;font-size:14px;margin:2px}
+.form-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.full{grid-column:1/-1}
+.form-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}.hidden{display:none}
+.summary{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}.stat{background:#f7f9fc;border:1px solid #e1e6ed;border-radius:12px;padding:14px;text-align:center}
+.stat b{display:block;font-size:25px}.stat span{color:#687383}.table-wrap{overflow:auto}
+table{width:100%;border-collapse:collapse;min-width:800px}th,td{padding:11px;border-bottom:1px solid #e7ebf0;text-align:right;vertical-align:middle}
+th{background:#f7f9fc}.badge{display:inline-block;padding:5px 9px;border-radius:999px;font-size:13px}
+.active{background:#dff5e7;color:#11652e}.inactive{background:#eee;color:#666}.empty{text-align:center;color:#777;padding:28px}
+@media(max-width:650px){.form-grid,.summary{grid-template-columns:1fr}.full{grid-column:auto}header h1{font-size:27px}}
+</style>
+</head>
+<body>
+<header>
+<h1>👨‍🔧 الفنيون</h1>
+<p>إدارة الفنيين وحالاتهم وبيانات التواصل والتخصص</p>
+<a class="back" href="index.html">← لوحة التحكم</a>
+</header>
+<main>
+<div class="card"><div class="toolbar">
+<input id="search" placeholder="🔎 ابحث بالاسم أو الهاتف أو التخصص أو المنطقة">
+<button class="btn-green" id="newBtn">➕ إضافة فني جديد</button>
+</div></div>
+
+<div id="formCard" class="card hidden">
+<h2 id="formTitle">➕ إضافة فني</h2>
+<div class="form-grid">
+<div><label>اسم الفني *</label><input id="name" maxlength="100"></div>
+<div><label>رقم الهاتف *</label><input id="phone" inputmode="tel" maxlength="30"></div>
+<div><label>التخصص</label><input id="specialty" maxlength="100" placeholder="تبريد وتكييف / غسالات / أجهزة منزلية"></div>
+<div><label>المنطقة</label><input id="area" maxlength="100" placeholder="مطاي / بني مزار ..."></div>
+<div><label>الحالة</label><select id="status"><option value="نشط">نشط</option><option value="غير نشط">غير نشط</option></select></div>
+<div class="full"><label>ملاحظات</label><textarea id="notes" maxlength="1000"></textarea></div>
+</div>
+<div class="form-actions"><button class="btn-green" id="saveBtn">💾 حفظ الفني</button><button class="btn-gray" id="cancelBtn">إلغاء</button></div>
+</div>
+
+<div class="card"><div class="summary">
+<div class="stat"><b id="total">0</b><span>إجمالي الفنيين</span></div>
+<div class="stat"><b id="activeCount">0</b><span>فنيون نشطون</span></div>
+<div class="stat"><b id="inactiveCount">0</b><span>غير نشطين</span></div>
+</div></div>
+
+<div class="card"><div class="table-wrap" id="table"></div></div>
+</main>
+
 <script>
 (function(){
- const C=window.WorkshopCore,A=window.TWMS_ACTOR||{id:"LOCAL-ADMIN",name:"المدير",role:"admin"};
- const key=C.KEYS["technicians"]; const rows=C.list(key);
- const esc=window.TWMSUI.escape;
- document.getElementById("summary").innerHTML="<b>إجمالي السجلات: "+rows.length+"</b>";
- if(!rows.length){document.getElementById("table").innerHTML='<div class="empty">لا توجد بيانات حاليًا.</div>';return;}
- const fields=["id", "name", "phone", "status"];
- document.getElementById("table").innerHTML="<table><thead><tr>"+fields.map(x=>"<th>"+esc(x)+"</th>").join("")+"</tr></thead><tbody>"+
- rows.map(r=>"<tr>"+fields.map(x=>"<td>"+esc(r[x]??"")+"</td>").join("")+"</tr>").join("")+"</tbody></table>";
+"use strict";
+const C=window.WorkshopCore;
+const KEY=(C&&C.KEYS&&C.KEYS.technicians)||"technicians";
+let editingId=null;
+const $=id=>document.getElementById(id);
+const esc=window.TWMSUI&&window.TWMSUI.escape?window.TWMSUI.escape:(v)=>String(v??"").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[m]));
+
+function rows(){return C&&typeof C.list==="function"?C.list(KEY):JSON.parse(localStorage.getItem(KEY)||"[]");}
+function write(v){localStorage.setItem(KEY,JSON.stringify(v));}
+function nextId(){
+ let max=0;rows().forEach(r=>{const n=parseInt(String(r.id||"").replace(/\D/g,""),10);if(!isNaN(n))max=Math.max(max,n)});
+ return "TECH-"+String(max+1).padStart(5,"0");
+}
+function reset(){
+ editingId=null;$("formTitle").textContent="➕ إضافة فني";
+ ["name","phone","specialty","area","notes"].forEach(x=>$(x).value="");
+ $("status").value="نشط";$("formCard").classList.add("hidden");
+}
+function openForm(r){
+ editingId=r?r.id:null;$("formTitle").textContent=r?"✏️ تعديل الفني":"➕ إضافة فني";
+ $("name").value=r?.name||"";$("phone").value=r?.phone||"";$("specialty").value=r?.specialty||"";
+ $("area").value=r?.area||"";$("status").value=r?.status||"نشط";$("notes").value=r?.notes||"";
+ $("formCard").classList.remove("hidden");window.scrollTo({top:0,behavior:"smooth"});
+}
+function render(){
+ const all=rows(),q=$("search").value.trim().toLowerCase();
+ const filtered=all.filter(r=>[r.id,r.name,r.phone,r.specialty,r.area,r.status].some(v=>String(v||"").toLowerCase().includes(q)));
+ $("total").textContent=all.length;$("activeCount").textContent=all.filter(r=>r.status!=="غير نشط").length;
+ $("inactiveCount").textContent=all.filter(r=>r.status==="غير نشط").length;
+ if(!filtered.length){$("table").innerHTML='<div class="empty">لا توجد بيانات مطابقة حاليًا.<br><button class="btn-green" style="margin-top:10px" id="emptyAdd">➕ إضافة أول فني</button></div>';$("#emptyAdd").onclick=()=>openForm(null);return;}
+ $("table").innerHTML='<table><thead><tr><th>الكود</th><th>الاسم</th><th>الهاتف</th><th>التخصص</th><th>المنطقة</th><th>الحالة</th><th>الإجراءات</th></tr></thead><tbody>'+
+ filtered.map(r=>'<tr><td>'+esc(r.id)+'</td><td><b>'+esc(r.name)+'</b></td><td>'+esc(r.phone)+'</td><td>'+esc(r.specialty||"-")+'</td><td>'+esc(r.area||"-")+'</td><td><span class="badge '+(r.status==="غير نشط"?"inactive":"active")+'">'+esc(r.status||"نشط")+'</span></td><td><button class="btn-small" data-edit="'+esc(r.id)+'">✏️ تعديل</button><button class="btn-small '+(r.status==="غير نشط"?"btn-green":"btn-gray")+'" data-toggle="'+esc(r.id)+'">'+(r.status==="غير نشط"?"✅ تفعيل":"⏸️ تعطيل")+'</button></td></tr>').join("")+
+ "</tbody></table>";
+ document.querySelectorAll("[data-edit]").forEach(b=>b.onclick=()=>{const r=rows().find(x=>x.id===b.dataset.edit);if(r)openForm(r)});
+ document.querySelectorAll("[data-toggle]").forEach(b=>b.onclick=()=>{const a=rows(),i=a.findIndex(x=>x.id===b.dataset.toggle);if(i<0)return;a[i].status=a[i].status==="غير نشط"?"نشط":"غير نشط";a[i].updatedAt=new Date().toISOString();write(a);render();});
+}
+$("newBtn").onclick=()=>openForm(null);$("cancelBtn").onclick=reset;$("search").oninput=render;
+$("saveBtn").onclick=()=>{
+ const name=$("name").value.trim(),phone=$("phone").value.trim();
+ if(!name||!phone){alert("من فضلك أدخل اسم الفني ورقم الهاتف.");return}
+ const a=rows(),now=new Date().toISOString(),isEdit=!!editingId;
+ const data={id:editingId||nextId(),name,phone,specialty:$("specialty").value.trim(),area:$("area").value.trim(),status:$("status").value,notes:$("notes").value.trim(),updatedAt:now};
+ if(editingId){const i=a.findIndex(x=>x.id===editingId);if(i>=0)a[i]=Object.assign({},a[i],data)}
+ else{data.createdAt=now;a.unshift(data)}
+ write(a);reset();render();alert(isEdit?"تم تعديل بيانات الفني بنجاح.":"تمت إضافة الفني بنجاح.");
+};
+render();
 })();
 </script>
 <script>if("serviceWorker" in navigator){window.addEventListener("load",()=>navigator.serviceWorker.register("sw.js").catch(()=>{}));}</script>
-</body></html>
+</body>
+</html>
